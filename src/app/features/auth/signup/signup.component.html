@@ -1,0 +1,107 @@
+<div class="auth-page">
+
+  <div class="auth-card">
+
+    <h1>Create Account</h1>
+
+    <p>Start protecting your farm with FarmGuard AI</p>
+
+    <form (ngSubmit)="signup()">
+
+      <div class="form-group">
+        <label for="fullName">Full Name</label>
+
+        <input
+          id="fullName"
+          type="text"
+          name="fullName"
+          [(ngModel)]="fullName"
+          placeholder="Enter your full name"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+
+        <input
+          id="email"
+          type="email"
+          name="email"
+          [(ngModel)]="email"
+          placeholder="Enter your email"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="phone">Phone</label>
+
+        <input
+          id="phone"
+          type="tel"
+          name="phone"
+          [(ngModel)]="phone"
+          placeholder="Enter your phone number"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+
+        <input
+          id="password"
+          type="password"
+          name="password"
+          [(ngModel)]="password"
+          placeholder="Create a password"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password</label>
+
+        <input
+          id="confirmPassword"
+          type="password"
+          name="confirmPassword"
+          [(ngModel)]="confirmPassword"
+          placeholder="Confirm your password"
+          required
+        />
+      </div>
+
+      @if (errorMessage()) {
+        <div class="error-message">
+          {{ errorMessage() }}
+        </div>
+      }
+
+      @if (successMessage()) {
+        <div class="success-message">
+          {{ successMessage() }}
+        </div>
+      }
+
+      <button
+        type="submit"
+        [disabled]="loading()"
+      >
+        @if (loading()) {
+          Creating account...
+        } @else {
+          Create Account
+        }
+      </button>
+
+    </form>
+
+    <p>
+      Already have an account?
+      <a routerLink="/login">Sign In</a>
+    </p>
+
+  </div>
+
+</div>
