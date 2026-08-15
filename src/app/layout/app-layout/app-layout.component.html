@@ -1,13 +1,244 @@
-<div class="app-shell">
-  <app-sidebar />
+<mat-sidenav-container class="app-shell">
+  <!-- ========================================= -->
+  <!-- Mobile Drawer -->
+  <!-- ========================================= -->
 
-  <main class="main-content">
-    <app-topbar />
+  <mat-sidenav #mobileDrawer class="mobile-drawer" mode="over" position="start">
+    <div class="mobile-drawer-header">
+      <div class="brand">
+        <img src="/favicon.ico" alt="FarmGuard AI" class="brand-logo" />
 
-    <div class="page-content">
-      <router-outlet />
+        <div class="brand-text">
+          <strong>FarmGuard</strong>
+          <span>AI</span>
+        </div>
+      </div>
+
+      <button mat-icon-button (click)="mobileDrawer.close()">
+        <mat-icon> close </mat-icon>
+      </button>
     </div>
-  </main>
-</div>
 
-<app-mobile-nav />
+    <mat-divider></mat-divider>
+
+    <app-sidebar class="mobile-sidebar"> </app-sidebar>
+
+    <div class="mobile-drawer-footer">
+      <button mat-button class="logout-button" (click)="logout()">
+        <mat-icon> logout </mat-icon>
+
+        Logout
+      </button>
+    </div>
+  </mat-sidenav>
+
+  <!-- ========================================= -->
+  <!-- Main Content -->
+  <!-- ========================================= -->
+
+  <mat-sidenav-content>
+    <!-- ======================================= -->
+    <!-- Desktop Sidebar -->
+    <!-- ======================================= -->
+
+    <app-sidebar class="desktop-sidebar"></app-sidebar>
+
+    <!-- ======================================= -->
+    <!-- Main Area -->
+    <!-- ======================================= -->
+
+    <div class="main-wrapper">
+      <!-- ===================================== -->
+      <!-- Topbar -->
+      <!-- ===================================== -->
+
+      <header class="topbar">
+        <!-- Mobile menu -->
+        <button
+          mat-icon-button
+          class="mobile-menu-button"
+          aria-label="Open navigation"
+          (click)="mobileDrawer.open()"
+        >
+          <mat-icon> menu </mat-icon>
+        </button>
+
+        <!-- Page title / mobile brand -->
+
+        <div class="topbar-title">
+          <span class="mobile-brand-name"> FarmGuard <strong>AI</strong> </span>
+        </div>
+
+        <div class="topbar-actions">
+          <!-- ================================= -->
+          <!-- Notifications -->
+          <!-- ================================= -->
+
+          <button
+            mat-icon-button
+            class="topbar-icon-button"
+            [matMenuTriggerFor]="notificationMenu"
+            aria-label="Notifications"
+          >
+            <mat-icon
+              [matBadge]="unreadNotifications"
+              [matBadgeHidden]="unreadNotifications === 0"
+              matBadgeColor="warn"
+              matBadgeSize="small"
+            >
+              notifications
+            </mat-icon>
+          </button>
+
+          <mat-menu #notificationMenu="matMenu" class="notification-menu">
+            <div class="notification-header" (click)="$event.stopPropagation()">
+              <div>
+                <strong> Notifications </strong>
+
+                @if (unreadNotifications > 0) {
+                  <span> {{ unreadNotifications }} unread </span>
+                }
+              </div>
+
+              @if (unreadNotifications > 0) {
+                <button mat-button (click)="markAllAsRead()">
+                  Mark all read
+                </button>
+              }
+            </div>
+
+            <mat-divider></mat-divider>
+
+            @if (notifications.length === 0) {
+              <div class="empty-notifications">
+                <mat-icon> notifications_none </mat-icon>
+
+                <span> No notifications </span>
+              </div>
+            } @else {
+              @for (notification of notifications; track notification.id) {
+                <button
+                  mat-menu-item
+                  class="notification-item"
+                  [class.unread]="!notification.read"
+                  (click)="markNotificationAsRead(notification.id)"
+                >
+                  <div
+                    class="notification-icon"
+                    [class]="'notification-' + notification.type"
+                  >
+                    <mat-icon>
+                      {{ notification.icon }}
+                    </mat-icon>
+                  </div>
+
+                  <div class="notification-content">
+                    <strong>
+                      {{ notification.title }}
+                    </strong>
+
+                    <span>
+                      {{ notification.message }}
+                    </span>
+
+                    <small>
+                      {{ notification.time }}
+                    </small>
+                  </div>
+
+                  @if (!notification.read) {
+                    <span class="unread-dot"></span>
+                  }
+                </button>
+              }
+            }
+
+            <mat-divider></mat-divider>
+
+            <button
+              mat-menu-item
+              class="view-notifications"
+              routerLink="/alerts"
+            >
+              <span> View all alerts </span>
+
+              <mat-icon> arrow_forward </mat-icon>
+            </button>
+          </mat-menu>
+
+          <!-- ================================= -->
+          <!-- User Menu -->
+          <!-- ================================= -->
+
+          <button
+            type="button"
+            class="user-button"
+            [matMenuTriggerFor]="userMenu"
+          >
+            <div class="avatar">
+              {{ user.initials }}
+            </div>
+
+            <div class="user-info">
+              <strong class="user-name">
+                {{ user.name }}
+              </strong>
+
+              <span class="user-role"> Farm Manager </span>
+            </div>
+
+            <mat-icon class="user-chevron"> expand_more </mat-icon>
+          </button>
+
+          <mat-menu #userMenu="matMenu">
+            <div class="user-menu-header">
+              <div class="large-avatar">
+                {{ user.initials }}
+              </div>
+
+              <div>
+                <strong>
+                  {{ user.name }}
+                </strong>
+
+                <span>
+                  {{ user.email }}
+                </span>
+              </div>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <button mat-menu-item routerLink="/profile">
+              <mat-icon> person </mat-icon>
+
+              <span> Profile </span>
+            </button>
+
+            <button mat-menu-item routerLink="/settings">
+              <mat-icon> settings </mat-icon>
+
+              <span> Settings </span>
+            </button>
+
+            <mat-divider></mat-divider>
+
+            <button mat-menu-item class="logout-menu-item" (click)="logout()">
+              <mat-icon> logout </mat-icon>
+
+              <span> Logout </span>
+            </button>
+          </mat-menu>
+        </div>
+      </header>
+
+      <!-- ===================================== -->
+      <!-- Page Content -->
+      <!-- ===================================== -->
+
+      <main class="page-content">
+        <router-outlet></router-outlet>
+      </main>
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>

@@ -1,48 +1,626 @@
 :host {
   display: block;
+  min-height: 100vh;
 }
+
+/* =====================================================
+   Main Shell
+===================================================== */
 
 .app-shell {
   min-height: 100vh;
-  background: #f8faf7;
+
+  background: #f7faf7;
 }
 
-.main-content {
-  min-height: 100vh;
-  margin-left: 260px;
-  transition: margin-left 0.25s ease;
+/* =====================================================
+   Desktop Sidebar
+===================================================== */
+
+.desktop-sidebar {
+  position: fixed;
+
+  top: 0;
+  left: 0;
+
+  width: 260px;
+  height: 100vh;
+
+  z-index: 1000;
 }
+
+/* =====================================================
+   Main Wrapper
+===================================================== */
+
+.main-wrapper {
+  min-height: 100vh;
+
+  margin-left: 260px;
+}
+
+/* =====================================================
+   Topbar
+===================================================== */
+
+.topbar {
+  position: sticky;
+
+  top: 0;
+
+  z-index: 900;
+
+  height: 72px;
+
+  display: flex;
+  align-items: center;
+
+  padding: 0 28px;
+
+  background: rgba(255, 255, 255, 0.94);
+
+  border-bottom: 1px solid #e8eee9;
+
+  backdrop-filter: blur(12px);
+}
+
+.topbar-title {
+  flex: 1;
+}
+
+.mobile-brand-name {
+  display: none;
+
+  color: #173b28;
+
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.mobile-brand-name strong {
+  color: #087f3d;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+}
+
+/* =====================================================
+   Icon Buttons
+===================================================== */
+
+.topbar-icon-button {
+  color: #526158;
+}
+
+.topbar-icon-button:hover {
+  background: #f1f6f2;
+}
+
+/* =====================================================
+   User Button
+===================================================== */
+
+.user-button {
+  box-sizing: border-box;
+  min-height: 52px;
+  max-width: 260px;
+
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-start;
+
+  gap: 12px;
+
+  padding: 6px 10px 6px 6px;
+
+  border: 1px solid #e4ebe6;
+  border-radius: 12px;
+
+  background: #f8fbf9;
+
+  color: #35463c;
+  line-height: 1;
+  overflow: hidden;
+  cursor: pointer;
+  white-space: nowrap;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.user-button:hover {
+  background: #f0f6f2;
+  border-color: #d6e2da;
+  box-shadow: 0 2px 10px rgba(16, 56, 35, 0.08);
+}
+
+.avatar,
+.large-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: #dff0e5;
+
+  color: #087f3d;
+
+  font-weight: 700;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+
+  font-size: 13px;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: flex-start;
+
+  gap: 1px;
+}
+
+.user-name {
+  max-width: 135px;
+  overflow: hidden;
+
+  color: #35463c;
+
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.15;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-role {
+  max-width: 135px;
+  overflow: hidden;
+
+  color: #89958d;
+
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-chevron {
+  margin-left: auto;
+
+  color: #89958d;
+
+  font-size: 18px;
+}
+
+/* =====================================================
+   Page Content
+===================================================== */
 
 .page-content {
-  padding: 32px;
-  min-height: calc(100vh - 70px);
+  padding: 28px;
 }
 
+/* =====================================================
+   Mobile Menu Button
+===================================================== */
 
-/* =========================================
-   TABLET
-========================================= */
+.mobile-menu-button {
+  display: none;
+
+  color: #35463c;
+}
+
+/* =====================================================
+   Mobile Drawer
+===================================================== */
+
+.mobile-drawer {
+  width: 280px;
+
+  border-radius: 0 !important;
+
+  background: #ffffff;
+}
+
+.mobile-drawer-header {
+  height: 72px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 14px 0 20px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+
+  gap: 9px;
+}
+
+.brand-logo {
+  width: 34px;
+  height: 34px;
+
+  object-fit: contain;
+}
+
+.brand-text {
+  display: flex;
+  align-items: baseline;
+
+  gap: 3px;
+}
+
+.brand-text strong {
+  color: #173b28;
+
+  font-size: 17px;
+}
+
+.brand-text span {
+  color: #087f3d;
+
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.mobile-sidebar {
+  display: block;
+
+  width: 100%;
+}
+
+.mobile-drawer-footer {
+  position: absolute;
+
+  bottom: 0;
+  left: 0;
+  right: 0;
+
+  padding: 12px;
+
+  border-top: 1px solid #edf1ee;
+}
+
+.logout-button {
+  width: 100%;
+
+  justify-content: flex-start;
+
+  color: #c43d3d;
+}
+
+/* =====================================================
+   Notification Menu
+===================================================== */
+
+.notification-header {
+  min-width: 350px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 14px 16px;
+}
+
+.notification-header > div {
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.notification-header strong {
+  color: #304239;
+
+  font-size: 14px;
+}
+
+.notification-header span {
+  color: #89958d;
+
+  font-size: 10px;
+}
+
+.notification-header button {
+  min-width: auto;
+
+  padding: 0 8px;
+
+  color: #087f3d;
+
+  font-size: 10px;
+}
+
+.notification-item {
+  position: relative;
+
+  width: 100%;
+
+  min-height: 72px !important;
+
+  display: flex !important;
+  align-items: flex-start !important;
+
+  gap: 10px;
+
+  padding: 10px 16px !important;
+
+  white-space: normal !important;
+}
+
+.notification-item.unread {
+  background: #f5faf6;
+}
+
+.notification-icon {
+  width: 34px;
+  height: 34px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 auto;
+
+  margin-top: 2px;
+
+  border-radius: 9px;
+}
+
+.notification-icon mat-icon {
+  font-size: 18px;
+}
+
+.notification-danger {
+  background: #ffebeb;
+  color: #c43d3d;
+}
+
+.notification-info {
+  background: #e8f5ed;
+  color: #087f3d;
+}
+
+.notification-warning {
+  background: #fff4dc;
+  color: #ae7100;
+}
+
+.notification-content {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: flex-start;
+
+  gap: 3px;
+
+  padding-right: 10px;
+}
+
+.notification-content strong {
+  color: #35463c;
+
+  font-size: 11px;
+}
+
+.notification-content span {
+  overflow: hidden;
+
+  color: #7b877f;
+
+  font-size: 10px;
+
+  text-overflow: ellipsis;
+}
+
+.notification-content small {
+  color: #a0aaa4;
+
+  font-size: 9px;
+}
+
+.unread-dot {
+  position: absolute;
+
+  top: 15px;
+  right: 12px;
+
+  width: 6px;
+  height: 6px;
+
+  border-radius: 50%;
+
+  background: #087f3d;
+}
+
+.empty-notifications {
+  min-height: 160px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  color: #9aa59e;
+
+  font-size: 11px;
+}
+
+.empty-notifications mat-icon {
+  font-size: 30px;
+}
+
+.view-notifications {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+
+  gap: 5px;
+
+  color: #087f3d;
+}
+
+.view-notifications mat-icon {
+  font-size: 17px;
+}
+
+/* =====================================================
+   User Menu
+===================================================== */
+
+.user-menu-header {
+  min-width: 250px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+
+  padding: 14px 16px;
+}
+
+.large-avatar {
+  width: 42px;
+  height: 42px;
+
+  flex: 0 0 auto;
+}
+
+.user-menu-header > div:last-child {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.user-menu-header strong {
+  color: #35463c;
+
+  font-size: 12px;
+}
+
+.user-menu-header span {
+  overflow: hidden;
+
+  color: #89958d;
+
+  font-size: 10px;
+
+  text-overflow: ellipsis;
+}
+
+.logout-menu-item {
+  color: #c43d3d !important;
+}
+
+.logout-menu-item mat-icon {
+  color: #c43d3d !important;
+}
+
+/* =====================================================
+   Tablet
+===================================================== */
 
 @media (max-width: 991.98px) {
+  .desktop-sidebar {
+    display: none;
+  }
 
-  .main-content {
+  .main-wrapper {
     margin-left: 0;
   }
 
+  .mobile-menu-button {
+    display: inline-flex;
+  }
+
+  .mobile-brand-name {
+    display: inline-block;
+  }
+
+  .topbar {
+    padding: 0 18px;
+  }
+
   .page-content {
-    padding: 24px;
+    padding: 22px;
   }
 }
 
-
-/* =========================================
-   MOBILE
-========================================= */
+/* =====================================================
+   Mobile
+===================================================== */
 
 @media (max-width: 767.98px) {
+  .topbar {
+    height: 64px;
+
+    padding: 0 10px;
+  }
+
+  .topbar-actions {
+    gap: 0;
+  }
+
+  .user-button {
+    min-width: auto;
+
+    padding: 4px;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    max-width: none;
+  }
+
+  .user-info,
+  .user-button > mat-icon {
+    display: none;
+  }
 
   .page-content {
     padding: 16px;
-    padding-bottom: 90px;
+  }
+}
+
+/* =====================================================
+   Small Mobile
+===================================================== */
+
+@media (max-width: 399.98px) {
+  .mobile-brand-name {
+    font-size: 16px;
+  }
+
+  .mobile-drawer {
+    width: 270px;
   }
 }
