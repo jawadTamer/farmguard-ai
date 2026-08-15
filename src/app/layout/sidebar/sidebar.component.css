@@ -1,0 +1,132 @@
+.sidebar {
+  width: 260px;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  background: #ffffff;
+  border-right: 1px solid #e5ebe6;
+
+  padding: 24px 16px;
+
+  z-index: 1000;
+}
+
+/* Brand */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 4px 12px 28px;
+}
+
+.brand-logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #163a27;
+}
+
+.brand-subtitle {
+  margin-top: 2px;
+
+  font-size: 11px;
+  font-weight: 600;
+
+  color: #8a968e;
+
+  letter-spacing: 0.02em;
+}
+
+/* Navigation */
+
+.navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nav-item {
+  width: 100%;
+  min-height: 44px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+
+  padding: 10px 12px;
+
+  border: none;
+  border-radius: 10px;
+
+  background: transparent;
+
+  color: #66736b;
+
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+
+  text-decoration: none;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.nav-item:hover {
+  background: #f1f7f2;
+  color: #087f3d;
+}
+
+.nav-item.active {
+  background: #e8f5ed;
+  color: #087f3d;
+}
+
+.material-symbols-outlined {
+  font-size: 21px;
+}
+
+/* Divider */
+
+.nav-divider {
+  height: 1px;
+  background: #edf1ee;
+
+  margin: 14px 8px;
+}
+
+/* Bottom */
+
+.sidebar-bottom {
+  margin-top: auto;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+}
+
+.logout-button {
+  font-family: inherit;
+}
