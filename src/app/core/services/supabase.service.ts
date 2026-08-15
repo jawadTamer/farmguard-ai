@@ -14,7 +14,7 @@ export class SupabaseService {
   constructor() {
 
     this.client = createClient(
-      'https://dcdjntjzcqmhaxpcualb.supabase.co/rest/v1/',
+      'https://dcdjntjzcqmhaxpcualb.supabase.co',
       'sb_publishable_YoNfUY6N1pO7MjDgASRxjw_qG8_LW20'
     );
 
