@@ -1,21 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background: #f8faf7;
+  color: #163a27;
+}
+
 * {
   box-sizing: border-box;
 }
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  min-height: 100%;
-}
-
-body {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-}
-
-app-root {
-  display: block;
-  width: 100%;
-  min-height: 100vh;
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }

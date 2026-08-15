@@ -10,8 +10,39 @@
 .main-content {
   min-height: 100vh;
   margin-left: 260px;
+  transition: margin-left 0.25s ease;
 }
 
 .page-content {
   padding: 32px;
+  min-height: calc(100vh - 70px);
+}
+
+
+/* =========================================
+   TABLET
+========================================= */
+
+@media (max-width: 991.98px) {
+
+  .main-content {
+    margin-left: 0;
+  }
+
+  .page-content {
+    padding: 24px;
+  }
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 767.98px) {
+
+  .page-content {
+    padding: 16px;
+    padding-bottom: 90px;
+  }
 }

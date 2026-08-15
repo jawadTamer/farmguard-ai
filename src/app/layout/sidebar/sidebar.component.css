@@ -130,3 +130,11 @@
 .logout-button {
   font-family: inherit;
 }
+
+@media (max-width: 991.98px) {
+
+  .sidebar {
+    display: none;
+  }
+
+}
