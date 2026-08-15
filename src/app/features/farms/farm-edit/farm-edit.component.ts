@@ -147,39 +147,40 @@ export class FarmEditComponent implements OnInit {
 
     this.farmId = id;
 
-    const farm =
-      this.farmService.getFarmById(id);
+    this.farmService.getFarmById(id).then(farm => {
 
-    if (!farm) {
+      if (!farm) {
 
-      this.notFound = true;
+        this.notFound = true;
+        this.isLoading = false;
+
+        return;
+
+      }
+
+      this.farm = farm;
+
+      this.farmForm.patchValue({
+
+        name: farm.name,
+
+        location: farm.location,
+
+        area: farm.area ?? null,
+
+        areaUnit: farm.areaUnit ?? 'acre',
+
+        status: farm.status,
+
+        latitude: farm.latitude ?? null,
+
+        longitude: farm.longitude ?? null
+
+      });
+
       this.isLoading = false;
 
-      return;
-
-    }
-
-    this.farm = farm;
-
-    this.farmForm.patchValue({
-
-      name: farm.name,
-
-      location: farm.location,
-
-      area: farm.area ?? null,
-
-      areaUnit: farm.areaUnit ?? 'acre',
-
-      status: farm.status,
-
-      latitude: farm.latitude ?? null,
-
-      longitude: farm.longitude ?? null
-
     });
-
-    this.isLoading = false;
 
   }
 
@@ -211,10 +212,6 @@ export class FarmEditComponent implements OnInit {
           location: formValue.location,
 
           area: formValue.area,
-
-          areaUnit: formValue.areaUnit,
-
-          status: formValue.status,
 
           latitude: formValue.latitude,
 

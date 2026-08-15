@@ -1,71 +1,49 @@
 import { Injectable } from '@angular/core';
+
 import { Farm } from '../models/farm.model';
+import { SupabaseService } from '../supabase/supabase.service';
+
+export interface CreateFarmData {
+  name: string;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  area?: number;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class FarmService {
 
-  private farms: Farm[] = [
-
-    {
-      id: 'farm-001',
-      name: 'Main Tomato Farm',
-      location: 'Fayoum, Egypt',
-
-      latitude: 29.3084,
-      longitude: 30.8428,
-
-      area: 25,
-      areaUnit: 'acre',
-
-      status: 'active',
-
-      zonesCount: 4,
-      cropsCount: 3,
-      livestockCount: 0
-    },
-
-    {
-      id: 'farm-002',
-      name: 'Green Valley',
-      location: 'Fayoum, Egypt',
-
-      area: 18,
-      areaUnit: 'acre',
-
-      status: 'active',
-
-      zonesCount: 3,
-      cropsCount: 2,
-      livestockCount: 12
-    },
-
-    {
-      id: 'farm-003',
-      name: 'North Field',
-      location: 'Fayoum, Egypt',
-
-      area: 30,
-      areaUnit: 'acre',
-
-      status: 'active',
-
-      zonesCount: 5,
-      cropsCount: 4,
-      livestockCount: 0
-    }
-
-  ];
-
+  constructor(
+    private readonly supabaseService: SupabaseService
+  ) {}
 
   // =====================================================
   // Get All Farms
   // =====================================================
 
-  getFarms(): Farm[] {
+  async getFarms(): Promise<Farm[]> {
 
-    return [...this.farms];
+    const {
+      data,
+      error
+    } = await this.supabaseService.client
+      .from('farms')
+      .select('*')
+      .order('created_at', {
+        ascending: false
+      });
+
+    if (error) {
+      console.error('Failed to load farms:', error);
+      throw error;
+    }
+
+    return (data ?? []).map(
+      farm => this.mapFarm(farm)
+    );
 
   }
 
@@ -74,13 +52,29 @@ export class FarmService {
   // Get Farm By ID
   // =====================================================
 
-  getFarmById(
+  async getFarmById(
     id: string
-  ): Farm | undefined {
+  ): Promise<Farm | undefined> {
 
-    return this.farms.find(
-      farm => farm.id === id
-    );
+    const {
+      data,
+      error
+    } = await this.supabaseService.client
+      .from('farms')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Failed to load farm:', error);
+      throw error;
+    }
+
+    if (!data) {
+      return undefined;
+    }
+
+    return this.mapFarm(data);
 
   }
 
@@ -89,47 +83,70 @@ export class FarmService {
   // Add Farm
   // =====================================================
 
-  addFarm(
-    farmData: Omit<
-      Farm,
-      | 'id'
-      | 'zonesCount'
-      | 'cropsCount'
-      | 'livestockCount'
-    >
-  ): Farm {
+  async addFarm(
+    farmData: CreateFarmData
+  ): Promise<Farm> {
 
-    const newFarm: Farm = {
-
-      id: this.generateFarmId(),
-
-      name: farmData.name,
-
-      location: farmData.location,
-
-      latitude: farmData.latitude,
-
-      longitude: farmData.longitude,
-
-      area: farmData.area,
-
-      areaUnit: farmData.areaUnit,
-
-      status: farmData.status,
-
-      zonesCount: 0,
-
-      cropsCount: 0,
-
-      livestockCount: 0
-
-    };
+    // Get authenticated user
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await this.supabaseService.client.auth.getUser();
 
 
-    this.farms.push(newFarm);
+    if (userError) {
+      throw userError;
+    }
 
 
-    return newFarm;
+    if (!user) {
+      throw new Error(
+        'You must be logged in to create a farm.'
+      );
+    }
+
+
+    // Insert into Supabase
+    const {
+      data,
+      error
+    } = await this.supabaseService.client
+      .from('farms')
+      .insert({
+
+        owner_id: user.id,
+
+        name: farmData.name,
+
+        latitude:
+          farmData.latitude ?? null,
+
+        longitude:
+          farmData.longitude ?? null,
+
+        area:
+          farmData.area ?? null
+
+      })
+      .select()
+      .single();
+
+
+    if (error) {
+
+      console.error(
+        'Failed to create farm:',
+        error
+      );
+
+      throw error;
+
+    }
+
+
+    return this.mapFarm(data);
 
   }
 
@@ -138,34 +155,49 @@ export class FarmService {
   // Update Farm
   // =====================================================
 
-  updateFarm(
+  async updateFarm(
     id: string,
-    farmData: Partial<Farm>
-  ): Farm | undefined {
+    farmData: Partial<CreateFarmData>
+  ): Promise<Farm> {
 
-    const index =
-      this.farms.findIndex(
-        farm => farm.id === id
+    const {
+      data,
+      error
+    } = await this.supabaseService.client
+      .from('farms')
+      .update({
+
+        name:
+          farmData.name,
+
+        latitude:
+          farmData.latitude ?? null,
+
+        longitude:
+          farmData.longitude ?? null,
+
+        area:
+          farmData.area ?? null
+
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+
+    if (error) {
+
+      console.error(
+        'Failed to update farm:',
+        error
       );
 
+      throw error;
 
-    if (index === -1) {
-      return undefined;
     }
 
 
-    this.farms[index] = {
-
-      ...this.farms[index],
-
-      ...farmData,
-
-      id
-
-    };
-
-
-    return this.farms[index];
+    return this.mapFarm(data);
 
   }
 
@@ -174,36 +206,79 @@ export class FarmService {
   // Delete Farm
   // =====================================================
 
-  deleteFarm(
+  async deleteFarm(
     id: string
-  ): boolean {
+  ): Promise<void> {
 
-    const index =
-      this.farms.findIndex(
-        farm => farm.id === id
+    const {
+      error
+    } = await this.supabaseService.client
+      .from('farms')
+      .delete()
+      .eq('id', id);
+
+
+    if (error) {
+
+      console.error(
+        'Failed to delete farm:',
+        error
       );
 
+      throw error;
 
-    if (index === -1) {
-      return false;
     }
-
-
-    this.farms.splice(index, 1);
-
-
-    return true;
 
   }
 
 
   // =====================================================
-  // Generate Farm ID
+  // Map Supabase → Angular Model
   // =====================================================
 
-  private generateFarmId(): string {
+  private mapFarm(
+    data: any
+  ): Farm {
 
-    return `farm-${Date.now()}`;
+    return {
+
+      id: data.id,
+
+      name: data.name,
+
+      // Temporary until we have a dedicated
+      // location field in Supabase.
+      location: 'Fayoum, Egypt',
+
+      latitude:
+        data.latitude ?? undefined,
+
+      longitude:
+        data.longitude ?? undefined,
+
+      area:
+        data.area ?? undefined,
+
+      // Supabase currently does not have areaUnit.
+      areaUnit: 'acre',
+
+      // Supabase currently does not have status.
+      status: 'active',
+
+      // These will come from related tables later.
+      zonesCount: 0,
+
+      cropsCount: 0,
+
+      livestockCount: 0,
+
+      createdAt:
+        data.created_at ?? undefined,
+
+      updatedAt:
+        data.updated_at ?? undefined
+
+    };
 
   }
 

@@ -55,7 +55,7 @@ export class FarmDetailsComponent implements OnInit {
 
   ngOnInit(): void {
 
-    this.loadFarm();
+    void this.loadFarm();
 
   }
 
@@ -64,7 +64,7 @@ export class FarmDetailsComponent implements OnInit {
   // Load Farm
   // =====================================================
 
-  private loadFarm(): void {
+  private async loadFarm(): Promise<void> {
 
     const farmId =
       this.route.snapshot.paramMap.get('id');
@@ -82,7 +82,7 @@ export class FarmDetailsComponent implements OnInit {
 
 
     const farm =
-      this.farmService.getFarmById(farmId);
+      await this.farmService.getFarmById(farmId);
 
 
     if (!farm) {

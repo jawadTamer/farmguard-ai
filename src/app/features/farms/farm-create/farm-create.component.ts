@@ -139,37 +139,36 @@ export class FarmCreateComponent {
   // Submit
   // =====================================================
 
-  onSubmit(): void {
+  async onSubmit(): Promise<void> {
 
-    this.errorMessage = '';
+  this.errorMessage = '';
 
-    if (this.farmForm.invalid) {
+  if (this.farmForm.invalid) {
 
-      this.farmForm.markAllAsTouched();
+    this.farmForm.markAllAsTouched();
 
-      return;
+    return;
 
-    }
+  }
 
-    this.isSubmitting = true;
+  this.isSubmitting = true;
 
-    try {
+  try {
 
-      const formValue =
-        this.farmForm.getRawValue();
+    const formValue =
+      this.farmForm.getRawValue();
 
-
-      this.farmService.addFarm({
+    const farm =
+      await this.farmService.addFarm({
 
         name: formValue.name.trim(),
 
-        location: formValue.location.trim(),
+        location: formValue.location?.trim(),
 
-        area: Number(formValue.area),
-
-        areaUnit: formValue.areaUnit,
-
-        status: formValue.status,
+        area:
+          formValue.area !== null
+            ? Number(formValue.area)
+            : undefined,
 
         latitude:
           formValue.latitude !== null
@@ -183,24 +182,32 @@ export class FarmCreateComponent {
 
       });
 
+    console.log(
+      'Farm created successfully:',
+      farm
+    );
 
-      this.router.navigate(['/farms']);
+    // Navigate only AFTER Supabase INSERT succeeds
+    await this.router.navigate(['/farms']);
 
-    } catch (error) {
+  } catch (error: any) {
 
-      console.error(
-        'Failed to create farm:',
-        error
-      );
+    console.error(
+      'Failed to create farm:',
+      error
+    );
 
-      this.errorMessage =
-        'Something went wrong while creating the farm. Please try again.';
+    this.errorMessage =
+      error?.message ||
+      'Something went wrong while creating the farm. Please try again.';
 
-      this.isSubmitting = false;
+  } finally {
 
-    }
+    this.isSubmitting = false;
 
   }
+
+}
 
 
   // =====================================================

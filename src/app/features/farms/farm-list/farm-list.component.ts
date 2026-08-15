@@ -74,13 +74,15 @@ export class FarmListComponent implements OnInit {
   // Load Farms
   // =====================================================
 
-  loadFarms(): void {
+  async loadFarms(): Promise<void> {
     this.isLoading = true;
 
     try {
-      this.farms = this.farmService.getFarms();
+      this.farms = await this.farmService.getFarms();
 
       this.applyFilters();
+    } catch (error) {
+      console.error('Failed to load farms:', error);
     } finally {
       this.isLoading = false;
     }

@@ -13,6 +13,7 @@ import { TemperatureService } from '../../core/services/temperature.service';
 import { FarmService } from '../../core/services/farm.service';
 import { HeatRiskService } from '../../core/services/heat-risk.service';
 import { AlertService } from '../../core/services/alert.service';
+import { Farm } from '../../core/models/farm.model';
 
 interface StatCard {
   title: string;
@@ -46,14 +47,13 @@ interface RiskItem {
     MatChipsModule,
     MatProgressBarModule,
     MatIconModule,
-    MatMenuModule
+    MatMenuModule,
   ],
 
   templateUrl: './dashboard.component.html',
-  styleUrl: './dashboard.component.css'
+  styleUrl: './dashboard.component.css',
 })
 export class DashboardComponent implements OnInit {
-
   // =====================================================
   // Constructor / Services
   // =====================================================
@@ -62,9 +62,8 @@ export class DashboardComponent implements OnInit {
     private temperatureService: TemperatureService,
     private farmService: FarmService,
     private heatRiskService: HeatRiskService,
-    private alertService: AlertService
+    private alertService: AlertService,
   ) {}
-
 
   // =====================================================
   // Header
@@ -73,7 +72,6 @@ export class DashboardComponent implements OnInit {
   userName = 'Jawad';
 
   currentDate = new Date();
-
 
   // =====================================================
   // Current Farm Status
@@ -85,22 +83,19 @@ export class DashboardComponent implements OnInit {
 
   temperatureStatus = 'Loading...';
 
-  temperatureDescription =
-    'Loading current temperature information...';
-
+  temperatureDescription = 'Loading current temperature information...';
 
   // =====================================================
   // Statistics
   // =====================================================
 
   stats: StatCard[] = [
-
     {
       title: 'Current Temperature',
       value: '--',
       subtitle: 'Loading...',
       icon: 'thermostat',
-      status: 'normal'
+      status: 'normal',
     },
 
     {
@@ -108,7 +103,7 @@ export class DashboardComponent implements OnInit {
       value: '0',
       subtitle: 'Loading farms...',
       icon: 'agriculture',
-      status: 'normal'
+      status: 'normal',
     },
 
     {
@@ -116,7 +111,7 @@ export class DashboardComponent implements OnInit {
       value: '0',
       subtitle: 'Areas need attention',
       icon: 'warning',
-      status: 'normal'
+      status: 'normal',
     },
 
     {
@@ -124,60 +119,55 @@ export class DashboardComponent implements OnInit {
       value: '0',
       subtitle: 'No active alerts',
       icon: 'notifications_active',
-      status: 'normal'
-    }
-
+      status: 'normal',
+    },
   ];
-
 
   // =====================================================
   // Temperature Trend
   // =====================================================
 
   temperaturePoints: TemperaturePoint[] = [
-
     {
       time: '06 AM',
-      temperature: 25
+      temperature: 25,
     },
 
     {
       time: '08 AM',
-      temperature: 28
+      temperature: 28,
     },
 
     {
       time: '10 AM',
-      temperature: 33
+      temperature: 33,
     },
 
     {
       time: '12 PM',
-      temperature: 37
+      temperature: 37,
     },
 
     {
       time: '02 PM',
-      temperature: 41
+      temperature: 41,
     },
 
     {
       time: '04 PM',
-      temperature: 39
+      temperature: 39,
     },
 
     {
       time: '06 PM',
-      temperature: 34
+      temperature: 34,
     },
 
     {
       time: '08 PM',
-      temperature: 30
-    }
-
+      temperature: 30,
+    },
   ];
-
 
   // =====================================================
   // Risk Areas
@@ -185,22 +175,19 @@ export class DashboardComponent implements OnInit {
 
   riskAreas: RiskItem[] = [];
 
-
   // =====================================================
   // AI Recommendations
   // =====================================================
 
   recommendations = [
-
     {
       icon: 'water_drop',
 
       title: 'Irrigation recommended',
 
-      description:
-        'Consider irrigation during the cooler evening period.',
+      description: 'Consider irrigation during the cooler evening period.',
 
-      priority: 'High'
+      priority: 'High',
     },
 
     {
@@ -208,10 +195,9 @@ export class DashboardComponent implements OnInit {
 
       title: 'Avoid peak heat',
 
-      description:
-        'Avoid spraying during peak afternoon temperatures.',
+      description: 'Avoid spraying during peak afternoon temperatures.',
 
-      priority: 'Moderate'
+      priority: 'Moderate',
     },
 
     {
@@ -219,27 +205,23 @@ export class DashboardComponent implements OnInit {
 
       title: 'Increase monitoring',
 
-      description:
-        'Monitor high-risk crop areas during the next 24 hours.',
+      description: 'Monitor high-risk crop areas during the next 24 hours.',
 
-      priority: 'Moderate'
-    }
-
+      priority: 'Moderate',
+    },
   ];
-
 
   // =====================================================
   // Quick Actions
   // =====================================================
 
   quickActions = [
-
     {
       icon: 'add_home',
 
       label: 'Add Farm',
 
-      route: '/farms/create'
+      route: '/farms/create',
     },
 
     {
@@ -247,7 +229,7 @@ export class DashboardComponent implements OnInit {
 
       label: 'Add Crop',
 
-      route: '/crops/create'
+      route: '/crops/create',
     },
 
     {
@@ -255,7 +237,7 @@ export class DashboardComponent implements OnInit {
 
       label: 'Add Livestock',
 
-      route: '/livestock/create'
+      route: '/livestock/create',
     },
 
     {
@@ -263,70 +245,47 @@ export class DashboardComponent implements OnInit {
 
       label: 'Heat Intelligence',
 
-      route: '/heat-intelligence'
-    }
-
+      route: '/heat-intelligence',
+    },
   ];
-
 
   // =====================================================
   // Lifecycle
   // =====================================================
 
   ngOnInit(): void {
-
     this.loadTemperature();
 
-    this.loadFarms();
+    void this.loadFarms();
 
     this.loadHeatRisks();
 
     this.loadAlerts();
-
   }
-
 
   // =====================================================
   // Load Temperature
   // =====================================================
 
   private loadTemperature(): void {
+    const temperature = this.temperatureService.getCurrentTemperature();
 
-    const temperature =
-      this.temperatureService.getCurrentTemperature();
+    this.currentTemperature = temperature.temperature;
 
+    this.feelsLike = temperature.feelsLike ?? temperature.temperature;
 
-    this.currentTemperature =
-      temperature.temperature;
-
-
-    this.feelsLike =
-      temperature.feelsLike ??
-      temperature.temperature;
-
-
-    this.updateTemperatureStatus(
-      this.currentTemperature
-    );
-
+    this.updateTemperatureStatus(this.currentTemperature);
 
     this.updateTemperatureStat();
-
   }
-
 
   // =====================================================
   // Temperature Status
   // =====================================================
 
-  private updateTemperatureStatus(
-    temperature: number
-  ): void {
-
+  private updateTemperatureStatus(temperature: number): void {
     if (temperature >= 42) {
-
-      this.temperatureStatus =
-        'Critical Heat Risk';
+      this.temperatureStatus = 'Critical Heat Risk';
 
       this.temperatureDescription =
         'Temperature has reached a critical level and immediate action may be required.';
@@ -334,11 +293,8 @@ export class DashboardComponent implements OnInit {
       return;
     }
 
-
     if (temperature >= 38) {
-
-      this.temperatureStatus =
-        'High Heat Risk';
+      this.temperatureStatus = 'High Heat Risk';
 
       this.temperatureDescription =
         'Temperature is above the optimal range for some crops.';
@@ -346,11 +302,8 @@ export class DashboardComponent implements OnInit {
       return;
     }
 
-
     if (temperature >= 34) {
-
-      this.temperatureStatus =
-        'Moderate Heat Risk';
+      this.temperatureStatus = 'Moderate Heat Risk';
 
       this.temperatureDescription =
         'Temperature is approaching the upper safe range.';
@@ -358,108 +311,71 @@ export class DashboardComponent implements OnInit {
       return;
     }
 
-
-    this.temperatureStatus =
-      'Low Heat Risk';
+    this.temperatureStatus = 'Low Heat Risk';
 
     this.temperatureDescription =
       'Temperature is currently within a safe range.';
-
   }
-
 
   // =====================================================
   // Update Temperature Stat
   // =====================================================
 
   private updateTemperatureStat(): void {
+    const temperatureStat = this.stats[0];
 
-    const temperatureStat =
-      this.stats[0];
+    temperatureStat.value = `${this.currentTemperature}°C`;
 
-
-    temperatureStat.value =
-      `${this.currentTemperature}°C`;
-
-
-    temperatureStat.subtitle =
-      `Feels like ${this.feelsLike}°C`;
-
+    temperatureStat.subtitle = `Feels like ${this.feelsLike}°C`;
 
     if (this.currentTemperature >= 42) {
-
-      temperatureStat.status =
-        'danger';
-
+      temperatureStat.status = 'danger';
     } else if (this.currentTemperature >= 38) {
-
-      temperatureStat.status =
-        'danger';
-
+      temperatureStat.status = 'danger';
     } else if (this.currentTemperature >= 34) {
-
-      temperatureStat.status =
-        'warning';
-
+      temperatureStat.status = 'warning';
     } else {
-
-      temperatureStat.status =
-        'normal';
-
+      temperatureStat.status = 'normal';
     }
-
   }
-
 
   // =====================================================
   // Load Farms
   // =====================================================
 
-  private loadFarms(): void {
+  private async loadFarms(): Promise<void> {
+    try {
+      const farms = await this.farmService.getFarms();
 
-    const farms =
-      this.farmService.getFarms();
-
-
-    const activeFarms =
-      farms.filter(
-        farm => farm.status === 'active'
+      const activeFarms = farms.filter(
+        (farm: Farm) => farm.status === 'active',
       );
 
+      this.stats[1].value = activeFarms.length.toString();
 
-    this.stats[1].value =
-      activeFarms.length.toString();
+      this.stats[1].subtitle =
+        activeFarms.length === 1 ? '1 farm monitored' : 'All farms monitored';
+    } catch (error) {
+      console.error('Failed to load farms for dashboard:', error);
 
+      this.stats[1].value = '0';
 
-    this.stats[1].subtitle =
-      activeFarms.length === 1
-        ? '1 farm monitored'
-        : 'All farms monitored';
-
+      this.stats[1].subtitle = 'Unable to load farms';
+    }
   }
-
 
   // =====================================================
   // Load Heat Risks
   // =====================================================
 
   private loadHeatRisks(): void {
+    const risks = this.heatRiskService.getRisks();
 
-    const risks =
-      this.heatRiskService.getRisks();
+    const attentionRisks = risks.filter(
+      (risk) => risk.riskLevel === 'high' || risk.riskLevel === 'critical',
+    );
 
-
-    const attentionRisks =
-      risks.filter(
-        risk =>
-          risk.riskLevel === 'high' ||
-          risk.riskLevel === 'critical'
-      );
-
-
-    this.stats[2].value =
-      attentionRisks.length.toString();
-
+    this.stats[2].value = attentionRisks.length.toString();
 
     this.stats[2].subtitle =
       attentionRisks.length === 0
@@ -468,71 +384,47 @@ export class DashboardComponent implements OnInit {
           ? '1 area needs attention'
           : 'Areas need attention';
 
-
     // ================================================
     // Convert service data to Dashboard RiskItem
     // ================================================
 
-    this.riskAreas =
-      risks.map(risk => {
+    this.riskAreas = risks.map((risk) => {
+      let level: 'Low' | 'Moderate' | 'High';
 
-        let level: 'Low' | 'Moderate' | 'High';
+      switch (risk.riskLevel) {
+        case 'critical':
+        case 'high':
+          level = 'High';
 
+          break;
 
-        switch (risk.riskLevel) {
+        case 'moderate':
+          level = 'Moderate';
 
-          case 'critical':
-          case 'high':
+          break;
 
-            level = 'High';
+        default:
+          level = 'Low';
+      }
 
-            break;
+      return {
+        name: this.getRiskAreaName(risk.id),
 
+        type: this.getRiskAreaType(risk.id),
 
-          case 'moderate':
+        level,
 
-            level = 'Moderate';
-
-            break;
-
-
-          default:
-
-            level = 'Low';
-
-        }
-
-
-        return {
-
-          name:
-            this.getRiskAreaName(risk.id),
-
-          type:
-            this.getRiskAreaType(risk.id),
-
-          level,
-
-          temperature:
-            risk.temperature
-
-        };
-
-      });
-
+        temperature: risk.temperature,
+      };
+    });
   }
-
 
   // =====================================================
   // Risk Area Name
   // =====================================================
 
-  private getRiskAreaName(
-    riskId?: string
-  ): string {
-
+  private getRiskAreaName(riskId?: string): string {
     switch (riskId) {
-
       case 'risk-001':
         return 'Tomato Field A';
 
@@ -544,22 +436,15 @@ export class DashboardComponent implements OnInit {
 
       default:
         return 'Farm Area';
-
     }
-
   }
-
 
   // =====================================================
   // Risk Area Type
   // =====================================================
 
-  private getRiskAreaType(
-    riskId?: string
-  ): string {
-
+  private getRiskAreaType(riskId?: string): string {
     switch (riskId) {
-
       case 'risk-001':
         return 'Tomato · Flowering';
 
@@ -571,51 +456,31 @@ export class DashboardComponent implements OnInit {
 
       default:
         return 'Unknown Crop';
-
     }
-
   }
-
 
   // =====================================================
   // Load Alerts
   // =====================================================
 
   private loadAlerts(): void {
+    const alerts = this.alertService.getAlerts();
 
-    const alerts =
-      this.alertService.getAlerts();
+    const activeAlerts = alerts.filter((alert) => !alert.isRead);
 
+    const criticalAlerts = activeAlerts.filter(
+      (alert) => alert.severity === 'critical',
+    );
 
-    const activeAlerts =
-      alerts.filter(
-        alert => !alert.isRead
-      );
-
-
-    const criticalAlerts =
-      activeAlerts.filter(
-        alert =>
-          alert.severity === 'critical'
-      );
-
-
-    this.stats[3].value =
-      activeAlerts.length.toString();
-
+    this.stats[3].value = activeAlerts.length.toString();
 
     if (activeAlerts.length === 0) {
+      this.stats[3].subtitle = 'No active alerts';
 
-      this.stats[3].subtitle =
-        'No active alerts';
-
-      this.stats[3].status =
-        'normal';
+      this.stats[3].status = 'normal';
 
       return;
-
     }
-
 
     this.stats[3].subtitle =
       criticalAlerts.length === 1
@@ -624,21 +489,14 @@ export class DashboardComponent implements OnInit {
           ? `${criticalAlerts.length} critical alerts`
           : 'No critical alerts';
 
-
-    this.stats[3].status =
-      criticalAlerts.length > 0
-        ? 'danger'
-        : 'warning';
-
+    this.stats[3].status = criticalAlerts.length > 0 ? 'danger' : 'warning';
   }
-
 
   // =====================================================
   // Refresh Dashboard
   // =====================================================
 
   refreshDashboard(): void {
-
     this.currentDate = new Date();
 
     this.loadTemperature();
@@ -648,58 +506,42 @@ export class DashboardComponent implements OnInit {
     this.loadHeatRisks();
 
     this.loadAlerts();
-
   }
-
 
   // =====================================================
   // Get Maximum Temperature
   // =====================================================
 
   getMaxTemperature(): number {
-
     if (!this.temperaturePoints.length) {
       return 0;
     }
 
-
     return Math.max(
-      ...this.temperaturePoints.map(
-        point => point.temperature
-      )
+      ...this.temperaturePoints.map((point) => point.temperature),
     );
-
   }
-
 
   // =====================================================
   // Get Minimum Temperature
   // =====================================================
 
   getMinTemperature(): number {
-
     if (!this.temperaturePoints.length) {
       return 0;
     }
 
-
     return Math.min(
-      ...this.temperaturePoints.map(
-        point => point.temperature
-      )
+      ...this.temperaturePoints.map((point) => point.temperature),
     );
-
   }
-
 
   // =====================================================
   // Risk Class
   // =====================================================
 
   getRiskClass(level: string): string {
-
     switch (level) {
-
       case 'High':
         return 'risk-high';
 
@@ -708,20 +550,15 @@ export class DashboardComponent implements OnInit {
 
       default:
         return 'risk-low';
-
     }
-
   }
-
 
   // =====================================================
   // Status Class
   // =====================================================
 
   getStatusClass(status?: string): string {
-
     switch (status) {
-
       case 'danger':
         return 'status-danger';
 
@@ -730,48 +567,35 @@ export class DashboardComponent implements OnInit {
 
       default:
         return 'status-normal';
-
     }
-
   }
-
 
   // =====================================================
   // Temperature Status Class
   // =====================================================
 
   getTemperatureStatusClass(): string {
-
     if (this.currentTemperature >= 42) {
       return 'status-danger';
     }
-
 
     if (this.currentTemperature >= 38) {
       return 'status-danger';
     }
 
-
     if (this.currentTemperature >= 34) {
       return 'status-warning';
     }
 
-
     return 'status-normal';
-
   }
-
 
   // =====================================================
   // Recommendation Priority Class
   // =====================================================
 
-  getRecommendationClass(
-    priority: string
-  ): string {
-
+  getRecommendationClass(priority: string): string {
     switch (priority) {
-
       case 'High':
         return 'priority-high';
 
@@ -780,9 +604,6 @@ export class DashboardComponent implements OnInit {
 
       default:
         return 'priority-low';
-
     }
-
   }
-
 }
