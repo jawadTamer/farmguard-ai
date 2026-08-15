@@ -1,1 +1,396 @@
-<p>farm-list works!</p>
+<div class="farms-page">
+
+  <!-- ================================================= -->
+  <!-- Page Header -->
+  <!-- ================================================= -->
+
+  <div class="page-header">
+
+    <div class="header-content">
+
+      <div>
+
+        <div class="breadcrumb">
+          Dashboard
+          <mat-icon>chevron_right</mat-icon>
+          Farms
+        </div>
+
+        <h1>My Farms</h1>
+
+        <p>
+          Manage and monitor all your farms from one place.
+        </p>
+
+      </div>
+
+
+      <button
+        mat-flat-button
+        class="add-farm-btn"
+        (click)="createFarm()">
+
+        <mat-icon>add</mat-icon>
+
+        Add Farm
+
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- ================================================= -->
+  <!-- Toolbar -->
+  <!-- ================================================= -->
+
+  <div class="toolbar">
+
+    <!-- Search -->
+
+    <div class="search-box">
+
+      <mat-icon>search</mat-icon>
+
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        (ngModelChange)="onSearchChange()"
+        placeholder="Search farms..." />
+
+    </div>
+
+
+    <!-- Status Filter -->
+
+    <div class="status-filter">
+
+      <button
+        mat-button
+        [class.active]="selectedStatus === 'all'"
+        (click)="setStatus('all')">
+
+        All
+
+      </button>
+
+
+      <button
+        mat-button
+        [class.active]="selectedStatus === 'active'"
+        (click)="setStatus('active')">
+
+        Active
+
+      </button>
+
+
+      <button
+        mat-button
+        [class.active]="selectedStatus === 'inactive'"
+        (click)="setStatus('inactive')">
+
+        Inactive
+
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- ================================================= -->
+  <!-- Loading -->
+  <!-- ================================================= -->
+
+  <div
+    *ngIf="isLoading"
+    class="loading-state">
+
+    <mat-icon class="loading-icon">
+      agriculture
+    </mat-icon>
+
+    <p>Loading farms...</p>
+
+  </div>
+
+
+  <!-- ================================================= -->
+  <!-- Empty State -->
+  <!-- ================================================= -->
+
+  <div
+    *ngIf="!isLoading && filteredFarms.length === 0"
+    class="empty-state">
+
+    <div class="empty-icon">
+
+      <mat-icon>agriculture</mat-icon>
+
+    </div>
+
+    <h2>No farms found</h2>
+
+    <p>
+      {{
+        searchTerm
+          ? 'Try changing your search or filters.'
+          : 'Start by adding your first farm.'
+      }}
+    </p>
+
+
+    <button
+      *ngIf="!searchTerm"
+      mat-flat-button
+      class="add-farm-btn"
+      (click)="createFarm()">
+
+      <mat-icon>add</mat-icon>
+
+      Add Your First Farm
+
+    </button>
+
+  </div>
+
+
+  <!-- ================================================= -->
+  <!-- Farms Grid -->
+  <!-- ================================================= -->
+
+  <div
+    *ngIf="!isLoading && filteredFarms.length > 0"
+    class="farms-grid">
+
+    <mat-card
+      class="farm-card"
+      *ngFor="
+        let farm of filteredFarms;
+        trackBy: trackByFarmId
+      ">
+
+
+      <!-- Card Header -->
+
+      <div class="farm-card-header">
+
+        <div class="farm-icon">
+
+          <mat-icon>
+            agriculture
+          </mat-icon>
+
+        </div>
+
+
+        <button
+          mat-icon-button
+          [matMenuTriggerFor]="farmMenu"
+          [matTooltip]="'Farm options'">
+
+          <mat-icon>
+            more_vert
+          </mat-icon>
+
+        </button>
+
+
+        <mat-menu #farmMenu="matMenu">
+
+          <button
+            mat-menu-item
+            (click)="viewFarm(farm.id)">
+
+            <mat-icon>visibility</mat-icon>
+
+            <span>View Details</span>
+
+          </button>
+
+
+          <button
+            mat-menu-item
+            (click)="editFarm(farm.id)">
+
+            <mat-icon>edit</mat-icon>
+
+            <span>Edit Farm</span>
+
+          </button>
+
+
+          <button
+            mat-menu-item
+            class="delete-option"
+            (click)="deleteFarm(farm)">
+
+            <mat-icon>delete</mat-icon>
+
+            <span>Delete Farm</span>
+
+          </button>
+
+        </mat-menu>
+
+      </div>
+
+
+      <!-- Farm Info -->
+
+      <div class="farm-info">
+
+        <div class="farm-title-row">
+
+          <h2>
+            {{ farm.name }}
+          </h2>
+
+
+          <span
+            class="status-badge"
+            [ngClass]="getStatusClass(farm.status)">
+
+            <span class="status-dot"></span>
+
+            {{ getStatusLabel(farm.status) }}
+
+          </span>
+
+        </div>
+
+
+        <div class="location">
+
+          <mat-icon>
+            location_on
+          </mat-icon>
+
+          <span>
+            {{ farm.location }}
+          </span>
+
+        </div>
+
+      </div>
+
+
+      <!-- Farm Stats -->
+
+      <div class="farm-stats">
+
+        <div class="farm-stat">
+
+          <mat-icon>
+            straighten
+          </mat-icon>
+
+          <div>
+
+            <span class="stat-label">
+              Area
+            </span>
+
+            <strong>
+              {{ farm.area || '--' }}
+              {{ farm.areaUnit || '' }}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="farm-stat">
+
+          <mat-icon>
+            grid_view
+          </mat-icon>
+
+          <div>
+
+            <span class="stat-label">
+              Zones
+            </span>
+
+            <strong>
+              {{ farm.zonesCount || 0 }}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="farm-stat">
+
+          <mat-icon>
+            grass
+          </mat-icon>
+
+          <div>
+
+            <span class="stat-label">
+              Crops
+            </span>
+
+            <strong>
+              {{ farm.cropsCount || 0 }}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div
+          class="farm-stat"
+          *ngIf="farm.livestockCount !== undefined">
+
+          <mat-icon>
+            pets
+          </mat-icon>
+
+          <div>
+
+            <span class="stat-label">
+              Livestock
+            </span>
+
+            <strong>
+              {{ farm.livestockCount }}
+            </strong>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- Card Footer -->
+
+      <div class="farm-card-footer">
+
+        <button
+          mat-stroked-button
+          class="view-btn"
+          (click)="viewFarm(farm.id)">
+
+          View Farm
+
+          <mat-icon>
+            arrow_forward
+          </mat-icon>
+
+        </button>
+
+      </div>
+
+    </mat-card>
+
+  </div>
+
+</div>

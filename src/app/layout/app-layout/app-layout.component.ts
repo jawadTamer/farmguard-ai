@@ -10,7 +10,6 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { MatDividerModule } from '@angular/material/divider';
 
 import { SidebarComponent } from '../sidebar/sidebar.component';
-import { MobileNavComponent } from '../mobile-nav/mobile-nav.component';
 
 @Component({
   selector: 'app-app-layout',
@@ -28,8 +27,7 @@ import { MobileNavComponent } from '../mobile-nav/mobile-nav.component';
     MatBadgeModule,
     MatDividerModule,
 
-    SidebarComponent,
-    MobileNavComponent
+    SidebarComponent
   ],
 
   templateUrl: './app-layout.component.html',

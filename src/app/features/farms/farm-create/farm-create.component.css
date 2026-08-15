@@ -1,0 +1,349 @@
+.farm-create-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* =====================================================
+   Header
+===================================================== */
+
+.page-header {
+  margin-bottom: 28px;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+
+  color: #7a857a;
+
+  font-size: 14px;
+  line-height: 1;
+
+  margin-bottom: 10px;
+}
+
+.breadcrumb-back-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+
+  margin-right: 6px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 10px;
+
+  color: #ffffff !important;
+  background: #087f3d;
+}
+
+.breadcrumb-back-btn:hover {
+  background: #066a33;
+}
+
+.breadcrumb span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.breadcrumb mat-icon {
+  width: 18px;
+  height: 18px;
+
+  font-size: 18px;
+}
+
+.breadcrumb-back-btn mat-icon {
+  font-size: 22px;
+}
+
+.page-header h1 {
+  margin: 0;
+
+  color: #172018;
+
+  font-size: 32px;
+
+  font-weight: 700;
+}
+
+.page-header p {
+  margin: 8px 0 0;
+
+  color: #6f796f;
+
+  font-size: 15px;
+}
+
+/* =====================================================
+   Card
+===================================================== */
+
+.form-card {
+  padding: 28px;
+
+  border-radius: 16px !important;
+
+  border: 1px solid #e6ebe6;
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* =====================================================
+   Section
+===================================================== */
+
+.form-section {
+  padding-bottom: 28px;
+
+  margin-bottom: 28px;
+
+  border-bottom: 1px solid #edf0ed;
+}
+
+.form-section:last-of-type {
+  border-bottom: none;
+
+  margin-bottom: 0;
+}
+
+.section-header {
+  display: flex;
+
+  align-items: center;
+
+  gap: 14px;
+
+  margin-bottom: 24px;
+}
+
+.section-icon {
+  width: 46px;
+  height: 46px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+
+  background: #eaf5ea;
+
+  color: #2e7d32;
+}
+
+.section-icon mat-icon {
+  font-size: 24px;
+
+  width: 24px;
+  height: 24px;
+}
+
+.section-header h2 {
+  margin: 0;
+
+  font-size: 18px;
+
+  font-weight: 700;
+
+  color: #172018;
+}
+
+.section-header p {
+  margin: 4px 0 0;
+
+  color: #7a857a;
+
+  font-size: 13px;
+}
+
+/* =====================================================
+   Form Grid
+===================================================== */
+
+.form-grid {
+  display: grid;
+
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  gap: 4px 18px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+/* =====================================================
+   Location Hint
+===================================================== */
+
+.location-hint {
+  display: flex;
+
+  align-items: flex-start;
+
+  gap: 9px;
+
+  margin-top: 4px;
+
+  padding: 12px 14px;
+
+  border-radius: 9px;
+
+  background: #f4f8f4;
+
+  color: #647064;
+
+  font-size: 12px;
+
+  line-height: 1.5;
+}
+
+.location-hint mat-icon {
+  flex-shrink: 0;
+
+  width: 18px;
+  height: 18px;
+
+  font-size: 18px;
+
+  color: #2e7d32;
+}
+
+/* =====================================================
+   Error
+===================================================== */
+
+.error-message {
+  display: flex;
+
+  align-items: center;
+
+  gap: 9px;
+
+  margin-top: 20px;
+
+  padding: 12px 14px;
+
+  border-radius: 9px;
+
+  background: #fff1f1;
+
+  color: #c62828;
+
+  font-size: 13px;
+}
+
+.error-message mat-icon {
+  width: 19px;
+  height: 19px;
+
+  font-size: 19px;
+}
+
+/* =====================================================
+   Actions
+===================================================== */
+
+.form-actions {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: flex-end;
+
+  gap: 10px;
+
+  padding-top: 24px;
+}
+
+.cancel-btn {
+  color: #667066 !important;
+}
+
+.reset-btn {
+  border-color: #d8dfd8 !important;
+
+  color: #596359 !important;
+}
+
+.submit-btn {
+  min-width: 145px;
+
+  min-height: 42px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 7px;
+
+  border-radius: 9px !important;
+
+  background: #2e7d32 !important;
+
+  color: white !important;
+
+  font-weight: 600;
+}
+
+.submit-btn mat-spinner {
+  --mdc-circular-progress-active-indicator-color: white;
+}
+
+/* =====================================================
+   Responsive
+===================================================== */
+
+@media (max-width: 768px) {
+  .farm-create-page {
+    padding: 18px;
+  }
+
+  .page-header h1 {
+    font-size: 27px;
+  }
+
+  .form-card {
+    padding: 20px 16px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-actions {
+    flex-wrap: wrap;
+  }
+
+  .submit-btn {
+    flex: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .farm-create-page {
+    padding: 14px;
+  }
+
+  .section-header {
+    align-items: flex-start;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .form-actions button {
+    width: 100%;
+  }
+}

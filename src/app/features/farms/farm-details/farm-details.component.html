@@ -1,1 +1,753 @@
-<p>farm-details works!</p>
+<div class="farm-details-page">
+
+  <!-- ================================================= -->
+  <!-- Loading -->
+  <!-- ================================================= -->
+
+  <div
+    *ngIf="isLoading"
+    class="loading-state">
+
+    <mat-icon class="loading-icon">
+      agriculture
+    </mat-icon>
+
+    <p>Loading farm...</p>
+
+  </div>
+
+
+  <!-- ================================================= -->
+  <!-- Not Found -->
+  <!-- ================================================= -->
+
+  <div
+    *ngIf="!isLoading && notFound"
+    class="not-found">
+
+    <div class="not-found-icon">
+
+      <mat-icon>
+        agriculture
+      </mat-icon>
+
+    </div>
+
+    <h2>Farm Not Found</h2>
+
+    <p>
+      The farm you're looking for doesn't exist
+      or has been removed.
+    </p>
+
+    <button
+      mat-flat-button
+      class="primary-btn"
+      (click)="goBack()">
+
+      <mat-icon>
+        arrow_back
+      </mat-icon>
+
+      Back to Farms
+
+    </button>
+
+  </div>
+
+
+  <!-- ================================================= -->
+  <!-- Farm Content -->
+  <!-- ================================================= -->
+
+  <ng-container *ngIf="!isLoading && farm">
+
+
+    <!-- ================================================= -->
+    <!-- Header -->
+    <!-- ================================================= -->
+
+    <div class="page-header">
+
+      <div class="header-left">
+
+        <button
+          mat-icon-button
+          class="back-button"
+          (click)="goBack()">
+
+          <mat-icon>
+            arrow_back
+          </mat-icon>
+
+        </button>
+
+
+        <div class="farm-header-icon">
+
+          <mat-icon>
+            agriculture
+          </mat-icon>
+
+        </div>
+
+
+        <div>
+
+          <div class="breadcrumb">
+
+            <span>Farms</span>
+
+            <mat-icon>
+              chevron_right
+            </mat-icon>
+
+            <span>{{ farm.name }}</span>
+
+          </div>
+
+          <h1>
+            {{ farm.name }}
+          </h1>
+
+          <div class="header-location">
+
+            <mat-icon>
+              location_on
+            </mat-icon>
+
+            <span>
+              {{ farm.location }}
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="header-actions">
+
+        <span
+          class="status-badge"
+          [ngClass]="getStatusClass()">
+
+          <span class="status-dot"></span>
+
+          {{ getStatusLabel() }}
+
+        </span>
+
+
+        <button
+          mat-flat-button
+          class="edit-btn"
+          (click)="editFarm()">
+
+          <mat-icon>
+            edit
+          </mat-icon>
+
+          Edit Farm
+
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <!-- ================================================= -->
+    <!-- Overview Stats -->
+    <!-- ================================================= -->
+
+    <div class="stats-grid">
+
+
+      <!-- Area -->
+
+      <mat-card class="stat-card">
+
+        <div class="stat-icon">
+
+          <mat-icon>
+            straighten
+          </mat-icon>
+
+        </div>
+
+        <div>
+
+          <span class="stat-label">
+            Farm Area
+          </span>
+
+          <strong>
+
+            {{ farm.area ?? '--' }}
+
+            <small *ngIf="farm.areaUnit">
+              {{ farm.areaUnit === 'acre'
+                ? 'Acres'
+                : 'Hectares' }}
+            </small>
+
+          </strong>
+
+        </div>
+
+      </mat-card>
+
+
+      <!-- Zones -->
+
+      <mat-card class="stat-card">
+
+        <div class="stat-icon">
+
+          <mat-icon>
+            grid_view
+          </mat-icon>
+
+        </div>
+
+        <div>
+
+          <span class="stat-label">
+            Zones
+          </span>
+
+          <strong>
+            {{ farm.zonesCount ?? 0 }}
+          </strong>
+
+        </div>
+
+      </mat-card>
+
+
+      <!-- Crops -->
+
+      <mat-card class="stat-card">
+
+        <div class="stat-icon">
+
+          <mat-icon>
+            grass
+          </mat-icon>
+
+        </div>
+
+        <div>
+
+          <span class="stat-label">
+            Crops
+          </span>
+
+          <strong>
+            {{ farm.cropsCount ?? 0 }}
+          </strong>
+
+        </div>
+
+      </mat-card>
+
+
+      <!-- Livestock -->
+
+      <mat-card class="stat-card">
+
+        <div class="stat-icon">
+
+          <mat-icon>
+            pets
+          </mat-icon>
+
+        </div>
+
+        <div>
+
+          <span class="stat-label">
+            Livestock
+          </span>
+
+          <strong>
+            {{ farm.livestockCount ?? 0 }}
+          </strong>
+
+        </div>
+
+      </mat-card>
+
+    </div>
+
+
+    <!-- ================================================= -->
+    <!-- Main Content -->
+    <!-- ================================================= -->
+
+    <div class="content-grid">
+
+
+      <!-- ================================================= -->
+      <!-- Farm Information -->
+      <!-- ================================================= -->
+
+      <mat-card class="info-card">
+
+        <div class="card-header">
+
+          <div>
+
+            <h2>
+              Farm Information
+            </h2>
+
+            <p>
+              Basic information about this farm.
+            </p>
+
+          </div>
+
+          <mat-icon>
+            agriculture
+          </mat-icon>
+
+        </div>
+
+
+        <mat-divider></mat-divider>
+
+
+        <div class="info-list">
+
+
+          <div class="info-row">
+
+            <div class="info-label">
+
+              <mat-icon>
+                badge
+              </mat-icon>
+
+              <span>
+                Farm Name
+              </span>
+
+            </div>
+
+            <strong>
+              {{ farm.name }}
+            </strong>
+
+          </div>
+
+
+          <div class="info-row">
+
+            <div class="info-label">
+
+              <mat-icon>
+                location_on
+              </mat-icon>
+
+              <span>
+                Location
+              </span>
+
+            </div>
+
+            <strong>
+              {{ farm.location }}
+            </strong>
+
+          </div>
+
+
+          <div class="info-row">
+
+            <div class="info-label">
+
+              <mat-icon>
+                straighten
+              </mat-icon>
+
+              <span>
+                Area
+              </span>
+
+            </div>
+
+            <strong>
+
+              {{ farm.area ?? '--' }}
+
+              <span *ngIf="farm.areaUnit">
+                {{ farm.areaUnit === 'acre'
+                  ? 'Acres'
+                  : 'Hectares' }}
+              </span>
+
+            </strong>
+
+          </div>
+
+
+          <div class="info-row">
+
+            <div class="info-label">
+
+              <mat-icon>
+                toggle_on
+              </mat-icon>
+
+              <span>
+                Status
+              </span>
+
+            </div>
+
+            <span
+              class="status-badge"
+              [ngClass]="getStatusClass()">
+
+              <span class="status-dot"></span>
+
+              {{ getStatusLabel() }}
+
+            </span>
+
+          </div>
+
+        </div>
+
+      </mat-card>
+
+
+      <!-- ================================================= -->
+      <!-- Location -->
+      <!-- ================================================= -->
+
+      <mat-card class="info-card">
+
+        <div class="card-header">
+
+          <div>
+
+            <h2>
+              Location
+            </h2>
+
+            <p>
+              GPS coordinates of your farm.
+            </p>
+
+          </div>
+
+          <mat-icon>
+            map
+          </mat-icon>
+
+        </div>
+
+
+        <mat-divider></mat-divider>
+
+
+        <div
+          *ngIf="hasCoordinates()"
+          class="coordinates">
+
+
+          <div class="coordinate">
+
+            <span>
+              Latitude
+            </span>
+
+            <strong>
+              {{ farm.latitude }}
+            </strong>
+
+          </div>
+
+
+          <div class="coordinate">
+
+            <span>
+              Longitude
+            </span>
+
+            <strong>
+              {{ farm.longitude }}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div
+          *ngIf="!hasCoordinates()"
+          class="no-location">
+
+          <mat-icon>
+            location_off
+          </mat-icon>
+
+          <p>
+            GPS coordinates haven't been added yet.
+          </p>
+
+          <button
+            mat-stroked-button
+            (click)="editFarm()">
+
+            Add Location
+
+          </button>
+
+        </div>
+
+      </mat-card>
+
+
+      <!-- ================================================= -->
+      <!-- Monitoring -->
+      <!-- ================================================= -->
+
+      <mat-card class="monitoring-card">
+
+        <div class="card-header">
+
+          <div>
+
+            <h2>
+              Farm Monitoring
+            </h2>
+
+            <p>
+              Monitor your farm's zones, crops and livestock.
+            </p>
+
+          </div>
+
+          <mat-icon>
+            monitoring
+          </mat-icon>
+
+        </div>
+
+
+        <mat-divider></mat-divider>
+
+
+        <div class="monitoring-grid">
+
+
+          <div class="monitoring-item">
+
+            <div class="monitoring-icon">
+
+              <mat-icon>
+                grid_view
+              </mat-icon>
+
+            </div>
+
+            <div>
+
+              <strong>
+                {{ farm.zonesCount ?? 0 }}
+              </strong>
+
+              <span>
+                Zones
+              </span>
+
+            </div>
+
+            <button
+              mat-icon-button
+              [routerLink]="['/zones']">
+
+              <mat-icon>
+                arrow_forward
+              </mat-icon>
+
+            </button>
+
+          </div>
+
+
+          <div class="monitoring-item">
+
+            <div class="monitoring-icon">
+
+              <mat-icon>
+                grass
+              </mat-icon>
+
+            </div>
+
+            <div>
+
+              <strong>
+                {{ farm.cropsCount ?? 0 }}
+              </strong>
+
+              <span>
+                Crops
+              </span>
+
+            </div>
+
+            <button
+              mat-icon-button
+              [routerLink]="['/crops']">
+
+              <mat-icon>
+                arrow_forward
+              </mat-icon>
+
+            </button>
+
+          </div>
+
+
+          <div class="monitoring-item">
+
+            <div class="monitoring-icon">
+
+              <mat-icon>
+                pets
+              </mat-icon>
+
+            </div>
+
+            <div>
+
+              <strong>
+                {{ farm.livestockCount ?? 0 }}
+              </strong>
+
+              <span>
+                Livestock
+              </span>
+
+            </div>
+
+            <button
+              mat-icon-button
+              [routerLink]="['/livestock']">
+
+              <mat-icon>
+                arrow_forward
+              </mat-icon>
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </mat-card>
+
+
+      <!-- ================================================= -->
+      <!-- AI / Heat Intelligence Placeholder -->
+      <!-- ================================================= -->
+
+      <mat-card class="ai-card">
+
+        <div class="ai-content">
+
+          <div class="ai-icon">
+
+            <mat-icon>
+              auto_awesome
+            </mat-icon>
+
+          </div>
+
+
+          <div class="ai-text">
+
+            <span class="ai-label">
+              FARMGUARD AI
+            </span>
+
+            <h2>
+              Heat Intelligence
+            </h2>
+
+            <p>
+              Temperature analysis and AI-powered heat
+              risk insights for this farm will appear here
+              when the temperature API is connected.
+            </p>
+
+          </div>
+
+
+          <button
+            mat-flat-button
+            class="ai-btn"
+            [routerLink]="['/heat-intelligence']">
+
+            View Intelligence
+
+            <mat-icon>
+              arrow_forward
+            </mat-icon>
+
+          </button>
+
+        </div>
+
+      </mat-card>
+
+
+      <!-- ================================================= -->
+      <!-- Metadata -->
+      <!-- ================================================= -->
+
+      <mat-card class="metadata-card">
+
+        <div class="metadata-row">
+
+          <div>
+
+            <span>
+              Created
+            </span>
+
+            <strong>
+              {{ getCreatedDate() }}
+            </strong>
+
+          </div>
+
+
+          <div>
+
+            <span>
+              Last Updated
+            </span>
+
+            <strong>
+              {{ getUpdatedDate() }}
+            </strong>
+
+          </div>
+
+        </div>
+
+      </mat-card>
+
+    </div>
+
+  </ng-container>
+
+</div>

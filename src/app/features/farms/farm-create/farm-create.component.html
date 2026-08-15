@@ -1,1 +1,265 @@
-<p>farm-create works!</p>
+<div class="farm-create-page">
+  <!-- Header -->
+
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">
+        <button
+          mat-icon-button
+          class="breadcrumb-back-btn"
+          type="button"
+          (click)="cancel()"
+        >
+          <mat-icon> arrow_back </mat-icon>
+        </button>
+
+        <span>Farms</span>
+
+        <mat-icon> chevron_right </mat-icon>
+
+        <span>Create Farm</span>
+      </div>
+
+      <h1>Create New Farm</h1>
+
+      <p>Add your farm information to start monitoring it.</p>
+    </div>
+  </div>
+
+  <!-- Form Card -->
+
+  <mat-card class="form-card">
+    <form [formGroup]="farmForm" (ngSubmit)="onSubmit()" novalidate>
+      <!-- Farm Information -->
+
+      <section class="form-section">
+        <div class="section-header">
+          <div class="section-icon">
+            <mat-icon> agriculture </mat-icon>
+          </div>
+
+          <div>
+            <h2>Farm Information</h2>
+
+            <p>Basic information about your farm.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <!-- Name -->
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label> Farm Name </mat-label>
+
+            <input
+              matInput
+              formControlName="name"
+              placeholder="e.g. Main Tomato Farm"
+            />
+
+            <mat-icon matPrefix> agriculture </mat-icon>
+
+            <mat-error *ngIf="name?.hasError('required')">
+              Farm name is required.
+            </mat-error>
+
+            <mat-error *ngIf="name?.hasError('minlength')">
+              Farm name must be at least 2 characters.
+            </mat-error>
+          </mat-form-field>
+
+          <!-- Location -->
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label> Location </mat-label>
+
+            <input
+              matInput
+              formControlName="location"
+              placeholder="e.g. Fayoum, Egypt"
+            />
+
+            <mat-icon matPrefix> location_on </mat-icon>
+
+            <mat-error *ngIf="location?.hasError('required')">
+              Location is required.
+            </mat-error>
+          </mat-form-field>
+
+          <!-- Area -->
+
+          <mat-form-field appearance="outline">
+            <mat-label> Farm Area </mat-label>
+
+            <input
+              matInput
+              type="number"
+              min="0"
+              formControlName="area"
+              placeholder="e.g. 10"
+            />
+
+            <mat-icon matPrefix> straighten </mat-icon>
+
+            <mat-error *ngIf="area?.hasError('required')">
+              Area is required.
+            </mat-error>
+
+            <mat-error *ngIf="area?.hasError('min')">
+              Area must be greater than 0.
+            </mat-error>
+          </mat-form-field>
+
+          <!-- Area Unit -->
+
+          <mat-form-field appearance="outline">
+            <mat-label> Area Unit </mat-label>
+
+            <mat-select formControlName="areaUnit">
+              <mat-option value="acre"> Acres </mat-option>
+
+              <mat-option value="hectare"> Hectares </mat-option>
+
+              <mat-option value="feddan"> Feddan </mat-option>
+
+              <mat-option value="sqm"> Square Meters </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <!-- Status -->
+
+          <mat-form-field appearance="outline">
+            <mat-label> Status </mat-label>
+
+            <mat-select formControlName="status">
+              <mat-option value="active"> Active </mat-option>
+
+              <mat-option value="inactive"> Inactive </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </section>
+
+      <!-- Location Coordinates -->
+
+      <section class="form-section">
+        <div class="section-header">
+          <div class="section-icon">
+            <mat-icon> map </mat-icon>
+          </div>
+
+          <div>
+            <h2>Location Coordinates</h2>
+
+            <p>
+              Optional GPS coordinates for accurate weather and heat
+              intelligence.
+            </p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <!-- Latitude -->
+
+          <mat-form-field appearance="outline">
+            <mat-label> Latitude </mat-label>
+
+            <input
+              matInput
+              type="number"
+              formControlName="latitude"
+              placeholder="e.g. 29.3084"
+            />
+
+            <mat-icon matPrefix> north </mat-icon>
+
+            <mat-error
+              *ngIf="latitude?.hasError('min') || latitude?.hasError('max')"
+            >
+              Latitude must be between -90 and 90.
+            </mat-error>
+          </mat-form-field>
+
+          <!-- Longitude -->
+
+          <mat-form-field appearance="outline">
+            <mat-label> Longitude </mat-label>
+
+            <input
+              matInput
+              type="number"
+              formControlName="longitude"
+              placeholder="e.g. 30.8428"
+            />
+
+            <mat-icon matPrefix> east </mat-icon>
+
+            <mat-error
+              *ngIf="longitude?.hasError('min') || longitude?.hasError('max')"
+            >
+              Longitude must be between -180 and 180.
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="location-hint">
+          <mat-icon> info </mat-icon>
+
+          <span>
+            GPS coordinates will help FarmGuard AI provide more accurate weather
+            and temperature analysis.
+          </span>
+        </div>
+      </section>
+
+      <!-- Error -->
+
+      <div *ngIf="errorMessage" class="error-message">
+        <mat-icon> error </mat-icon>
+
+        <span>
+          {{ errorMessage }}
+        </span>
+      </div>
+
+      <!-- Actions -->
+
+      <div class="form-actions">
+        <button
+          mat-button
+          type="button"
+          class="cancel-btn"
+          [disabled]="isSubmitting"
+          (click)="cancel()"
+        >
+          Cancel
+        </button>
+
+        <button
+          mat-stroked-button
+          type="button"
+          class="reset-btn"
+          [disabled]="isSubmitting"
+          (click)="resetForm()"
+        >
+          Reset
+        </button>
+
+        <button
+          mat-flat-button
+          type="submit"
+          class="submit-btn"
+          [disabled]="isSubmitting"
+        >
+          <mat-spinner *ngIf="isSubmitting" diameter="20"> </mat-spinner>
+
+          <mat-icon *ngIf="!isSubmitting"> add </mat-icon>
+
+          <span>
+            {{ isSubmitting ? "Creating..." : "Create Farm" }}
+          </span>
+        </button>
+      </div>
+    </form>
+  </mat-card>
+</div>
