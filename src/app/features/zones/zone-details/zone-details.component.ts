@@ -7,6 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
+import Swal from 'sweetalert2';
 
 import { ZoneService } from '../../../core/services/zone.service';
 import { FarmService } from '../../../core/services/farm.service';
@@ -24,14 +25,13 @@ import { Farm } from '../../../core/models/farm.model';
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
-    MatDividerModule
+    MatDividerModule,
   ],
 
   templateUrl: './zone-details.component.html',
-  styleUrl: './zone-details.component.css'
+  styleUrl: './zone-details.component.css',
 })
 export class ZoneDetailsComponent implements OnInit {
-
   farmId = '';
 
   zoneId = '';
@@ -48,7 +48,7 @@ export class ZoneDetailsComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private zoneService: ZoneService,
-    private farmService: FarmService
+    private farmService: FarmService,
   ) {}
 
   // =====================================================
@@ -56,28 +56,25 @@ export class ZoneDetailsComponent implements OnInit {
   // =====================================================
 
   ngOnInit(): void {
+    const farmId = this.route.snapshot.paramMap.get('farmId');
 
-    const farmId =
-      this.route.snapshot.paramMap.get('farmId');
+    const zoneId = this.route.snapshot.paramMap.get('zoneId');
 
-    const zoneId =
-      this.route.snapshot.paramMap.get('zoneId');
-
-    if (!farmId || !zoneId) {
-
-      this.errorMessage =
-        'Zone information is missing.';
+    if (!zoneId) {
+      this.errorMessage = 'Zone information is missing.';
 
       this.isLoading = false;
 
       return;
     }
 
-    this.farmId = farmId;
     this.zoneId = zoneId;
 
-    this.loadData();
+    if (farmId) {
+      this.farmId = farmId;
+    }
 
+    void this.loadData();
   }
 
   // =====================================================
@@ -85,51 +82,35 @@ export class ZoneDetailsComponent implements OnInit {
   // =====================================================
 
   async loadData(): Promise<void> {
-
     this.isLoading = true;
     this.errorMessage = '';
 
     try {
+      const zone = await this.zoneService.getZoneById(this.zoneId);
 
-      const [farm, zone] =
-        await Promise.all([
-
-          this.farmService.getFarmById(
-            this.farmId
-          ),
-
-          this.zoneService.getZoneById(
-            this.zoneId
-          )
-
-        ]);
-
-      this.farm = farm;
       this.zone = zone;
 
       if (!this.zone) {
+        this.errorMessage = 'Zone not found.';
 
-        this.errorMessage =
-          'Zone not found.';
-
+        this.isLoading = false;
+        return;
       }
 
+      if (!this.farmId && this.zone.farmId) {
+        this.farmId = this.zone.farmId;
+      }
+
+      this.farm = this.farmId
+        ? await this.farmService.getFarmById(this.farmId)
+        : undefined;
     } catch (error) {
+      console.error('Failed to load zone:', error);
 
-      console.error(
-        'Failed to load zone:',
-        error
-      );
-
-      this.errorMessage =
-        'Unable to load zone information.';
-
+      this.errorMessage = 'Unable to load zone information.';
     } finally {
-
       this.isLoading = false;
-
     }
-
   }
 
   // =====================================================
@@ -137,25 +118,27 @@ export class ZoneDetailsComponent implements OnInit {
   // =====================================================
 
   goBack(): void {
+    if (this.farmId) {
+      this.router.navigate(['/farms', this.farmId, 'zones']);
+      return;
+    }
 
-    this.router.navigate([
-      '/farms',
-      this.farmId,
-      'zones'
-    ]);
-
+    this.router.navigate(['/zones']);
   }
 
   editZone(): void {
+    if (this.farmId) {
+      this.router.navigate([
+        '/farms',
+        this.farmId,
+        'zones',
+        this.zoneId,
+        'edit',
+      ]);
+      return;
+    }
 
-    this.router.navigate([
-      '/farms',
-      this.farmId,
-      'zones',
-      this.zoneId,
-      'edit'
-    ]);
-
+    this.router.navigate(['/zones', this.zoneId, 'edit']);
   }
 
   // =====================================================
@@ -163,44 +146,48 @@ export class ZoneDetailsComponent implements OnInit {
   // =====================================================
 
   async deleteZone(): Promise<void> {
-
     if (!this.zone) {
       return;
     }
 
-    const confirmed =
-      window.confirm(
-        `Are you sure you want to delete "${this.zone.name}"?`
-      );
+    const result = await Swal.fire({
+      title: 'Delete zone?',
+      text: `"${this.zone.name}" will be permanently deleted.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#d32f2f',
+      reverseButtons: true,
+    });
 
-    if (!confirmed) {
+    if (!result.isConfirmed) {
       return;
     }
 
     try {
+      await this.zoneService.deleteZone(this.zone.id);
 
-      await this.zoneService.deleteZone(
-        this.zone.id
-      );
+      await Swal.fire({
+        title: 'Deleted',
+        text: 'Zone deleted successfully.',
+        icon: 'success',
+        timer: 1800,
+        showConfirmButton: false,
+      });
 
-      await this.router.navigate([
-        '/farms',
-        this.farmId,
-        'zones'
-      ]);
-
+      await this.router.navigate(['/farms', this.farmId, 'zones']);
     } catch (error) {
+      console.error('Failed to delete zone:', error);
 
-      console.error(
-        'Failed to delete zone:',
-        error
-      );
+      this.errorMessage = 'Failed to delete the zone.';
 
-      this.errorMessage =
-        'Failed to delete the zone.';
-
+      await Swal.fire({
+        title: 'Delete failed',
+        text: 'Unable to delete this zone. Please try again.',
+        icon: 'error',
+      });
     }
-
   }
 
   // =====================================================
@@ -208,28 +195,22 @@ export class ZoneDetailsComponent implements OnInit {
   // =====================================================
 
   hasLocation(): boolean {
-
-    return !!this.zone &&
+    return (
+      !!this.zone &&
       this.zone.latitude !== undefined &&
-      this.zone.longitude !== undefined;
-
+      this.zone.longitude !== undefined
+    );
   }
 
   getCoordinates(): string {
-
     if (!this.zone) {
       return 'Not available';
     }
 
-    if (
-      this.zone.latitude === undefined ||
-      this.zone.longitude === undefined
-    ) {
+    if (this.zone.latitude === undefined || this.zone.longitude === undefined) {
       return 'Not available';
     }
 
     return `${this.zone.latitude}, ${this.zone.longitude}`;
-
   }
-
 }

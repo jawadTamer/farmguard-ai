@@ -1,4 +1,4 @@
-.livestock-create-page {
+.livestock-edit-page {
   max-width: 900px;
   margin: 0 auto;
   padding: 24px;
@@ -17,7 +17,6 @@
 .breadcrumb {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 3px;
   margin-bottom: 6px;
   color: #6b7280;
@@ -39,6 +38,16 @@
 
 .page-header p {
   margin: 6px 0 0;
+  color: #6b7280;
+}
+
+.loading-container {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
   color: #6b7280;
 }
 
@@ -123,7 +132,7 @@
 }
 
 @media (max-width: 767px) {
-  .livestock-create-page {
+  .livestock-edit-page {
     padding: 16px;
   }
 

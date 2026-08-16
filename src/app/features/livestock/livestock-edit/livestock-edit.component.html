@@ -1,4 +1,4 @@
-<div class="livestock-create-page">
+<div class="livestock-edit-page">
   <div class="page-header">
     <div class="header-left">
       <button mat-icon-button type="button" (click)="cancel()">
@@ -9,13 +9,18 @@
         <div class="breadcrumb">
           <span>Livestock</span>
           <mat-icon>chevron_right</mat-icon>
-          <span>New Record</span>
+          <span>Edit</span>
         </div>
 
-        <h1>Create Livestock</h1>
-        <p>Add a livestock record for your farm zone.</p>
+        <h1>Edit Livestock</h1>
+        <p>Update the record details for this animal group.</p>
       </div>
     </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="42"></mat-spinner>
+    <span>Loading livestock record...</span>
   </div>
 
   <div *ngIf="errorMessage" class="error-alert">
@@ -23,15 +28,15 @@
     <span>{{ errorMessage }}</span>
   </div>
 
-  <mat-card class="form-card">
+  <mat-card *ngIf="!isLoading && livestock" class="form-card">
     <div class="card-title">
       <div class="title-icon">
         <mat-icon>pets</mat-icon>
       </div>
 
       <div>
-        <h2>Livestock Information</h2>
-        <p>Track the animal type, breed, count and health status.</p>
+        <h2>{{ livestock.livestockType }}</h2>
+        <p>Update your livestock details below.</p>
       </div>
     </div>
 
@@ -57,11 +62,10 @@
           placeholder="e.g. Dairy Cattle"
         />
         <mat-icon matSuffix>pets</mat-icon>
-        <mat-error *ngIf="livestockType?.hasError('required')">
+        <mat-error
+          *ngIf="livestockForm.get('livestockType')?.hasError('required')"
+        >
           Livestock type is required.
-        </mat-error>
-        <mat-error *ngIf="livestockType?.hasError('minlength')">
-          Livestock type must be at least 2 characters.
         </mat-error>
       </mat-form-field>
 
@@ -109,8 +113,8 @@
           [disabled]="isSubmitting"
         >
           <mat-spinner *ngIf="isSubmitting" diameter="20"></mat-spinner>
-          <mat-icon *ngIf="!isSubmitting">add</mat-icon>
-          <span>{{ isSubmitting ? "Creating..." : "Create Livestock" }}</span>
+          <mat-icon *ngIf="!isSubmitting">save</mat-icon>
+          <span>{{ isSubmitting ? "Saving..." : "Save Changes" }}</span>
         </button>
       </div>
     </form>

@@ -3,6 +3,8 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
+  background: linear-gradient(180deg, #f7faf7 0%, #f3f8ff 100%);
+  border-radius: 20px;
 }
 
 /* =========================
@@ -77,9 +79,14 @@
 .farm-summary {
   min-height: 78px;
   padding: 16px;
-  border-radius: 14px;
-  background: white;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.96),
+    rgba(240, 248, 255, 0.88)
+  );
+  box-shadow: 0 10px 22px rgba(43, 88, 57, 0.08);
+  border: 1px solid rgba(93, 136, 108, 0.08);
   display: flex;
   align-items: center;
   gap: 13px;
@@ -88,12 +95,13 @@
 .summary-icon {
   width: 42px;
   height: 42px;
-  border-radius: 11px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #eef4ff;
-  color: #3f51b5;
+  background: linear-gradient(135deg, #dff6e8, #ebf7ff);
+  color: #1d7a4d;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .summary-icon.active {
@@ -119,8 +127,9 @@
 }
 
 .farm-summary {
-  background: #f5faf6;
+  background: linear-gradient(135deg, #ebfff1, #eef7ff);
   color: #2e7d32;
+  border: 1px solid rgba(46, 125, 50, 0.12);
 }
 
 .farm-summary > mat-icon {
@@ -146,6 +155,55 @@
    Zones Grid
 ========================= */
 
+.zones-content {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.farm-group {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(31, 41, 55, 0.06);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.farm-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 12px 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #eafaf0, #edf5ff);
+  border: 1px solid rgba(49, 120, 73, 0.08);
+}
+
+.farm-group-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.farm-group-title mat-icon {
+  color: #1d7a4d;
+}
+
+.farm-group-count {
+  color: #2e7d32;
+  background: rgba(46, 125, 50, 0.08);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 .zones-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -155,15 +213,17 @@
 .zone-card {
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 12px 26px rgba(17, 24, 39, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, #ffffff 0%, #f9fcff 100%);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
 }
 
 .zone-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.09);
+  transform: translateY(-3px);
+  box-shadow: 0 18px 30px rgba(17, 24, 39, 0.1);
 }
 
 .zone-card-header {
@@ -180,8 +240,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #eaf6ed;
-  color: #2e7d32;
+  background: linear-gradient(135deg, #dff7e6, #ebf3ff);
+  color: #1d7a4d;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .zone-icon mat-icon {
@@ -285,6 +346,22 @@
    Empty
 ========================= */
 
+.farm-empty-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8fafc, #edfdf4);
+  color: #4b5563;
+  border: 1px dashed rgba(34, 197, 94, 0.25);
+}
+
+.farm-empty-state mat-icon {
+  color: #16a34a;
+}
+
 .empty-state {
   min-height: 400px;
   padding: 40px 20px;
@@ -302,9 +379,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f1f5f9;
-  color: #64748b;
+  background: linear-gradient(135deg, #ecfdf5, #eff6ff);
+  color: #1d7a4d;
   margin-bottom: 18px;
+  box-shadow: 0 10px 22px rgba(22, 163, 74, 0.12);
 }
 
 .empty-icon mat-icon {
@@ -350,7 +428,6 @@
 ========================= */
 
 @media (max-width: 991px) {
-
   .zones-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -362,11 +439,9 @@
   .farm-summary {
     grid-column: 1 / -1;
   }
-
 }
 
 @media (max-width: 767px) {
-
   .zones-page {
     padding: 16px;
   }
@@ -401,11 +476,9 @@
     grid-template-columns: 1fr;
     gap: 14px;
   }
-
 }
 
 @media (max-width: 480px) {
-
   .summary-row {
     grid-template-columns: 1fr;
   }
@@ -418,5 +491,4 @@
     grid-template-columns: 1fr;
     gap: 14px;
   }
-
 }

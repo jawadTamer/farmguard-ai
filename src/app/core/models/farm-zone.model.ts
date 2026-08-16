@@ -11,6 +11,7 @@ export interface FarmZone {
   area?: number;
 
   createdAt?: string;
+  updatedAt?: string;
 
   boundary?: unknown;
 }

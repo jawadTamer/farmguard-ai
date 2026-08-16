@@ -1,5 +1,7 @@
 import { Routes } from '@angular/router';
+
 import { AppLayoutComponent } from './layout/app-layout/app-layout.component';
+
 import { LoginComponent } from './features/auth/login/login.component';
 import { SignupComponent } from './features/auth/signup/signup.component';
 import { ForgotPasswordComponent } from './features/auth/forgot-password/forgot-password.component';
@@ -42,9 +44,21 @@ export const routes: Routes = [
     canActivate: [authGuard],
 
     children: [
-      // -------------------------
-      // Dashboard
-      // -------------------------
+      // =================================================
+      // DEFAULT
+      // /
+      // → /dashboard
+      // =================================================
+
+      {
+        path: '',
+        pathMatch: 'full',
+        redirectTo: 'dashboard',
+      },
+
+      // =================================================
+      // DASHBOARD
+      // =================================================
 
       {
         path: 'dashboard',
@@ -54,21 +68,24 @@ export const routes: Routes = [
           ),
       },
 
-      // -------------------------
-      // Farms
-      // -------------------------
+      // =================================================
+      // FARMS
+      // =================================================
 
       {
         path: 'farms',
         children: [
+          // /farms
           {
             path: '',
+            pathMatch: 'full',
             loadComponent: () =>
               import('./features/farms/farm-list/farm-list.component').then(
                 (m) => m.FarmListComponent,
               ),
           },
 
+          // /farms/create
           {
             path: 'create',
             loadComponent: () =>
@@ -77,14 +94,10 @@ export const routes: Routes = [
               ),
           },
 
-          {
-            path: ':id',
-            loadComponent: () =>
-              import('./features/farms/farm-details/farm-details.component').then(
-                (m) => m.FarmDetailsComponent,
-              ),
-          },
-
+          // IMPORTANT:
+          // edit MUST come before :id
+          //
+          // /farms/:id/edit
           {
             path: ':id/edit',
             loadComponent: () =>
@@ -92,24 +105,139 @@ export const routes: Routes = [
                 (m) => m.FarmEditComponent,
               ),
           },
+
+          // /farms/:id
+          {
+            path: ':id',
+            loadComponent: () =>
+              import('./features/farms/farm-details/farm-details.component').then(
+                (m) => m.FarmDetailsComponent,
+              ),
+          },
         ],
       },
 
-      // -------------------------
-      // Crops
-      // -------------------------
+      // =================================================
+      // ZONES
+      // =================================================
+
+      {
+        path: 'zones',
+        children: [
+          // /zones
+          {
+            path: '',
+            pathMatch: 'full',
+            loadComponent: () =>
+              import('./features/zones/zone-list/zone-list.component').then(
+                (m) => m.ZoneListComponent,
+              ),
+          },
+
+          // /zones/create
+          {
+            path: 'create',
+            loadComponent: () =>
+              import('./features/zones/zone-create/zone-create.component').then(
+                (m) => m.ZoneCreateComponent,
+              ),
+          },
+
+          // IMPORTANT:
+          // edit MUST come before :zoneId
+          //
+          // /zones/:zoneId/edit
+          {
+            path: ':zoneId/edit',
+            loadComponent: () =>
+              import('./features/zones/zone-edit/zone-edit.component').then(
+                (m) => m.ZoneEditComponent,
+              ),
+          },
+
+          // /zones/:zoneId
+          {
+            path: ':zoneId',
+            loadComponent: () =>
+              import('./features/zones/zone-details/zone-details.component').then(
+                (m) => m.ZoneDetailsComponent,
+              ),
+          },
+        ],
+      },
+
+      // =================================================
+      // FARM → ZONES
+      // =================================================
+      //
+      // Examples:
+      //
+      // /farms/farm-001/zones
+      // /farms/farm-001/zones/create
+      // /farms/farm-001/zones/zone-001
+      // /farms/farm-001/zones/zone-001/edit
+      //
+
+      {
+        path: 'farms/:farmId/zones',
+        children: [
+          // /farms/:farmId/zones
+          {
+            path: '',
+            pathMatch: 'full',
+            loadComponent: () =>
+              import('./features/zones/zone-list/zone-list.component').then(
+                (m) => m.ZoneListComponent,
+              ),
+          },
+
+          // /farms/:farmId/zones/create
+          {
+            path: 'create',
+            loadComponent: () =>
+              import('./features/zones/zone-create/zone-create.component').then(
+                (m) => m.ZoneCreateComponent,
+              ),
+          },
+
+          // /farms/:farmId/zones/:zoneId/edit
+          {
+            path: ':zoneId/edit',
+            loadComponent: () =>
+              import('./features/zones/zone-edit/zone-edit.component').then(
+                (m) => m.ZoneEditComponent,
+              ),
+          },
+
+          // /farms/:farmId/zones/:zoneId
+          {
+            path: ':zoneId',
+            loadComponent: () =>
+              import('./features/zones/zone-details/zone-details.component').then(
+                (m) => m.ZoneDetailsComponent,
+              ),
+          },
+        ],
+      },
+
+      // =================================================
+      // CROPS
+      // =================================================
 
       {
         path: 'crops',
         children: [
+          // /crops
           {
             path: '',
+            pathMatch: 'full',
             loadComponent: () =>
               import('./features/crops/crop-list/crop-list.component').then(
                 (m) => m.CropListComponent,
               ),
           },
 
+          // /crops/create
           {
             path: 'create',
             loadComponent: () =>
@@ -118,14 +246,7 @@ export const routes: Routes = [
               ),
           },
 
-          {
-            path: ':id',
-            loadComponent: () =>
-              import('./features/crops/crop-details/crop-details.component').then(
-                (m) => m.CropDetailsComponent,
-              ),
-          },
-
+          // /crops/:id/edit
           {
             path: ':id/edit',
             loadComponent: () =>
@@ -133,24 +254,36 @@ export const routes: Routes = [
                 (m) => m.CropEditComponent,
               ),
           },
+
+          // /crops/:id
+          {
+            path: ':id',
+            loadComponent: () =>
+              import('./features/crops/crop-details/crop-details.component').then(
+                (m) => m.CropDetailsComponent,
+              ),
+          },
         ],
       },
 
-      // -------------------------
-      // Livestock
-      // -------------------------
+      // =================================================
+      // LIVESTOCK
+      // =================================================
 
       {
         path: 'livestock',
         children: [
+          // /livestock
           {
             path: '',
+            pathMatch: 'full',
             loadComponent: () =>
               import('./features/livestock/livestock-list/livestock-list.component').then(
                 (m) => m.LivestockListComponent,
               ),
           },
 
+          // /livestock/create
           {
             path: 'create',
             loadComponent: () =>
@@ -159,6 +292,16 @@ export const routes: Routes = [
               ),
           },
 
+          // /livestock/:id/edit
+          {
+            path: ':id/edit',
+            loadComponent: () =>
+              import('./features/livestock/livestock-edit/livestock-edit.component').then(
+                (m) => m.LivestockEditComponent,
+              ),
+          },
+
+          // /livestock/:id
           {
             path: ':id',
             loadComponent: () =>
@@ -169,61 +312,23 @@ export const routes: Routes = [
         ],
       },
 
-      // -------------------------
-      // Zones
-      // -------------------------
-
-      {
-        path: 'zones',
-        loadComponent: () =>
-          import('./features/zones/zone-list/zone-list.component').then(
-            (m) => m.ZoneListComponent,
-          ),
-      },
-
-      {
-        path: 'farms/:farmId/zones',
-        children: [
-          {
-            path: '',
-            loadComponent: () =>
-              import('./features/zones/zone-list/zone-list.component').then(
-                (m) => m.ZoneListComponent,
-              ),
-          },
-
-          {
-            path: 'create',
-            loadComponent: () =>
-              import('./features/zones/zone-create/zone-create.component').then(
-                (m) => m.ZoneCreateComponent,
-              ),
-          },
-
-          {
-            path: ':id',
-            loadComponent: () =>
-              import('./features/zones/zone-details/zone-details.component').then(
-                (m) => m.ZoneDetailsComponent,
-              ),
-          },
-        ],
-      },
-
-      // -------------------------
-      // Heat Intelligence
-      // -------------------------
+      // =================================================
+      // HEAT INTELLIGENCE
+      // =================================================
 
       {
         path: 'heat-intelligence',
 
         children: [
+          // /heat-intelligence
+          // → /heat-intelligence/overview
           {
             path: '',
             pathMatch: 'full',
             redirectTo: 'overview',
           },
 
+          // /heat-intelligence/overview
           {
             path: 'overview',
             loadComponent: () =>
@@ -232,6 +337,7 @@ export const routes: Routes = [
               ),
           },
 
+          // /heat-intelligence/forecast
           {
             path: 'forecast',
             loadComponent: () =>
@@ -240,6 +346,7 @@ export const routes: Routes = [
               ),
           },
 
+          // /heat-intelligence/heatmap
           {
             path: 'heatmap',
             loadComponent: () =>
@@ -248,6 +355,7 @@ export const routes: Routes = [
               ),
           },
 
+          // /heat-intelligence/risk-analysis
           {
             path: 'risk-analysis',
             loadComponent: () =>
@@ -256,6 +364,7 @@ export const routes: Routes = [
               ),
           },
 
+          // /heat-intelligence/temperature
           {
             path: 'temperature',
             loadComponent: () =>
@@ -266,21 +375,24 @@ export const routes: Routes = [
         ],
       },
 
-      // -------------------------
-      // Alerts
-      // -------------------------
+      // =================================================
+      // ALERTS
+      // =================================================
 
       {
         path: 'alerts',
         children: [
+          // /alerts
           {
             path: '',
+            pathMatch: 'full',
             loadComponent: () =>
               import('./features/alerts/alert-list/alert-list.component').then(
                 (m) => m.AlertListComponent,
               ),
           },
 
+          // /alerts/:id
           {
             path: ':id',
             loadComponent: () =>
@@ -291,21 +403,24 @@ export const routes: Routes = [
         ],
       },
 
-      // -------------------------
-      // Recommendations / AI
-      // -------------------------
+      // =================================================
+      // RECOMMENDATIONS / AI ADVISOR
+      // =================================================
 
       {
         path: 'recommendations',
         children: [
+          // /recommendations
           {
             path: '',
+            pathMatch: 'full',
             loadComponent: () =>
               import('./features/recommendations/recommendation-list/recommendation-list.component').then(
                 (m) => m.RecommendationListComponent,
               ),
           },
 
+          // /recommendations/:id
           {
             path: ':id',
             loadComponent: () =>
@@ -316,9 +431,9 @@ export const routes: Routes = [
         ],
       },
 
-      // -------------------------
-      // Profile
-      // -------------------------
+      // =================================================
+      // PROFILE
+      // =================================================
 
       {
         path: 'profile',
@@ -328,9 +443,9 @@ export const routes: Routes = [
           ),
       },
 
-      // -------------------------
-      // Settings
-      // -------------------------
+      // =================================================
+      // SETTINGS
+      // =================================================
 
       {
         path: 'settings',
@@ -343,14 +458,8 @@ export const routes: Routes = [
   },
 
   // =====================================================
-  // DEFAULT
+  // UNKNOWN ROUTES
   // =====================================================
-
-  {
-    path: '',
-    pathMatch: 'full',
-    redirectTo: 'dashboard',
-  },
 
   {
     path: '**',

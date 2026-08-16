@@ -19,15 +19,14 @@ import { MatSelectModule } from '@angular/material/select';
 import { ZoneService } from '../../../core/services/zone.service';
 import { FarmService } from '../../../core/services/farm.service';
 import { Farm } from '../../../core/models/farm.model';
+import { FarmZone } from '../../../core/models/farm-zone.model';
 
 @Component({
-  selector: 'app-zone-create',
+  selector: 'app-zone-edit',
   standalone: true,
-
   imports: [
     CommonModule,
     ReactiveFormsModule,
-
     MatCardModule,
     MatButtonModule,
     MatIconModule,
@@ -36,21 +35,19 @@ import { Farm } from '../../../core/models/farm.model';
     MatProgressSpinnerModule,
     MatSelectModule,
   ],
-
-  templateUrl: './zone-create.component.html',
-  styleUrl: './zone-create.component.css',
+  templateUrl: './zone-edit.component.html',
+  styleUrl: './zone-edit.component.css',
 })
-export class ZoneCreateComponent implements OnInit {
+export class ZoneEditComponent implements OnInit {
   zoneForm: FormGroup;
 
+  zoneId = '';
   farmId = '';
-
   farms: Farm[] = [];
+  zone?: FarmZone;
 
-  farm?: Farm;
-
-  isSubmitting = false;
-
+  isLoading = true;
+  isSaving = false;
   errorMessage = '';
 
   constructor(
@@ -62,7 +59,6 @@ export class ZoneCreateComponent implements OnInit {
   ) {
     this.zoneForm = this.fb.group({
       farmId: ['', [Validators.required]],
-
       name: [
         '',
         [
@@ -71,62 +67,128 @@ export class ZoneCreateComponent implements OnInit {
           Validators.maxLength(100),
         ],
       ],
-
-      description: ['', Validators.maxLength(500)],
-
+      description: ['', [Validators.maxLength(500)]],
       area: [null, [Validators.min(0)]],
-
       latitude: [null, [Validators.min(-90), Validators.max(90)]],
-
       longitude: [null, [Validators.min(-180), Validators.max(180)]],
     });
   }
 
-  // =====================================================
-  // Init
-  // =====================================================
-
   ngOnInit(): void {
+    const zoneId = this.route.snapshot.paramMap.get('zoneId');
     const farmId = this.route.snapshot.paramMap.get('farmId');
 
+    if (!zoneId) {
+      this.errorMessage = 'Zone information is missing.';
+      this.isLoading = false;
+      return;
+    }
+
+    this.zoneId = zoneId;
     if (farmId) {
       this.farmId = farmId;
     }
 
-    void this.loadFarms();
+    void this.loadData();
   }
 
-  // =====================================================
-  // Load Farms
-  // =====================================================
+  async loadData(): Promise<void> {
+    this.isLoading = true;
+    this.errorMessage = '';
 
-  async loadFarms(): Promise<void> {
     try {
-      this.farms = await this.farmService.getFarms();
+      const [farms, zone] = await Promise.all([
+        this.farmService.getFarms(),
+        this.zoneService.getZoneById(this.zoneId),
+      ]);
 
-      if (!this.farms.length) {
-        this.errorMessage = 'No farms are available yet. Create a farm first.';
+      this.farms = farms;
+      this.zone = zone;
+
+      if (!zone) {
+        this.errorMessage = 'Zone not found.';
+        this.isLoading = false;
         return;
       }
 
-      if (!this.farmId) {
-        this.farmId = this.farms[0].id;
+      if (!this.farmId && zone.farmId) {
+        this.farmId = zone.farmId;
       }
 
-      const matchedFarm =
-        this.farms.find((farm) => farm.id === this.farmId) ?? this.farms[0];
-      this.farm = matchedFarm;
-      this.farmId = matchedFarm.id;
-      this.zoneForm.patchValue({ farmId: this.farmId });
+      const selectedFarm =
+        this.farms.find((farm) => farm.id === this.farmId) ??
+        this.farms.find((farm) => farm.id === zone.farmId);
+
+      if (selectedFarm) {
+        this.farmId = selectedFarm.id;
+      }
+
+      this.zoneForm.patchValue({
+        farmId: this.farmId || zone.farmId,
+        name: zone.name,
+        description: zone.description ?? '',
+        area: zone.area ?? null,
+        latitude: zone.latitude ?? null,
+        longitude: zone.longitude ?? null,
+      });
     } catch (error) {
-      console.error('Failed to load farms:', error);
-      this.errorMessage = 'Unable to load farms information.';
+      console.error('Failed to load zone for edit:', error);
+      this.errorMessage = 'Unable to load zone information. Please try again.';
+    } finally {
+      this.isLoading = false;
     }
   }
 
-  // =====================================================
-  // Getters
-  // =====================================================
+  async saveZone(): Promise<void> {
+    this.errorMessage = '';
+
+    if (this.zoneForm.invalid) {
+      this.zoneForm.markAllAsTouched();
+      return;
+    }
+
+    this.isSaving = true;
+
+    try {
+      const formValue = this.zoneForm.getRawValue();
+      const selectedFarmId = formValue.farmId;
+      this.farmId = selectedFarmId;
+
+      await this.zoneService.updateZone(this.zoneId, {
+        farmId: selectedFarmId,
+        name: formValue.name.trim(),
+        description: formValue.description?.trim() || undefined,
+        area: formValue.area !== null ? Number(formValue.area) : undefined,
+        latitude:
+          formValue.latitude !== null ? Number(formValue.latitude) : undefined,
+        longitude:
+          formValue.longitude !== null
+            ? Number(formValue.longitude)
+            : undefined,
+      });
+
+      if (this.farmId) {
+        await this.router.navigate(['/farms', this.farmId, 'zones']);
+        return;
+      }
+
+      await this.router.navigate(['/zones']);
+    } catch (error) {
+      console.error('Failed to update zone:', error);
+      this.errorMessage = 'Failed to update the zone. Please try again.';
+    } finally {
+      this.isSaving = false;
+    }
+  }
+
+  cancel(): void {
+    if (this.farmId) {
+      this.router.navigate(['/farms', this.farmId, 'zones']);
+      return;
+    }
+
+    this.router.navigate(['/zones']);
+  }
 
   get name() {
     return this.zoneForm.get('name');
@@ -146,60 +208,5 @@ export class ZoneCreateComponent implements OnInit {
 
   get longitude() {
     return this.zoneForm.get('longitude');
-  }
-
-  // =====================================================
-  // Submit
-  // =====================================================
-
-  async onSubmit(): Promise<void> {
-    this.errorMessage = '';
-
-    if (this.zoneForm.invalid) {
-      this.zoneForm.markAllAsTouched();
-
-      return;
-    }
-
-    this.isSubmitting = true;
-
-    try {
-      const formValue = this.zoneForm.getRawValue();
-
-      const selectedFarmId = formValue.farmId;
-      this.farmId = selectedFarmId;
-
-      const zone = await this.zoneService.addZone(selectedFarmId, {
-        name: formValue.name.trim(),
-
-        description: formValue.description?.trim() || undefined,
-
-        area: formValue.area !== null ? Number(formValue.area) : undefined,
-
-        latitude:
-          formValue.latitude !== null ? Number(formValue.latitude) : undefined,
-
-        longitude:
-          formValue.longitude !== null
-            ? Number(formValue.longitude)
-            : undefined,
-      });
-
-      await this.router.navigate(['/zones']);
-    } catch (error) {
-      console.error('Failed to create zone:', error);
-
-      this.errorMessage = 'Failed to create the zone. Please try again.';
-
-      this.isSubmitting = false;
-    }
-  }
-
-  // =====================================================
-  // Cancel
-  // =====================================================
-
-  cancel(): void {
-    this.router.navigate(['/farms', this.farmId, 'zones']);
   }
 }

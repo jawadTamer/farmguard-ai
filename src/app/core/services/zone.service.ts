@@ -4,65 +4,46 @@ import { SupabaseService } from './supabase.service';
 import { FarmZone } from '../models/farm-zone.model';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ZoneService {
-
-  constructor(
-    private supabase: SupabaseService
-  ) {}
+  constructor(private supabase: SupabaseService) {}
 
   // =====================================================
   // Get all zones for a farm
   // =====================================================
 
-  async getZonesByFarm(
-    farmId: string
-  ): Promise<FarmZone[]> {
-
-    const { data, error } =
-      await this.supabase.client
-        .from('farm_zones')
-        .select('*')
-        .eq('farm_id', farmId)
-        .order('created_at', {
-          ascending: false
-        });
+  async getZonesByFarm(farmId: string): Promise<FarmZone[]> {
+    const { data, error } = await this.supabase.client
+      .from('farm_zones')
+      .select('*')
+      .eq('farm_id', farmId)
+      .order('created_at', {
+        ascending: false,
+      });
 
     if (error) {
-      console.error(
-        'Failed to fetch zones:',
-        error
-      );
+      console.error('Failed to fetch zones:', error);
 
       throw error;
     }
 
-    return (data ?? []).map(
-      zone => this.mapZone(zone)
-    );
+    return (data ?? []).map((zone) => this.mapZone(zone));
   }
 
   // =====================================================
   // Get zone by ID
   // =====================================================
 
-  async getZoneById(
-    id: string
-  ): Promise<FarmZone | undefined> {
-
-    const { data, error } =
-      await this.supabase.client
-        .from('farm_zones')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
+  async getZoneById(id: string): Promise<FarmZone | undefined> {
+    const { data, error } = await this.supabase.client
+      .from('farm_zones')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
 
     if (error) {
-      console.error(
-        'Failed to fetch zone:',
-        error
-      );
+      console.error('Failed to fetch zone:', error);
 
       throw error;
     }
@@ -86,39 +67,30 @@ export class ZoneService {
       latitude?: number;
       longitude?: number;
       area?: number;
-    }
+    },
   ): Promise<FarmZone> {
-
     const payload = {
       farm_id: farmId,
 
       name: zone.name,
 
-      description:
-        zone.description || null,
+      description: zone.description || null,
 
-      latitude:
-        zone.latitude ?? null,
+      latitude: zone.latitude ?? null,
 
-      longitude:
-        zone.longitude ?? null,
+      longitude: zone.longitude ?? null,
 
-      area:
-        zone.area ?? null
+      area: zone.area ?? null,
     };
 
-    const { data, error } =
-      await this.supabase.client
-        .from('farm_zones')
-        .insert(payload)
-        .select()
-        .single();
+    const { data, error } = await this.supabase.client
+      .from('farm_zones')
+      .insert(payload)
+      .select()
+      .single();
 
     if (error) {
-      console.error(
-        'Failed to create zone:',
-        error
-      );
+      console.error('Failed to create zone:', error);
 
       throw error;
     }
@@ -133,53 +105,49 @@ export class ZoneService {
   async updateZone(
     id: string,
     zone: {
+      farmId?: string;
       name?: string;
       description?: string;
       latitude?: number;
       longitude?: number;
       area?: number;
-    }
+    },
   ): Promise<FarmZone> {
-
     const payload: Record<string, unknown> = {};
+
+    if (zone.farmId !== undefined) {
+      payload['farm_id'] = zone.farmId;
+    }
 
     if (zone.name !== undefined) {
       payload['name'] = zone.name;
     }
 
     if (zone.description !== undefined) {
-      payload['description'] =
-        zone.description || null;
+      payload['description'] = zone.description || null;
     }
 
     if (zone.latitude !== undefined) {
-      payload['latitude'] =
-        zone.latitude ?? null;
+      payload['latitude'] = zone.latitude ?? null;
     }
 
     if (zone.longitude !== undefined) {
-      payload['longitude'] =
-        zone.longitude ?? null;
+      payload['longitude'] = zone.longitude ?? null;
     }
 
     if (zone.area !== undefined) {
-      payload['area'] =
-        zone.area ?? null;
+      payload['area'] = zone.area ?? null;
     }
 
-    const { data, error } =
-      await this.supabase.client
-        .from('farm_zones')
-        .update(payload)
-        .eq('id', id)
-        .select()
-        .single();
+    const { data, error } = await this.supabase.client
+      .from('farm_zones')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
 
     if (error) {
-      console.error(
-        'Failed to update zone:',
-        error
-      );
+      console.error('Failed to update zone:', error);
 
       throw error;
     }
@@ -191,21 +159,14 @@ export class ZoneService {
   // Delete zone
   // =====================================================
 
-  async deleteZone(
-    id: string
-  ): Promise<void> {
-
-    const { error } =
-      await this.supabase.client
-        .from('farm_zones')
-        .delete()
-        .eq('id', id);
+  async deleteZone(id: string): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('farm_zones')
+      .delete()
+      .eq('id', id);
 
     if (error) {
-      console.error(
-        'Failed to delete zone:',
-        error
-      );
+      console.error('Failed to delete zone:', error);
 
       throw error;
     }
@@ -215,10 +176,7 @@ export class ZoneService {
   // Mapper
   // =====================================================
 
-  private mapZone(
-    data: any
-  ): FarmZone {
-
+  private mapZone(data: any): FarmZone {
     return {
       id: data.id,
 
@@ -226,27 +184,37 @@ export class ZoneService {
 
       name: data.name,
 
-      description:
-        data.description ?? undefined,
+      description: data.description ?? undefined,
 
-      latitude:
-        data.latitude ?? undefined,
+      latitude: data.latitude ?? undefined,
 
-      longitude:
-        data.longitude ?? undefined,
+      longitude: data.longitude ?? undefined,
 
       area:
-        data.area !== null &&
-        data.area !== undefined
+        data.area !== null && data.area !== undefined
           ? Number(data.area)
           : undefined,
 
-      createdAt:
-        data.created_at ?? undefined,
+      createdAt: data.created_at ?? undefined,
+      updatedAt: data.updated_at ?? undefined,
 
-      boundary:
-        data.boundary ?? undefined
+      boundary: data.boundary ?? undefined,
     };
   }
+  async getAllZones(): Promise<FarmZone[]> {
+    const { data, error } = await this.supabase.client
+      .from('farm_zones')
+      .select('*')
+      .order('created_at', {
+        ascending: false,
+      });
 
+    if (error) {
+      console.error('Failed to fetch all zones:', error);
+
+      throw error;
+    }
+
+    return (data ?? []).map((zone) => this.mapZone(zone));
+  }
 }

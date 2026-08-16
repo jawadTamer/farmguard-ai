@@ -1,1 +1,180 @@
-<p>livestock-list works!</p>
+<div class="livestock-page">
+  <div class="page-header">
+    <div class="header-left">
+      <div>
+        <div class="breadcrumb">
+          <span>Dashboard</span>
+          <mat-icon>chevron_right</mat-icon>
+          <span>Livestock</span>
+        </div>
+
+        <h1>Livestock</h1>
+        <p>
+          Monitor animal groups, breeding details, and stock levels across your
+          zones.
+        </p>
+      </div>
+    </div>
+
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      class="add-button"
+      (click)="createLivestock()"
+    >
+      <mat-icon>add</mat-icon>
+      Add Livestock
+    </button>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="42"></mat-spinner>
+    <span>Loading livestock...</span>
+  </div>
+
+  <div *ngIf="!isLoading && errorMessage" class="error-alert">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+    <button mat-button type="button" (click)="loadLivestock()">Retry</button>
+  </div>
+
+  <div
+    *ngIf="!isLoading && !errorMessage && groupedLivestock.length === 0"
+    class="empty-state"
+  >
+    <div class="empty-icon">
+      <mat-icon>pets</mat-icon>
+    </div>
+    <h2>No livestock yet</h2>
+    <p>Start by adding the first livestock record for one of your zones.</p>
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      (click)="createLivestock()"
+    >
+      <mat-icon>add</mat-icon>
+      Create First Record
+    </button>
+  </div>
+
+  <div
+    *ngIf="!isLoading && !errorMessage && groupedLivestock.length > 0"
+    class="livestock-content"
+  >
+    <div class="summary-row">
+      <div class="summary-card">
+        <div class="summary-icon">
+          <mat-icon>pets</mat-icon>
+        </div>
+        <div>
+          <span class="summary-label">Total Animals</span>
+          <strong>{{ livestock.length }}</strong>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-icon active">
+          <mat-icon>grid_view</mat-icon>
+        </div>
+        <div>
+          <span class="summary-label">Zones Covered</span>
+          <strong>{{ groupedLivestock.length }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="zone-group" *ngFor="let group of groupedLivestock">
+      <div class="zone-group-header">
+        <div class="zone-group-title">
+          <mat-icon>location_on</mat-icon>
+          <span>{{ group.zoneName }}</span>
+        </div>
+        <div class="zone-group-count">
+          {{ group.livestock.length }} record(s)
+        </div>
+      </div>
+
+      <div class="livestock-grid">
+        <mat-card class="livestock-card" *ngFor="let item of group.livestock">
+          <div class="livestock-card-header">
+            <div class="livestock-icon">
+              <mat-icon>pets</mat-icon>
+            </div>
+
+            <button mat-icon-button [matMenuTriggerFor]="menu">
+              <mat-icon>more_vert</mat-icon>
+            </button>
+
+            <mat-menu #menu="matMenu">
+              <button mat-menu-item (click)="viewLivestock(item.id)">
+                <mat-icon>visibility</mat-icon>
+                <span>View</span>
+              </button>
+
+              <button mat-menu-item (click)="editLivestock(item.id)">
+                <mat-icon>edit</mat-icon>
+                <span>Edit</span>
+              </button>
+
+              <mat-divider></mat-divider>
+
+              <button
+                mat-menu-item
+                class="delete-menu-item"
+                (click)="deleteLivestock(item)"
+              >
+                <mat-icon>delete</mat-icon>
+                <span>Delete</span>
+              </button>
+            </mat-menu>
+          </div>
+
+          <mat-card-content>
+            <h2>{{ item.livestockType }}</h2>
+
+            <p class="breed" *ngIf="item.breed; else noBreed">
+              {{ item.breed }}
+            </p>
+            <ng-template #noBreed>
+              <p class="breed muted">No breed specified</p>
+            </ng-template>
+
+            <div class="livestock-info">
+              <div class="info-item">
+                <mat-icon>groups</mat-icon>
+                <div>
+                  <span>Count</span>
+                  <strong>{{ item.count ?? 0 }}</strong>
+                </div>
+              </div>
+
+              <div class="info-item">
+                <mat-icon>health_and_safety</mat-icon>
+                <div>
+                  <span>Status</span>
+                  <strong>{{ getStatusLabel(item.status) }}</strong>
+                </div>
+              </div>
+            </div>
+          </mat-card-content>
+
+          <mat-divider></mat-divider>
+
+          <mat-card-actions>
+            <button
+              mat-button
+              color="primary"
+              type="button"
+              (click)="viewLivestock(item.id)"
+            >
+              View Details
+              <mat-icon>arrow_forward</mat-icon>
+            </button>
+          </mat-card-actions>
+        </mat-card>
+      </div>
+    </div>
+  </div>
+</div>

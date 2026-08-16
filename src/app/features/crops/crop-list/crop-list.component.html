@@ -1,1 +1,178 @@
-<p>crop-list works!</p>
+<div class="crops-page">
+  <div class="page-header">
+    <div class="header-left">
+      <div>
+        <div class="breadcrumb">
+          <span>Dashboard</span>
+          <mat-icon>chevron_right</mat-icon>
+          <span>Crops</span>
+        </div>
+
+        <h1>Crops</h1>
+        <p>
+          Track crop varieties, growth stages, and planting dates across your
+          zones.
+        </p>
+      </div>
+    </div>
+
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      class="add-button"
+      (click)="createCrop()"
+    >
+      <mat-icon>add</mat-icon>
+      Add Crop
+    </button>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="42"></mat-spinner>
+    <span>Loading crops...</span>
+  </div>
+
+  <div *ngIf="!isLoading && errorMessage" class="error-alert">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+    <button mat-button type="button" (click)="loadCrops()">Retry</button>
+  </div>
+
+  <div
+    *ngIf="!isLoading && !errorMessage && groupedCrops.length === 0"
+    class="empty-state"
+  >
+    <div class="empty-icon">
+      <mat-icon>agriculture</mat-icon>
+    </div>
+    <h2>No crops yet</h2>
+    <p>Start by adding your first crop record for a specific zone.</p>
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      (click)="createCrop()"
+    >
+      <mat-icon>add</mat-icon>
+      Create First Crop
+    </button>
+  </div>
+
+  <div
+    *ngIf="!isLoading && !errorMessage && groupedCrops.length > 0"
+    class="crops-content"
+  >
+    <div class="summary-row">
+      <div class="summary-card">
+        <div class="summary-icon">
+          <mat-icon>agriculture</mat-icon>
+        </div>
+        <div>
+          <span class="summary-label">Total Crops</span>
+          <strong>{{ crops.length }}</strong>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-icon active">
+          <mat-icon>grid_view</mat-icon>
+        </div>
+        <div>
+          <span class="summary-label">Zones Covered</span>
+          <strong>{{ groupedCrops.length }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="zone-group" *ngFor="let group of groupedCrops">
+      <div class="zone-group-header">
+        <div class="zone-group-title">
+          <mat-icon>location_on</mat-icon>
+          <span>{{ group.zoneName }}</span>
+        </div>
+        <div class="zone-group-count">{{ group.crops.length }} crop(s)</div>
+      </div>
+
+      <div class="crops-grid">
+        <mat-card class="crop-card" *ngFor="let crop of group.crops">
+          <div class="crop-card-header">
+            <div class="crop-icon">
+              <mat-icon>eco</mat-icon>
+            </div>
+
+            <button mat-icon-button [matMenuTriggerFor]="menu">
+              <mat-icon>more_vert</mat-icon>
+            </button>
+
+            <mat-menu #menu="matMenu">
+              <button mat-menu-item (click)="viewCrop(crop.id)">
+                <mat-icon>visibility</mat-icon>
+                <span>View Crop</span>
+              </button>
+
+              <button mat-menu-item (click)="editCrop(crop.id)">
+                <mat-icon>edit</mat-icon>
+                <span>Edit Crop</span>
+              </button>
+
+              <mat-divider></mat-divider>
+
+              <button
+                mat-menu-item
+                class="delete-menu-item"
+                (click)="deleteCrop(crop)"
+              >
+                <mat-icon>delete</mat-icon>
+                <span>Delete Crop</span>
+              </button>
+            </mat-menu>
+          </div>
+
+          <mat-card-content>
+            <h2>{{ crop.cropType }}</h2>
+
+            <p class="crop-variety" *ngIf="crop.variety; else noVariety">
+              {{ crop.variety }}
+            </p>
+            <ng-template #noVariety>
+              <p class="crop-variety muted">No variety specified</p>
+            </ng-template>
+
+            <div class="crop-info">
+              <div class="info-item">
+                <mat-icon>trending_up</mat-icon>
+                <div>
+                  <span>Growth Stage</span>
+                  <strong>{{ getGrowthStageLabel(crop.growthStage) }}</strong>
+                </div>
+              </div>
+
+              <div class="info-item">
+                <mat-icon>calendar_today</mat-icon>
+                <div>
+                  <span>Planting Date</span>
+                  <strong>{{ formatDate(crop.plantingDate) }}</strong>
+                </div>
+              </div>
+            </div>
+          </mat-card-content>
+
+          <mat-divider></mat-divider>
+
+          <mat-card-actions>
+            <button
+              mat-button
+              color="primary"
+              type="button"
+              (click)="viewCrop(crop.id)"
+            >
+              View Details
+              <mat-icon>arrow_forward</mat-icon>
+            </button>
+          </mat-card-actions>
+        </mat-card>
+      </div>
+    </div>
+  </div>
+</div>

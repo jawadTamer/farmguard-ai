@@ -38,7 +38,16 @@ export class FarmService {
       throw error;
     }
 
-    return (data ?? []).map((farm) => this.mapFarm(farm));
+    const farms = (data ?? []).map((farm) => this.mapFarm(farm));
+
+    const zoneCounts = await this.getZoneCountsByFarmIds(
+      farms.map((farm) => farm.id),
+    );
+
+    return farms.map((farm) => ({
+      ...farm,
+      zonesCount: zoneCounts[farm.id] ?? 0,
+    }));
   }
 
   // =====================================================
@@ -61,7 +70,13 @@ export class FarmService {
       return undefined;
     }
 
-    return this.mapFarm(data);
+    const farm = this.mapFarm(data);
+    const zoneCounts = await this.getZoneCountsByFarmIds([farm.id]);
+
+    return {
+      ...farm,
+      zonesCount: zoneCounts[farm.id] ?? 0,
+    };
   }
 
   // =====================================================
@@ -164,6 +179,43 @@ export class FarmService {
 
       throw error;
     }
+  }
+
+  // =====================================================
+  // Zone counts
+  // =====================================================
+
+  private async getZoneCountsByFarmIds(
+    farmIds: string[],
+  ): Promise<Record<string, number>> {
+    if (!farmIds.length) {
+      return {};
+    }
+
+    const { data, error } = await this.supabaseService.client
+      .from('farm_zones')
+      .select('farm_id');
+
+    if (error) {
+      console.error('Failed to load zone counts:', error);
+      return {};
+    }
+
+    const counts: Record<string, number> = {};
+
+    for (const farmId of farmIds) {
+      counts[farmId] = 0;
+    }
+
+    for (const row of data ?? []) {
+      const farmId = row.farm_id;
+
+      if (farmIds.includes(farmId)) {
+        counts[farmId] = (counts[farmId] ?? 0) + 1;
+      }
+    }
+
+    return counts;
   }
 
   // =====================================================

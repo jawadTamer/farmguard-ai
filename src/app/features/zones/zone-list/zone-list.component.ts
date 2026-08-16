@@ -9,6 +9,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
+import Swal from 'sweetalert2';
 
 import { ZoneService } from '../../../core/services/zone.service';
 import { FarmService } from '../../../core/services/farm.service';
@@ -40,7 +41,11 @@ export class ZoneListComponent implements OnInit {
 
   farm?: Farm;
 
+  farms: Farm[] = [];
+
   zones: FarmZone[] = [];
+
+  groupedZones: Array<{ farm: Farm; zones: FarmZone[] }> = [];
 
   isLoading = true;
 
@@ -60,66 +65,58 @@ export class ZoneListComponent implements OnInit {
   // =====================================================
 
   ngOnInit(): void {
-    const id =
-      this.route.snapshot.paramMap.get('farmId') ??
-      this.route.snapshot.queryParamMap.get('farmId');
+    const id = this.route.snapshot.paramMap.get('farmId');
 
     if (id) {
       this.farmId = id;
-      this.loadFarm();
-      this.loadZones();
+      void this.loadFarmAndZones();
       return;
     }
 
-    void this.loadFirstFarmAndZones();
+    void this.loadAllZones();
   }
 
-  async loadFirstFarmAndZones(): Promise<void> {
-    try {
-      const farms = await this.farmService.getFarms();
-
-      if (!farms.length) {
-        this.errorMessage = 'No farms are available yet.';
-        this.isLoading = false;
-        return;
-      }
-
-      this.farmId = farms[0].id;
-      this.farm = farms[0];
-      await this.loadZones();
-    } catch (error) {
-      console.error('Failed to load default farm for zones:', error);
-
-      this.errorMessage = 'Unable to load the default farm. Please try again.';
-      this.isLoading = false;
-    }
-  }
-
-  // =====================================================
-  // Load Farm
-  // =====================================================
-
-  async loadFarm(): Promise<void> {
-    try {
-      this.farm = await this.farmService.getFarmById(this.farmId);
-    } catch (error) {
-      console.error('Failed to load farm:', error);
-    }
-  }
-
-  // =====================================================
-  // Load Zones
-  // =====================================================
-
-  async loadZones(): Promise<void> {
+  async loadFarmAndZones(): Promise<void> {
     this.isLoading = true;
     this.errorMessage = '';
 
     try {
-      this.zones = await this.zoneService.getZonesByFarm(this.farmId);
+      const [farm, zones] = await Promise.all([
+        this.farmService.getFarmById(this.farmId),
+        this.zoneService.getZonesByFarm(this.farmId),
+      ]);
+
+      this.farm = farm;
+      this.zones = zones;
+      this.farms = farm ? [farm] : [];
+      this.groupedZones = farm ? [{ farm, zones }] : [];
+    } catch (error) {
+      console.error('Failed to load farm zones:', error);
+      this.errorMessage =
+        'Unable to load zones for this farm. Please try again.';
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async loadAllZones(): Promise<void> {
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    try {
+      const [farms, zones] = await Promise.all([
+        this.farmService.getFarms(),
+        this.zoneService.getAllZones(),
+      ]);
+
+      this.farms = farms;
+      this.zones = zones;
+      this.groupedZones = farms.map((farm) => ({
+        farm,
+        zones: zones.filter((zone) => zone.farmId === farm.id),
+      }));
     } catch (error) {
       console.error('Failed to load zones:', error);
-
       this.errorMessage = 'Unable to load zones. Please try again.';
     } finally {
       this.isLoading = false;
@@ -131,11 +128,18 @@ export class ZoneListComponent implements OnInit {
   // =====================================================
 
   async deleteZone(zone: FarmZone): Promise<void> {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${zone.name}"?`,
-    );
+    const result = await Swal.fire({
+      title: 'Delete zone?',
+      text: `"${zone.name}" will be permanently deleted.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#d32f2f',
+      reverseButtons: true,
+    });
 
-    if (!confirmed) {
+    if (!result.isConfirmed) {
       return;
     }
 
@@ -145,10 +149,25 @@ export class ZoneListComponent implements OnInit {
       await this.zoneService.deleteZone(zone.id);
 
       this.zones = this.zones.filter((item) => item.id !== zone.id);
+
+      if (this.farmId) {
+        this.groupedZones = [{ farm: this.farm!, zones: this.zones }];
+      } else {
+        this.groupedZones = this.farms.map((farm) => ({
+          farm,
+          zones: this.zones.filter((item) => item.farmId === farm.id),
+        }));
+      }
     } catch (error) {
       console.error('Failed to delete zone:', error);
 
       this.errorMessage = 'Failed to delete the zone. Please try again.';
+
+      await Swal.fire({
+        title: 'Delete failed',
+        text: 'Unable to delete this zone. Please try again.',
+        icon: 'error',
+      });
     } finally {
       this.deletingZoneId = null;
     }
@@ -159,19 +178,39 @@ export class ZoneListComponent implements OnInit {
   // =====================================================
 
   goBack(): void {
-    this.router.navigate(['/farms', this.farmId]);
+    if (this.farmId) {
+      this.router.navigate(['/farms', this.farmId]);
+      return;
+    }
+
+    this.router.navigate(['/farms']);
   }
 
   createZone(): void {
-    this.router.navigate(['/farms', this.farmId, 'zones', 'create']);
+    if (this.farmId) {
+      this.router.navigate(['/farms', this.farmId, 'zones', 'create']);
+      return;
+    }
+
+    this.router.navigate(['/zones', 'create']);
   }
 
   viewZone(zoneId: string): void {
-    this.router.navigate(['/farms', this.farmId, 'zones', zoneId]);
+    if (this.farmId) {
+      this.router.navigate(['/farms', this.farmId, 'zones', zoneId]);
+      return;
+    }
+
+    this.router.navigate(['/zones', zoneId]);
   }
 
   editZone(zoneId: string): void {
-    this.router.navigate(['/farms', this.farmId, 'zones', zoneId, 'edit']);
+    if (this.farmId) {
+      this.router.navigate(['/farms', this.farmId, 'zones', zoneId, 'edit']);
+      return;
+    }
+
+    this.router.navigate(['/zones', zoneId, 'edit']);
   }
 
   // =====================================================

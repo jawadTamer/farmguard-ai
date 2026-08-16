@@ -1,444 +1,228 @@
 <div class="zones-page">
-
-  <!-- =========================
-       Header
-  ========================== -->
-
   <div class="page-header">
-
     <div class="header-left">
-
       <button
         mat-icon-button
         type="button"
         class="back-button"
-        (click)="goBack()">
-
+        (click)="goBack()"
+      >
         <mat-icon>arrow_back</mat-icon>
-
       </button>
 
       <div>
-
         <div class="breadcrumb">
-
           <span>Farms</span>
-
           <mat-icon>chevron_right</mat-icon>
-
-          <span>
-            {{ farm?.name || 'Farm' }}
-          </span>
-
+          <span>{{ farm?.name || "All Farms" }}</span>
           <mat-icon>chevron_right</mat-icon>
-
           <span>Zones</span>
-
         </div>
 
-        <h1>Farm Zones</h1>
-
+        <h1>{{ farm ? "Farm Zones" : "All Zones" }}</h1>
         <p>
-          Manage and monitor the zones inside your farm.
+          {{
+            farm
+              ? "Manage and monitor the zones inside your farm."
+              : "Manage every zone across all farms."
+          }}
         </p>
-
       </div>
-
     </div>
-
 
     <button
       mat-flat-button
       color="primary"
       type="button"
       class="add-button"
-      (click)="createZone()">
-
+      (click)="createZone()"
+    >
       <mat-icon>add</mat-icon>
-
       Add Zone
-
     </button>
-
   </div>
 
-
-  <!-- =========================
-       Loading
-  ========================== -->
-
-  <div
-    *ngIf="isLoading"
-    class="loading-container">
-
+  <div *ngIf="isLoading" class="loading-container">
     <mat-spinner diameter="42"></mat-spinner>
-
-    <span>
-      Loading zones...
-    </span>
-
+    <span>Loading zones...</span>
   </div>
 
-
-  <!-- =========================
-       Error
-  ========================== -->
-
-  <div
-    *ngIf="!isLoading && errorMessage"
-    class="error-alert">
-
+  <div *ngIf="!isLoading && errorMessage" class="error-alert">
     <mat-icon>error_outline</mat-icon>
-
-    <span>
-      {{ errorMessage }}
-    </span>
-
+    <span>{{ errorMessage }}</span>
     <button
       mat-button
       type="button"
-      (click)="loadZones()">
-
+      (click)="farm ? loadFarmAndZones() : loadAllZones()"
+    >
       Retry
-
     </button>
-
   </div>
 
-
-  <!-- =========================
-       Empty State
-  ========================== -->
-
   <div
-    *ngIf="
-      !isLoading &&
-      !errorMessage &&
-      zones.length === 0
-    "
-    class="empty-state">
-
+    *ngIf="!isLoading && !errorMessage && groupedZones.length === 0"
+    class="empty-state"
+  >
     <div class="empty-icon">
-
-      <mat-icon>
-        grid_view
-      </mat-icon>
-
+      <mat-icon>grid_view</mat-icon>
     </div>
-
     <h2>No zones yet</h2>
-
     <p>
-      Divide your farm into zones to monitor
-      crops, temperature and heat risk more accurately.
+      Divide your farms into zones to monitor crops, temperature and heat risk
+      more accurately.
     </p>
-
     <button
       mat-flat-button
       color="primary"
       type="button"
-      (click)="createZone()">
-
+      (click)="createZone()"
+    >
       <mat-icon>add</mat-icon>
-
       Create First Zone
-
     </button>
-
   </div>
 
-
-  <!-- =========================
-       Zones
-  ========================== -->
-
   <div
-    *ngIf="
-      !isLoading &&
-      !errorMessage &&
-      zones.length > 0
-    "
-    class="zones-content">
-
-
-    <!-- Summary -->
-
+    *ngIf="!isLoading && !errorMessage && groupedZones.length > 0"
+    class="zones-content"
+  >
     <div class="summary-row">
-
       <div class="summary-card">
-
         <div class="summary-icon">
           <mat-icon>grid_view</mat-icon>
         </div>
-
         <div>
-
-          <span class="summary-label">
-            Total Zones
-          </span>
-
-          <strong>
-            {{ zones.length }}
-          </strong>
-
+          <span class="summary-label">Total Zones</span>
+          <strong>{{ zones.length }}</strong>
         </div>
-
       </div>
 
-
       <div class="summary-card">
-
         <div class="summary-icon active">
           <mat-icon>check_circle</mat-icon>
         </div>
-
         <div>
-
-          <span class="summary-label">
-            Active Zones
-          </span>
-
-          <strong>
-            {{ zones.length }}
-          </strong>
-
+          <span class="summary-label">Farms</span>
+          <strong>{{ farms.length }}</strong>
         </div>
-
       </div>
 
-
-      <div
-        *ngIf="farm"
-        class="farm-summary">
-
-        <mat-icon>
-          agriculture
-        </mat-icon>
-
+      <div *ngIf="farm" class="farm-summary">
+        <mat-icon>agriculture</mat-icon>
         <div>
-
-          <span>
-            Farm
-          </span>
-
-          <strong>
-            {{ farm.name }}
-          </strong>
-
+          <span>Current Farm</span>
+          <strong>{{ farm.name }}</strong>
         </div>
+      </div>
+    </div>
 
+    <div class="farm-group" *ngFor="let group of groupedZones">
+      <div class="farm-group-header">
+        <div class="farm-group-title">
+          <mat-icon>agriculture</mat-icon>
+          <span>{{ group.farm.name }}</span>
+        </div>
+        <div class="farm-group-count">{{ group.zones.length }} zone(s)</div>
       </div>
 
-    </div>
+      <div class="zones-grid" *ngIf="group.zones.length; else noZonesForFarm">
+        <mat-card class="zone-card" *ngFor="let zone of group.zones">
+          <div class="zone-card-header">
+            <div class="zone-icon">
+              <mat-icon>grid_view</mat-icon>
+            </div>
 
+            <button mat-icon-button [matMenuTriggerFor]="menu">
+              <mat-icon>more_vert</mat-icon>
+            </button>
 
-    <!-- Zone Cards -->
+            <mat-menu #menu="matMenu">
+              <button mat-menu-item (click)="viewZone(zone.id)">
+                <mat-icon>visibility</mat-icon>
+                <span>View Zone</span>
+              </button>
 
-    <div class="zones-grid">
+              <button mat-menu-item (click)="editZone(zone.id)">
+                <mat-icon>edit</mat-icon>
+                <span>Edit Zone</span>
+              </button>
 
-      <mat-card
-        class="zone-card"
-        *ngFor="let zone of zones">
+              <mat-divider></mat-divider>
 
-
-        <!-- Card Header -->
-
-        <div class="zone-card-header">
-
-          <div class="zone-icon">
-
-            <mat-icon>
-              grid_view
-            </mat-icon>
-
+              <button
+                mat-menu-item
+                class="delete-menu-item"
+                (click)="deleteZone(zone)"
+              >
+                <mat-icon>delete</mat-icon>
+                <span>Delete Zone</span>
+              </button>
+            </mat-menu>
           </div>
 
+          <mat-card-content>
+            <h2>{{ zone.name }}</h2>
 
-          <button
-            mat-icon-button
-            [matMenuTriggerFor]="menu">
+            <p class="zone-description" *ngIf="zone.description">
+              {{ zone.description }}
+            </p>
 
-            <mat-icon>
-              more_vert
-            </mat-icon>
+            <p class="zone-description muted" *ngIf="!zone.description">
+              No description provided.
+            </p>
 
-          </button>
+            <div class="zone-info">
+              <div class="info-item">
+                <mat-icon>straighten</mat-icon>
+                <div>
+                  <span>Area</span>
+                  <strong>{{ getZoneArea(zone) }}</strong>
+                </div>
+              </div>
 
+              <div class="info-item">
+                <mat-icon>location_on</mat-icon>
+                <div>
+                  <span>Location</span>
+                  <strong>
+                    <ng-container
+                      *ngIf="
+                        zone.latitude !== undefined &&
+                          zone.longitude !== undefined;
+                        else noLocation
+                      "
+                    >
+                      GPS Available
+                    </ng-container>
+                    <ng-template #noLocation>Not set</ng-template>
+                  </strong>
+                </div>
+              </div>
+            </div>
+          </mat-card-content>
 
-          <mat-menu #menu="matMenu">
+          <mat-divider></mat-divider>
 
+          <mat-card-actions>
             <button
-              mat-menu-item
-              (click)="viewZone(zone.id)">
-
-              <mat-icon>
-                visibility
-              </mat-icon>
-
-              <span>
-                View Zone
-              </span>
-
+              mat-button
+              color="primary"
+              type="button"
+              (click)="viewZone(zone.id)"
+            >
+              View Details
+              <mat-icon>arrow_forward</mat-icon>
             </button>
+          </mat-card-actions>
+        </mat-card>
+      </div>
 
-
-            <button
-              mat-menu-item
-              (click)="editZone(zone.id)">
-
-              <mat-icon>
-                edit
-              </mat-icon>
-
-              <span>
-                Edit Zone
-              </span>
-
-            </button>
-
-
-            <mat-divider></mat-divider>
-
-
-            <button
-              mat-menu-item
-              class="delete-menu-item"
-              (click)="deleteZone(zone)">
-
-              <mat-icon>
-                delete
-              </mat-icon>
-
-              <span>
-                Delete Zone
-              </span>
-
-            </button>
-
-          </mat-menu>
-
+      <ng-template #noZonesForFarm>
+        <div class="farm-empty-state">
+          <mat-icon>info</mat-icon>
+          <span>No zones assigned to this farm yet.</span>
         </div>
-
-
-        <!-- Name -->
-
-        <mat-card-content>
-
-          <h2>
-            {{ zone.name }}
-          </h2>
-
-          <p
-            class="zone-description"
-            *ngIf="zone.description">
-
-            {{ zone.description }}
-
-          </p>
-
-          <p
-            class="zone-description muted"
-            *ngIf="!zone.description">
-
-            No description provided.
-
-          </p>
-
-
-          <!-- Area -->
-
-          <div class="zone-info">
-
-            <div class="info-item">
-
-              <mat-icon>
-                straighten
-              </mat-icon>
-
-              <div>
-
-                <span>
-                  Area
-                </span>
-
-                <strong>
-                  {{ getZoneArea(zone) }}
-                </strong>
-
-              </div>
-
-            </div>
-
-
-            <!-- Location -->
-
-            <div class="info-item">
-
-              <mat-icon>
-                location_on
-              </mat-icon>
-
-              <div>
-
-                <span>
-                  Location
-                </span>
-
-                <strong>
-
-                  <ng-container
-                    *ngIf="
-                      zone.latitude !== undefined &&
-                      zone.longitude !== undefined;
-                      else noLocation
-                    ">
-
-                    GPS Available
-
-                  </ng-container>
-
-                  <ng-template #noLocation>
-                    Not set
-                  </ng-template>
-
-                </strong>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </mat-card-content>
-
-
-        <mat-divider></mat-divider>
-
-
-        <!-- Footer -->
-
-        <mat-card-actions>
-
-          <button
-            mat-button
-            color="primary"
-            type="button"
-            (click)="viewZone(zone.id)">
-
-            View Details
-
-            <mat-icon>
-              arrow_forward
-            </mat-icon>
-
-          </button>
-
-        </mat-card-actions>
-
-      </mat-card>
-
+      </ng-template>
     </div>
-
   </div>
-
 </div>

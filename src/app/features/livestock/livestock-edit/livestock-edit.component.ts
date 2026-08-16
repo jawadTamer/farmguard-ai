@@ -6,7 +6,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -18,10 +18,11 @@ import { MatSelectModule } from '@angular/material/select';
 
 import { LivestockService } from '../../../core/services/livestock.service';
 import { ZoneService } from '../../../core/services/zone.service';
+import { Livestock } from '../../../core/models/livestock.model';
 import { FarmZone } from '../../../core/models/farm-zone.model';
 
 @Component({
-  selector: 'app-livestock-create',
+  selector: 'app-livestock-edit',
   standalone: true,
   imports: [
     CommonModule,
@@ -34,20 +35,24 @@ import { FarmZone } from '../../../core/models/farm-zone.model';
     MatProgressSpinnerModule,
     MatSelectModule,
   ],
-  templateUrl: './livestock-create.component.html',
-  styleUrl: './livestock-create.component.css',
+  templateUrl: './livestock-edit.component.html',
+  styleUrl: './livestock-edit.component.css',
 })
-export class LivestockCreateComponent implements OnInit {
+export class LivestockEditComponent implements OnInit {
   livestockForm: FormGroup;
+  livestockId = '';
+  livestock?: Livestock;
   zones: FarmZone[] = [];
+  isLoading = true;
   isSubmitting = false;
   errorMessage = '';
 
   constructor(
     private fb: FormBuilder,
+    private route: ActivatedRoute,
+    private router: Router,
     private livestockService: LivestockService,
     private zoneService: ZoneService,
-    private router: Router,
   ) {
     this.livestockForm = this.fb.group({
       zoneId: ['', [Validators.required]],
@@ -66,29 +71,49 @@ export class LivestockCreateComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    void this.loadZones();
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id) {
+      this.errorMessage = 'Livestock record was not found.';
+      this.isLoading = false;
+      return;
+    }
+
+    this.livestockId = id;
+    void this.loadData();
   }
 
-  async loadZones(): Promise<void> {
-    try {
-      this.zones = await this.zoneService.getAllZones();
+  async loadData(): Promise<void> {
+    this.isLoading = true;
+    this.errorMessage = '';
 
-      if (!this.zones.length) {
-        this.errorMessage = 'No zones are available yet. Create a zone first.';
+    try {
+      const [zones, livestock] = await Promise.all([
+        this.zoneService.getAllZones(),
+        this.livestockService.getLivestockById(this.livestockId),
+      ]);
+
+      this.zones = zones;
+      this.livestock = livestock;
+
+      if (!livestock) {
+        this.errorMessage = 'The livestock record could not be found.';
+        this.isLoading = false;
         return;
       }
 
-      if (!this.livestockForm.get('zoneId')?.value) {
-        this.livestockForm.patchValue({ zoneId: this.zones[0].id });
-      }
+      this.livestockForm.patchValue({
+        zoneId: livestock.zoneId,
+        livestockType: livestock.livestockType,
+        breed: livestock.breed ?? '',
+        count: livestock.count ?? 1,
+        status: livestock.status ?? 'healthy',
+      });
     } catch (error) {
-      console.error('Failed to load zones:', error);
-      this.errorMessage = 'Unable to load zones information.';
+      console.error('Failed to load livestock record:', error);
+      this.errorMessage = 'Unable to load this livestock record.';
+    } finally {
+      this.isLoading = false;
     }
-  }
-
-  get livestockType() {
-    return this.livestockForm.get('livestockType');
   }
 
   async onSubmit(): Promise<void> {
@@ -104,24 +129,30 @@ export class LivestockCreateComponent implements OnInit {
     try {
       const formValue = this.livestockForm.getRawValue();
 
-      await this.livestockService.addLivestock(formValue.zoneId, {
+      await this.livestockService.updateLivestock(this.livestockId, {
+        zoneId: formValue.zoneId,
         livestockType: formValue.livestockType.trim(),
         breed: formValue.breed?.trim() || undefined,
         count: Number(formValue.count),
         status: formValue.status,
       });
 
-      await this.router.navigate(['/livestock']);
+      await this.router.navigate(['/livestock', this.livestockId]);
     } catch (error) {
-      console.error('Failed to create livestock record:', error);
+      console.error('Failed to update livestock:', error);
       this.errorMessage =
-        'Failed to create the livestock record. Please try again.';
+        'Failed to update this livestock record. Please try again.';
     } finally {
       this.isSubmitting = false;
     }
   }
 
   cancel(): void {
+    if (this.livestockId) {
+      this.router.navigate(['/livestock', this.livestockId]);
+      return;
+    }
+
     this.router.navigate(['/livestock']);
   }
 }

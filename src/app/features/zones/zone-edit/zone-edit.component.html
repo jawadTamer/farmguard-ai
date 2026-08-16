@@ -1,43 +1,37 @@
-<div class="zone-create-page">
-  <!-- Header -->
-
+<div class="zone-edit-page">
   <div class="page-header">
     <div class="header-left">
       <button mat-icon-button type="button" (click)="cancel()">
-        <mat-icon> arrow_back </mat-icon>
+        <mat-icon>arrow_back</mat-icon>
       </button>
 
       <div>
         <div class="breadcrumb">
           <span>Farms</span>
           <mat-icon>chevron_right</mat-icon>
-          <span>{{ farm?.name || "Farm" }}</span>
+          <span>{{ zone?.name || "Zone" }}</span>
           <mat-icon>chevron_right</mat-icon>
-          <span>Zones</span>
-          <mat-icon>chevron_right</mat-icon>
-          <span>New Zone</span>
+          <span>Edit</span>
         </div>
 
-        <h1>Create Zone</h1>
-
-        <p>Add a new monitoring zone to your farm.</p>
+        <h1>Edit Zone</h1>
+        <p>Update zone details and assign it to a different farm.</p>
       </div>
     </div>
   </div>
 
-  <!-- Error -->
-
-  <div *ngIf="errorMessage" class="error-alert">
-    <mat-icon> error_outline </mat-icon>
-
-    <span>
-      {{ errorMessage }}
-    </span>
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="42"></mat-spinner>
+    <span>Loading zone...</span>
   </div>
 
-  <!-- Form -->
+  <div *ngIf="!isLoading && errorMessage" class="error-alert">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+    <button mat-button type="button" (click)="loadData()">Retry</button>
+  </div>
 
-  <mat-card class="form-card">
+  <mat-card *ngIf="!isLoading && !errorMessage" class="form-card">
     <div class="card-title">
       <div class="title-icon">
         <mat-icon>grid_view</mat-icon>
@@ -45,156 +39,119 @@
 
       <div>
         <h2>Zone Information</h2>
-
-        <p>Enter the basic information about this zone.</p>
+        <p>Update the zone and assign it to a farm.</p>
       </div>
     </div>
 
-    <form [formGroup]="zoneForm" (ngSubmit)="onSubmit()">
-      <!-- Farm -->
-
+    <form [formGroup]="zoneForm" (ngSubmit)="saveZone()">
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label> Farm </mat-label>
-
+        <mat-label>Farm</mat-label>
         <mat-select formControlName="farmId">
           <mat-option *ngFor="let farmOption of farms" [value]="farmOption.id">
             {{ farmOption.name }}
           </mat-option>
         </mat-select>
-
-        <mat-icon matSuffix> agriculture </mat-icon>
-
+        <mat-icon matSuffix>agriculture</mat-icon>
         <mat-error *ngIf="zoneForm.get('farmId')?.hasError('required')">
           Farm is required.
         </mat-error>
       </mat-form-field>
 
-      <!-- Zone Name -->
-
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label> Zone Name </mat-label>
-
+        <mat-label>Zone Name</mat-label>
         <input
           matInput
           formControlName="name"
           placeholder="e.g. Tomato Field A"
         />
-
-        <mat-icon matSuffix> grid_view </mat-icon>
-
-        <mat-error *ngIf="name?.hasError('required')">
-          Zone name is required.
-        </mat-error>
-
-        <mat-error *ngIf="name?.hasError('minlength')">
-          Zone name must be at least 2 characters.
-        </mat-error>
-
-        <mat-error *ngIf="name?.hasError('maxlength')">
-          Zone name cannot exceed 100 characters.
-        </mat-error>
+        <mat-icon matSuffix>grid_view</mat-icon>
+        <mat-error *ngIf="name?.hasError('required')"
+          >Zone name is required.</mat-error
+        >
+        <mat-error *ngIf="name?.hasError('minlength')"
+          >Zone name must be at least 2 characters.</mat-error
+        >
+        <mat-error *ngIf="name?.hasError('maxlength')"
+          >Zone name cannot exceed 100 characters.</mat-error
+        >
       </mat-form-field>
 
-      <!-- Description -->
-
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label> Description </mat-label>
-
+        <mat-label>Description</mat-label>
         <textarea
           matInput
           formControlName="description"
           rows="4"
           placeholder="Describe this zone..."
+        ></textarea>
+        <mat-hint align="end"
+          >{{ description?.value?.length || 0 }}/500</mat-hint
         >
-        </textarea>
-
-        <mat-hint align="end">
-          {{ description?.value?.length || 0 }}/500
-        </mat-hint>
       </mat-form-field>
 
-      <!-- Area -->
-
       <div class="section-title">
-        <mat-icon> straighten </mat-icon>
-
-        <span> Area & Location </span>
+        <mat-icon>straighten</mat-icon>
+        <span>Area & Location</span>
       </div>
 
       <div class="form-grid">
         <mat-form-field appearance="outline">
-          <mat-label> Area </mat-label>
-
+          <mat-label>Area</mat-label>
           <input
             matInput
             type="number"
             formControlName="area"
             placeholder="e.g. 5"
           />
-
-          <mat-icon matSuffix> square_foot </mat-icon>
-
-          <mat-error *ngIf="area?.hasError('min')">
-            Area cannot be negative.
-          </mat-error>
+          <mat-icon matSuffix>square_foot</mat-icon>
+          <mat-error *ngIf="area?.hasError('min')"
+            >Area cannot be negative.</mat-error
+          >
         </mat-form-field>
 
         <div class="area-unit">
-          <span> Unit </span>
-
-          <strong> Acres </strong>
+          <span>Unit</span>
+          <strong>Acres</strong>
         </div>
       </div>
 
-      <!-- Coordinates -->
-
       <div class="coordinates-grid">
         <mat-form-field appearance="outline">
-          <mat-label> Latitude </mat-label>
-
+          <mat-label>Latitude</mat-label>
           <input
             matInput
             type="number"
             formControlName="latitude"
             placeholder="e.g. 29.3084"
           />
-
-          <mat-icon matSuffix> location_on </mat-icon>
-
+          <mat-icon matSuffix>location_on</mat-icon>
           <mat-error
             *ngIf="latitude?.hasError('min') || latitude?.hasError('max')"
+            >Latitude must be between -90 and 90.</mat-error
           >
-            Latitude must be between -90 and 90.
-          </mat-error>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
-          <mat-label> Longitude </mat-label>
-
+          <mat-label>Longitude</mat-label>
           <input
             matInput
             type="number"
             formControlName="longitude"
             placeholder="e.g. 30.8428"
           />
-
-          <mat-icon matSuffix> location_on </mat-icon>
-
+          <mat-icon matSuffix>location_on</mat-icon>
           <mat-error
             *ngIf="longitude?.hasError('min') || longitude?.hasError('max')"
+            >Longitude must be between -180 and 180.</mat-error
           >
-            Longitude must be between -180 and 180.
-          </mat-error>
         </mat-form-field>
       </div>
-
-      <!-- Actions -->
 
       <div class="form-actions">
         <button
           mat-button
           type="button"
-          [disabled]="isSubmitting"
+          [disabled]="isSaving"
           (click)="cancel()"
         >
           Cancel
@@ -204,15 +161,11 @@
           mat-flat-button
           color="primary"
           type="submit"
-          [disabled]="isSubmitting"
+          [disabled]="isSaving"
         >
-          <mat-spinner *ngIf="isSubmitting" diameter="20"> </mat-spinner>
-
-          <mat-icon *ngIf="!isSubmitting"> add </mat-icon>
-
-          <span>
-            {{ isSubmitting ? "Creating..." : "Create Zone" }}
-          </span>
+          <mat-spinner *ngIf="isSaving" diameter="20"></mat-spinner>
+          <mat-icon *ngIf="!isSaving">save</mat-icon>
+          <span>{{ isSaving ? "Saving..." : "Save Changes" }}</span>
         </button>
       </div>
     </form>
