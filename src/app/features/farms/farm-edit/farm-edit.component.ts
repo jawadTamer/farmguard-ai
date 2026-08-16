@@ -4,7 +4,7 @@ import {
   FormBuilder,
   FormGroup,
   ReactiveFormsModule,
-  Validators
+  Validators,
 } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
@@ -35,14 +35,13 @@ import { Farm } from '../../../core/models/farm.model';
     MatInputModule,
     MatSelectModule,
     MatDividerModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
   ],
 
   templateUrl: './farm-edit.component.html',
-  styleUrl: './farm-edit.component.css'
+  styleUrl: './farm-edit.component.css',
 })
 export class FarmEditComponent implements OnInit {
-
   farmForm!: FormGroup;
 
   farm: Farm | undefined;
@@ -59,7 +58,7 @@ export class FarmEditComponent implements OnInit {
     private fb: FormBuilder,
     private route: ActivatedRoute,
     private router: Router,
-    private farmService: FarmService
+    private farmService: FarmService,
   ) {}
 
   ngOnInit(): void {
@@ -72,62 +71,30 @@ export class FarmEditComponent implements OnInit {
   // =====================================================
 
   private createForm(): void {
-
     this.farmForm = this.fb.group({
-
       name: [
         '',
         [
           Validators.required,
           Validators.minLength(2),
-          Validators.maxLength(100)
-        ]
+          Validators.maxLength(100),
+        ],
       ],
 
-      location: [
-        '',
-        [
-          Validators.required,
-          Validators.minLength(2)
-        ]
-      ],
+      location: ['', [Validators.required, Validators.minLength(2)]],
 
-      area: [
-        null,
-        [
-          Validators.required,
-          Validators.min(0.1)
-        ]
-      ],
+      description: [''],
 
-      areaUnit: [
-        'acre',
-        Validators.required
-      ],
+      area: [null, [Validators.required, Validators.min(0.1)]],
 
-      status: [
-        'active',
-        Validators.required
-      ],
+      areaUnit: ['acre', Validators.required],
 
-      latitude: [
-        null,
-        [
-          Validators.min(-90),
-          Validators.max(90)
-        ]
-      ],
+      status: ['active', Validators.required],
 
-      longitude: [
-        null,
-        [
-          Validators.min(-180),
-          Validators.max(180)
-        ]
-      ]
+      latitude: [null, [Validators.min(-90), Validators.max(90)]],
 
+      longitude: [null, [Validators.min(-180), Validators.max(180)]],
     });
-
   }
 
   // =====================================================
@@ -135,41 +102,33 @@ export class FarmEditComponent implements OnInit {
   // =====================================================
 
   private async loadFarm(): Promise<void> {
-
-    const id =
-      this.route.snapshot.paramMap.get('id');
+    const id = this.route.snapshot.paramMap.get('id');
 
     if (!id) {
-
       this.notFound = true;
       this.isLoading = false;
 
       return;
-
     }
 
     this.farmId = id;
 
     try {
-
-      const farm =
-        await this.farmService.getFarmById(id);
+      const farm = await this.farmService.getFarmById(id);
 
       if (!farm) {
-
         this.notFound = true;
 
         return;
-
       }
 
       this.farm = farm;
 
       this.farmForm.patchValue({
-
         name: farm.name,
 
         location: farm.location,
+        description: farm.description ?? '',
 
         area: farm.area ?? null,
 
@@ -179,26 +138,15 @@ export class FarmEditComponent implements OnInit {
 
         latitude: farm.latitude ?? null,
 
-        longitude: farm.longitude ?? null
-
+        longitude: farm.longitude ?? null,
       });
-
     } catch (error) {
+      console.error('Failed to load farm:', error);
 
-      console.error(
-        'Failed to load farm:',
-        error
-      );
-
-      this.errorMessage =
-        'Unable to load this farm. Please try again.';
-
+      this.errorMessage = 'Unable to load this farm. Please try again.';
     } finally {
-
       this.isLoading = false;
-
     }
-
   }
 
   // =====================================================
@@ -206,83 +154,57 @@ export class FarmEditComponent implements OnInit {
   // =====================================================
 
   async saveFarm(): Promise<void> {
-
     this.errorMessage = '';
 
     if (this.farmForm.invalid) {
-
       this.farmForm.markAllAsTouched();
 
       return;
-
     }
 
     this.isSaving = true;
 
     try {
+      const formValue = this.farmForm.getRawValue();
 
-      const formValue =
-        this.farmForm.getRawValue();
+      const updatedFarm = await this.farmService.updateFarm(
+        this.farmId,
 
-      const updatedFarm =
-        await this.farmService.updateFarm(
+        {
+          name: formValue.name.trim(),
 
-          this.farmId,
+          location: formValue.location?.trim(),
+          description: formValue.description?.trim(),
 
-          {
+          area: formValue.area !== null ? Number(formValue.area) : undefined,
 
-            name:
-              formValue.name.trim(),
+          latitude:
+            formValue.latitude !== null
+              ? Number(formValue.latitude)
+              : undefined,
 
-            location:
-              formValue.location?.trim(),
+          longitude:
+            formValue.longitude !== null
+              ? Number(formValue.longitude)
+              : undefined,
 
-            area:
-              formValue.area !== null
-                ? Number(formValue.area)
-                : undefined,
-
-            latitude:
-              formValue.latitude !== null
-                ? Number(formValue.latitude)
-                : undefined,
-
-            longitude:
-              formValue.longitude !== null
-                ? Number(formValue.longitude)
-                : undefined
-
-          }
-
-        );
-
-      console.log(
-        'Farm updated successfully:',
-        updatedFarm
+          status: formValue.status === 'inactive' ? 'inactive' : 'active',
+        },
       );
 
-      await this.router.navigate([
-        '/farms',
-        this.farmId
-      ]);
+      console.log('Farm updated successfully:', updatedFarm);
 
+      await this.router.navigateByUrl('/farms');
+      await this.router.navigate(['/farms', this.farmId]);
     } catch (error: any) {
-
-      console.error(
-        'Failed to update farm:',
-        error
-      );
+      console.error('Failed to update farm:', error);
 
       this.errorMessage =
         error?.message ||
         'Something went wrong while updating the farm. Please try again.';
-
     } finally {
-
       this.isSaving = false;
-
     }
-
   }
 
   // =====================================================
@@ -290,12 +212,7 @@ export class FarmEditComponent implements OnInit {
   // =====================================================
 
   cancel(): void {
-
-    this.router.navigate([
-      '/farms',
-      this.farmId
-    ]);
-
+    this.router.navigate(['/farms', this.farmId]);
   }
 
   // =====================================================
@@ -303,11 +220,7 @@ export class FarmEditComponent implements OnInit {
   // =====================================================
 
   goBack(): void {
-
-    this.router.navigate([
-      '/farms'
-    ]);
-
+    this.router.navigate(['/farms']);
   }
 
   // =====================================================
@@ -333,5 +246,4 @@ export class FarmEditComponent implements OnInit {
   get longitude() {
     return this.farmForm.get('longitude');
   }
-
 }

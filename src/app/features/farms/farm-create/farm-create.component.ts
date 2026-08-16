@@ -4,7 +4,7 @@ import {
   FormBuilder,
   FormGroup,
   ReactiveFormsModule,
-  Validators
+  Validators,
 } from '@angular/forms';
 import { Router } from '@angular/router';
 
@@ -32,14 +32,13 @@ import { FarmService } from '../../../core/services/farm.service';
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
   ],
 
   templateUrl: './farm-create.component.html',
-  styleUrl: './farm-create.component.css'
+  styleUrl: './farm-create.component.css',
 })
 export class FarmCreateComponent {
-
   farmForm: FormGroup;
 
   isSubmitting = false;
@@ -49,66 +48,33 @@ export class FarmCreateComponent {
   constructor(
     private fb: FormBuilder,
     private farmService: FarmService,
-    private router: Router
+    private router: Router,
   ) {
-
     this.farmForm = this.fb.group({
-
       name: [
         '',
         [
           Validators.required,
           Validators.minLength(2),
-          Validators.maxLength(100)
-        ]
+          Validators.maxLength(100),
+        ],
       ],
 
-      location: [
-        '',
-        [
-          Validators.required,
-          Validators.minLength(2)
-        ]
-      ],
+      location: ['', [Validators.required, Validators.minLength(2)]],
 
-      area: [
-        null,
-        [
-          Validators.required,
-          Validators.min(0.1)
-        ]
-      ],
+      description: [''],
 
-      areaUnit: [
-        'acre',
-        Validators.required
-      ],
+      area: [null, [Validators.required, Validators.min(0.1)]],
 
-      status: [
-        'active',
-        Validators.required
-      ],
+      areaUnit: ['acre', Validators.required],
 
-      latitude: [
-        null,
-        [
-          Validators.min(-90),
-          Validators.max(90)
-        ]
-      ],
+      status: ['active', Validators.required],
 
-      longitude: [
-        null,
-        [
-          Validators.min(-180),
-          Validators.max(180)
-        ]
-      ]
+      latitude: [null, [Validators.min(-90), Validators.max(90)]],
 
+      longitude: [null, [Validators.min(-180), Validators.max(180)]],
     });
-
   }
-
 
   // =====================================================
   // Getters
@@ -134,109 +100,77 @@ export class FarmCreateComponent {
     return this.farmForm.get('longitude');
   }
 
-
   // =====================================================
   // Submit
   // =====================================================
 
   async onSubmit(): Promise<void> {
+    this.errorMessage = '';
 
-  this.errorMessage = '';
+    if (this.farmForm.invalid) {
+      this.farmForm.markAllAsTouched();
 
-  if (this.farmForm.invalid) {
+      return;
+    }
 
-    this.farmForm.markAllAsTouched();
+    this.isSubmitting = true;
 
-    return;
+    try {
+      const formValue = this.farmForm.getRawValue();
 
-  }
-
-  this.isSubmitting = true;
-
-  try {
-
-    const formValue =
-      this.farmForm.getRawValue();
-
-    const farm =
-      await this.farmService.addFarm({
-
+      const farm = await this.farmService.addFarm({
         name: formValue.name.trim(),
 
         location: formValue.location?.trim(),
+        description: formValue.description?.trim(),
 
-        area:
-          formValue.area !== null
-            ? Number(formValue.area)
-            : undefined,
+        area: formValue.area !== null ? Number(formValue.area) : undefined,
 
         latitude:
-          formValue.latitude !== null
-            ? Number(formValue.latitude)
-            : undefined,
+          formValue.latitude !== null ? Number(formValue.latitude) : undefined,
 
         longitude:
           formValue.longitude !== null
             ? Number(formValue.longitude)
-            : undefined
+            : undefined,
 
+        status: formValue.status === 'inactive' ? 'inactive' : 'active',
       });
 
-    console.log(
-      'Farm created successfully:',
-      farm
-    );
+      console.log('Farm created successfully:', farm);
 
-    // Navigate only AFTER Supabase INSERT succeeds
-    await this.router.navigate(['/farms']);
+      // Navigate only AFTER Supabase INSERT succeeds
+      await this.router.navigate(['/farms']);
+    } catch (error: any) {
+      console.error('Failed to create farm:', error);
 
-  } catch (error: any) {
-
-    console.error(
-      'Failed to create farm:',
-      error
-    );
-
-    this.errorMessage =
-      error?.message ||
-      'Something went wrong while creating the farm. Please try again.';
-
-  } finally {
-
-    this.isSubmitting = false;
-
+      this.errorMessage =
+        error?.message ||
+        'Something went wrong while creating the farm. Please try again.';
+    } finally {
+      this.isSubmitting = false;
+    }
   }
-
-}
-
 
   // =====================================================
   // Cancel
   // =====================================================
 
   cancel(): void {
-
     this.router.navigate(['/farms']);
-
   }
-
 
   // =====================================================
   // Reset
   // =====================================================
 
   resetForm(): void {
-
     this.farmForm.reset({
-
       areaUnit: 'acre',
 
-      status: 'active'
-
+      status: 'active',
     });
 
     this.errorMessage = '';
-
   }
-
 }

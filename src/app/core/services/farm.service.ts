@@ -3,37 +3,34 @@ import { Injectable } from '@angular/core';
 import { Farm } from '../models/farm.model';
 import { SupabaseService } from '../supabase/supabase.service';
 
+export type FarmStatus = 'active' | 'inactive';
+
 export interface CreateFarmData {
   name: string;
   location?: string;
+  description?: string;
   latitude?: number;
   longitude?: number;
   area?: number;
+  status?: FarmStatus;
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class FarmService {
-
-  constructor(
-    private readonly supabaseService: SupabaseService
-  ) {}
+  constructor(private readonly supabaseService: SupabaseService) {}
 
   // =====================================================
   // Get All Farms
   // =====================================================
 
   async getFarms(): Promise<Farm[]> {
-
-    const {
-      data,
-      error
-    } = await this.supabaseService.client
+    const { data, error } = await this.supabaseService.client
       .from('farms')
       .select('*')
       .order('created_at', {
-        ascending: false
+        ascending: false,
       });
 
     if (error) {
@@ -41,25 +38,15 @@ export class FarmService {
       throw error;
     }
 
-    return (data ?? []).map(
-      farm => this.mapFarm(farm)
-    );
-
+    return (data ?? []).map((farm) => this.mapFarm(farm));
   }
-
 
   // =====================================================
   // Get Farm By ID
   // =====================================================
 
-  async getFarmById(
-    id: string
-  ): Promise<Farm | undefined> {
-
-    const {
-      data,
-      error
-    } = await this.supabaseService.client
+  async getFarmById(id: string): Promise<Farm | undefined> {
+    const { data, error } = await this.supabaseService.client
       .from('farms')
       .select('*')
       .eq('id', id)
@@ -75,81 +62,56 @@ export class FarmService {
     }
 
     return this.mapFarm(data);
-
   }
-
 
   // =====================================================
   // Add Farm
   // =====================================================
 
-  async addFarm(
-    farmData: CreateFarmData
-  ): Promise<Farm> {
-
+  async addFarm(farmData: CreateFarmData): Promise<Farm> {
     // Get authenticated user
     const {
-      data: {
-        user
-      },
-      error: userError
+      data: { user },
+      error: userError,
     } = await this.supabaseService.client.auth.getUser();
-
 
     if (userError) {
       throw userError;
     }
 
-
     if (!user) {
-      throw new Error(
-        'You must be logged in to create a farm.'
-      );
+      throw new Error('You must be logged in to create a farm.');
     }
 
-
     // Insert into Supabase
-    const {
-      data,
-      error
-    } = await this.supabaseService.client
+    const { data, error } = await this.supabaseService.client
       .from('farms')
       .insert({
-
         owner_id: user.id,
 
         name: farmData.name,
 
-        latitude:
-          farmData.latitude ?? null,
+        description: farmData.description ?? null,
 
-        longitude:
-          farmData.longitude ?? null,
+        latitude: farmData.latitude ?? null,
 
-        area:
-          farmData.area ?? null
+        longitude: farmData.longitude ?? null,
 
+        area: farmData.area ?? null,
+
+        status: farmData.status ?? 'active',
       })
       .select()
       .single();
 
-
     if (error) {
-
-      console.error(
-        'Failed to create farm:',
-        error
-      );
+      console.error('Failed to create farm:', error);
 
       throw error;
-
     }
 
-
     return this.mapFarm(data);
-
   }
-
 
   // =====================================================
   // Update Farm
@@ -157,113 +119,76 @@ export class FarmService {
 
   async updateFarm(
     id: string,
-    farmData: Partial<CreateFarmData>
+    farmData: Partial<CreateFarmData>,
   ): Promise<Farm> {
-
-    const {
-      data,
-      error
-    } = await this.supabaseService.client
+    const { data, error } = await this.supabaseService.client
       .from('farms')
       .update({
+        name: farmData.name,
 
-        name:
-          farmData.name,
+        description: farmData.description ?? null,
 
-        latitude:
-          farmData.latitude ?? null,
+        latitude: farmData.latitude ?? null,
 
-        longitude:
-          farmData.longitude ?? null,
+        longitude: farmData.longitude ?? null,
 
-        area:
-          farmData.area ?? null
+        area: farmData.area ?? null,
 
+        status: farmData.status ?? 'active',
       })
       .eq('id', id)
       .select()
       .single();
 
-
     if (error) {
-
-      console.error(
-        'Failed to update farm:',
-        error
-      );
+      console.error('Failed to update farm:', error);
 
       throw error;
-
     }
 
-
     return this.mapFarm(data);
-
   }
-
 
   // =====================================================
   // Delete Farm
   // =====================================================
 
-  async deleteFarm(
-    id: string
-  ): Promise<void> {
-
-    const {
-      error
-    } = await this.supabaseService.client
+  async deleteFarm(id: string): Promise<void> {
+    const { error } = await this.supabaseService.client
       .from('farms')
       .delete()
       .eq('id', id);
 
-
     if (error) {
-
-      console.error(
-        'Failed to delete farm:',
-        error
-      );
+      console.error('Failed to delete farm:', error);
 
       throw error;
-
     }
-
   }
-
 
   // =====================================================
   // Map Supabase → Angular Model
   // =====================================================
 
-  private mapFarm(
-    data: any
-  ): Farm {
-
+  private mapFarm(data: any): Farm {
     return {
-
       id: data.id,
 
       name: data.name,
 
-      // Temporary until we have a dedicated
-      // location field in Supabase.
-      location: 'Fayoum, Egypt',
+      location: data.location ?? 'Fayoum, Egypt',
+      description: data.description ?? '',
 
-      latitude:
-        data.latitude ?? undefined,
+      latitude: data.latitude ?? undefined,
 
-      longitude:
-        data.longitude ?? undefined,
+      longitude: data.longitude ?? undefined,
 
-      area:
-        data.area ?? undefined,
+      area: data.area ?? undefined,
 
       // Supabase currently does not have areaUnit.
       areaUnit: 'acre',
 
-      // Supabase currently does not have status.
-      status: 'active',
+      status: data.status === 'inactive' ? 'inactive' : 'active',
 
       // These will come from related tables later.
       zonesCount: 0,
@@ -272,14 +197,9 @@ export class FarmService {
 
       livestockCount: 0,
 
-      createdAt:
-        data.created_at ?? undefined,
+      createdAt: data.created_at ?? undefined,
 
-      updatedAt:
-        data.updated_at ?? undefined
-
+      updatedAt: data.updated_at ?? undefined,
     };
-
   }
-
 }

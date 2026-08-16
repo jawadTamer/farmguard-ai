@@ -2,6 +2,7 @@ export interface Farm {
   id: string;
   name: string;
   location: string;
+  description?: string;
 
   latitude?: number;
   longitude?: number;

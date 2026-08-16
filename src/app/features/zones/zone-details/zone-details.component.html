@@ -1,1 +1,371 @@
-<p>zone-details works!</p>
+<div class="zone-details-page">
+
+  <!-- Header -->
+
+  <div class="page-header">
+
+    <div class="header-left">
+
+      <button
+        mat-icon-button
+        type="button"
+        (click)="goBack()">
+
+        <mat-icon>
+          arrow_back
+        </mat-icon>
+
+      </button>
+
+      <div>
+
+        <div class="breadcrumb">
+
+          <span>Farms</span>
+
+          <mat-icon>
+            chevron_right
+          </mat-icon>
+
+          <span>
+            {{ farm?.name || 'Farm' }}
+          </span>
+
+          <mat-icon>
+            chevron_right
+          </mat-icon>
+
+          <span>
+            Zones
+          </span>
+
+        </div>
+
+        <h1>
+          {{ zone?.name || 'Zone Details' }}
+        </h1>
+
+        <p>
+          Zone monitoring and information.
+        </p>
+
+      </div>
+
+    </div>
+
+
+    <div class="header-actions">
+
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="editZone()"
+        [disabled]="!zone">
+
+        <mat-icon>
+          edit
+        </mat-icon>
+
+        Edit
+
+      </button>
+
+
+      <button
+        mat-flat-button
+        color="warn"
+        type="button"
+        (click)="deleteZone()"
+        [disabled]="!zone">
+
+        <mat-icon>
+          delete
+        </mat-icon>
+
+        Delete
+
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- Loading -->
+
+  <div
+    *ngIf="isLoading"
+    class="loading">
+
+    <mat-spinner diameter="42"></mat-spinner>
+
+    <span>
+      Loading zone...
+    </span>
+
+  </div>
+
+
+  <!-- Error -->
+
+  <div
+    *ngIf="!isLoading && errorMessage"
+    class="error-alert">
+
+    <mat-icon>
+      error_outline
+    </mat-icon>
+
+    <span>
+      {{ errorMessage }}
+    </span>
+
+    <button
+      mat-button
+      type="button"
+      (click)="loadData()">
+
+      Retry
+
+    </button>
+
+  </div>
+
+
+  <!-- Details -->
+
+  <div
+    *ngIf="!isLoading && zone"
+    class="details-content">
+
+
+    <!-- Main Card -->
+
+    <mat-card class="main-card">
+
+      <div class="zone-hero">
+
+        <div class="zone-icon">
+
+          <mat-icon>
+            grid_view
+          </mat-icon>
+
+        </div>
+
+        <div>
+
+          <span class="eyebrow">
+            FARM ZONE
+          </span>
+
+          <h2>
+            {{ zone.name }}
+          </h2>
+
+          <p *ngIf="zone.description">
+            {{ zone.description }}
+          </p>
+
+          <p
+            *ngIf="!zone.description"
+            class="muted">
+
+            No description provided.
+
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <mat-divider></mat-divider>
+
+
+      <!-- Information -->
+
+      <div class="info-grid">
+
+        <div class="info-box">
+
+          <div class="info-icon">
+            <mat-icon>straighten</mat-icon>
+          </div>
+
+          <div>
+
+            <span>
+              Area
+            </span>
+
+            <strong>
+              {{
+                zone.area !== undefined
+                  ? zone.area + ' acres'
+                  : 'Not specified'
+              }}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="info-box">
+
+          <div class="info-icon">
+            <mat-icon>location_on</mat-icon>
+          </div>
+
+          <div>
+
+            <span>
+              Coordinates
+            </span>
+
+            <strong>
+              {{ getCoordinates() }}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="info-box">
+
+          <div class="info-icon">
+            <mat-icon>agriculture</mat-icon>
+          </div>
+
+          <div>
+
+            <span>
+              Farm
+            </span>
+
+            <strong>
+              {{ farm?.name || 'Unknown' }}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="info-box">
+
+          <div class="info-icon">
+            <mat-icon>calendar_today</mat-icon>
+          </div>
+
+          <div>
+
+            <span>
+              Created
+            </span>
+
+            <strong>
+              {{
+                zone.createdAt
+                  ? (zone.createdAt | date:'mediumDate')
+                  : 'Not available'
+              }}
+            </strong>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </mat-card>
+
+
+    <!-- Location Card -->
+
+    <mat-card
+      class="location-card"
+      *ngIf="hasLocation()">
+
+      <div class="card-heading">
+
+        <div>
+
+          <h2>
+            Zone Location
+          </h2>
+
+          <p>
+            Geographic coordinates of this zone.
+          </p>
+
+        </div>
+
+        <mat-icon>
+          map
+        </mat-icon>
+
+      </div>
+
+
+      <div class="coordinates-display">
+
+        <div>
+
+          <span>
+            Latitude
+          </span>
+
+          <strong>
+            {{ zone.latitude }}
+          </strong>
+
+        </div>
+
+        <div>
+
+          <span>
+            Longitude
+          </span>
+
+          <strong>
+            {{ zone.longitude }}
+          </strong>
+
+        </div>
+
+      </div>
+
+    </mat-card>
+
+
+    <!-- Future Intelligence -->
+
+    <mat-card class="future-card">
+
+      <mat-icon>
+        auto_awesome
+      </mat-icon>
+
+      <div>
+
+        <h3>
+          FarmGuard Intelligence
+        </h3>
+
+        <p>
+          Temperature monitoring, crop health,
+          heat risk analysis and AI recommendations
+          for this zone will appear here once
+          the intelligence modules are connected.
+        </p>
+
+      </div>
+
+    </mat-card>
+
+  </div>
+
+</div>

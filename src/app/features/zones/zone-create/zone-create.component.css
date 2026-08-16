@@ -1,0 +1,187 @@
+.zone-create-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 6px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.breadcrumb mat-icon {
+  width: 17px;
+  height: 17px;
+  font-size: 17px;
+}
+
+.page-header h1 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.page-header p {
+  margin: 6px 0 0;
+  color: #6b7280;
+}
+
+.error-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.form-card {
+  padding: 28px;
+  border-radius: 18px;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.title-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eaf6ed;
+  color: #2e7d32;
+}
+
+.title-icon mat-icon {
+  font-size: 25px;
+}
+
+.card-title h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #1f2937;
+}
+
+.card-title p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.full-width {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 15px;
+  color: #374151;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.section-title mat-icon {
+  color: #2e7d32;
+}
+
+.form-grid,
+.coordinates-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.area-unit {
+  height: 56px;
+  padding: 0 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.area-unit span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.area-unit strong {
+  color: #374151;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.form-actions button {
+  min-width: 120px;
+  height: 44px;
+}
+
+.form-actions mat-spinner {
+  display: inline-block;
+  margin-right: 8px;
+}
+
+@media (max-width: 767px) {
+
+  .zone-create-page {
+    padding: 16px;
+  }
+
+  .form-card {
+    padding: 20px 16px;
+  }
+
+  .page-header h1 {
+    font-size: 25px;
+  }
+
+  .form-grid,
+  .coordinates-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .form-actions button {
+    width: 100%;
+  }
+
+}
