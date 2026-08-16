@@ -40,13 +40,19 @@ export class FarmService {
 
     const farms = (data ?? []).map((farm) => this.mapFarm(farm));
 
-    const zoneCounts = await this.getZoneCountsByFarmIds(
-      farms.map((farm) => farm.id),
-    );
+    const farmIds = farms.map((farm) => farm.id);
+
+    const [zoneCounts, cropCounts, livestockCounts] = await Promise.all([
+      this.getZoneCountsByFarmIds(farmIds),
+      this.getCropCountsByFarmIds(farmIds),
+      this.getLivestockCountsByFarmIds(farmIds),
+    ]);
 
     return farms.map((farm) => ({
       ...farm,
       zonesCount: zoneCounts[farm.id] ?? 0,
+      cropsCount: cropCounts[farm.id] ?? 0,
+      livestockCount: livestockCounts[farm.id] ?? 0,
     }));
   }
 
@@ -71,11 +77,18 @@ export class FarmService {
     }
 
     const farm = this.mapFarm(data);
-    const zoneCounts = await this.getZoneCountsByFarmIds([farm.id]);
+
+    const [zoneCounts, cropCounts, livestockCounts] = await Promise.all([
+      this.getZoneCountsByFarmIds([farm.id]),
+      this.getCropCountsByFarmIds([farm.id]),
+      this.getLivestockCountsByFarmIds([farm.id]),
+    ]);
 
     return {
       ...farm,
       zonesCount: zoneCounts[farm.id] ?? 0,
+      cropsCount: cropCounts[farm.id] ?? 0,
+      livestockCount: livestockCounts[farm.id] ?? 0,
     };
   }
 
@@ -211,6 +224,133 @@ export class FarmService {
       const farmId = row.farm_id;
 
       if (farmIds.includes(farmId)) {
+        counts[farmId] = (counts[farmId] ?? 0) + 1;
+      }
+    }
+
+    return counts;
+  }
+
+  // =====================================================
+  // Crop counts
+  // =====================================================
+
+  private async getCropCountsByFarmIds(
+    farmIds: string[],
+  ): Promise<Record<string, number>> {
+    if (!farmIds.length) {
+      return {};
+    }
+
+    // Get zones for these farms
+    const { data: zones, error: zonesError } = await this.supabaseService.client
+      .from('farm_zones')
+      .select('id, farm_id')
+      .in('farm_id', farmIds);
+
+    if (zonesError) {
+      console.error('Failed to load zones for crop counts:', zonesError);
+      return {};
+    }
+
+    const zoneIds = (zones ?? []).map((z) => z.id);
+    const zoneToFarmMap: Record<string, string> = {};
+    (zones ?? []).forEach((z) => {
+      zoneToFarmMap[z.id] = z.farm_id;
+    });
+
+    if (!zoneIds.length) {
+      const counts: Record<string, number> = {};
+      for (const farmId of farmIds) {
+        counts[farmId] = 0;
+      }
+      return counts;
+    }
+
+    // Get crops for these zones
+    const { data: crops, error: cropsError } = await this.supabaseService.client
+      .from('crops')
+      .select('zone_id')
+      .in('zone_id', zoneIds);
+
+    if (cropsError) {
+      console.error('Failed to load crop counts:', cropsError);
+      return {};
+    }
+
+    const counts: Record<string, number> = {};
+
+    for (const farmId of farmIds) {
+      counts[farmId] = 0;
+    }
+
+    for (const crop of crops ?? []) {
+      const farmId = zoneToFarmMap[crop.zone_id];
+      if (farmId && farmIds.includes(farmId)) {
+        counts[farmId] = (counts[farmId] ?? 0) + 1;
+      }
+    }
+
+    return counts;
+  }
+
+  // =====================================================
+  // Livestock counts
+  // =====================================================
+
+  private async getLivestockCountsByFarmIds(
+    farmIds: string[],
+  ): Promise<Record<string, number>> {
+    if (!farmIds.length) {
+      return {};
+    }
+
+    // Get zones for these farms
+    const { data: zones, error: zonesError } = await this.supabaseService.client
+      .from('farm_zones')
+      .select('id, farm_id')
+      .in('farm_id', farmIds);
+
+    if (zonesError) {
+      console.error('Failed to load zones for livestock counts:', zonesError);
+      return {};
+    }
+
+    const zoneIds = (zones ?? []).map((z) => z.id);
+    const zoneToFarmMap: Record<string, string> = {};
+    (zones ?? []).forEach((z) => {
+      zoneToFarmMap[z.id] = z.farm_id;
+    });
+
+    if (!zoneIds.length) {
+      const counts: Record<string, number> = {};
+      for (const farmId of farmIds) {
+        counts[farmId] = 0;
+      }
+      return counts;
+    }
+
+    // Get livestock for these zones
+    const { data: livestock, error: livestockError } =
+      await this.supabaseService.client
+        .from('livestock')
+        .select('zone_id')
+        .in('zone_id', zoneIds);
+
+    if (livestockError) {
+      console.error('Failed to load livestock counts:', livestockError);
+      return {};
+    }
+
+    const counts: Record<string, number> = {};
+
+    for (const farmId of farmIds) {
+      counts[farmId] = 0;
+    }
+
+    for (const animal of livestock ?? []) {
+      const farmId = zoneToFarmMap[animal.zone_id];
+      if (farmId && farmIds.includes(farmId)) {
         counts[farmId] = (counts[farmId] ?? 0) + 1;
       }
     }

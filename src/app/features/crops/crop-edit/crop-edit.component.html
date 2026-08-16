@@ -1,1 +1,125 @@
-<p>crop-edit works!</p>
+<div class="crop-edit-page">
+  <div class="page-header">
+    <div class="header-left">
+      <button mat-icon-button type="button" (click)="cancel()">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+
+      <div>
+        <div class="breadcrumb">
+          <span>Crops</span>
+          <mat-icon>chevron_right</mat-icon>
+          <span>Edit</span>
+        </div>
+
+        <h1>Edit Crop</h1>
+        <p>Update the crop details for this record.</p>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="42"></mat-spinner>
+    <span>Loading crop record...</span>
+  </div>
+
+  <div *ngIf="errorMessage" class="error-alert">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <mat-card *ngIf="!isLoading && crop" class="form-card">
+    <div class="card-title">
+      <div class="title-icon">
+        <mat-icon>eco</mat-icon>
+      </div>
+
+      <div>
+        <h2>{{ crop.cropType }}</h2>
+        <p>Update your crop details below.</p>
+      </div>
+    </div>
+
+    <form [formGroup]="cropForm" (ngSubmit)="onSubmit()">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Zone</mat-label>
+        <mat-select formControlName="zoneId">
+          <mat-option *ngFor="let zone of zones" [value]="zone.id">
+            {{ zone.name }}
+          </mat-option>
+        </mat-select>
+        <mat-icon matSuffix>location_on</mat-icon>
+        <mat-error *ngIf="cropForm.get('zoneId')?.hasError('required')">
+          Zone is required.
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Crop Type</mat-label>
+        <input matInput formControlName="cropType" placeholder="e.g. Wheat" />
+        <mat-icon matSuffix>agriculture</mat-icon>
+        <mat-error *ngIf="cropType?.hasError('required')">
+          Crop type is required.
+        </mat-error>
+        <mat-error *ngIf="cropType?.hasError('minlength')">
+          Crop type must be at least 2 characters.
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Variety</mat-label>
+        <input
+          matInput
+          formControlName="variety"
+          placeholder="e.g. Desert Gold"
+        />
+        <mat-icon matSuffix>label</mat-icon>
+        <mat-error *ngIf="variety?.hasError('maxlength')">
+          Variety cannot exceed 80 characters.
+        </mat-error>
+      </mat-form-field>
+
+      <div class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Growth Stage</mat-label>
+          <mat-select formControlName="growthStage">
+            <mat-option value="germination">Germination</mat-option>
+            <mat-option value="vegetative">Vegetative</mat-option>
+            <mat-option value="flowering">Flowering</mat-option>
+            <mat-option value="fruiting">Fruiting</mat-option>
+            <mat-option value="maturity">Maturity</mat-option>
+          </mat-select>
+          <mat-icon matSuffix>trending_up</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Planting Date</mat-label>
+          <input matInput type="date" formControlName="plantingDate" />
+          <mat-icon matSuffix>calendar_today</mat-icon>
+        </mat-form-field>
+      </div>
+
+      <div class="form-actions">
+        <button
+          mat-button
+          type="button"
+          [disabled]="isSubmitting"
+          (click)="cancel()"
+        >
+          Cancel
+        </button>
+
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          [disabled]="isSubmitting"
+        >
+          <mat-spinner *ngIf="isSubmitting" diameter="20"></mat-spinner>
+          <mat-icon *ngIf="!isSubmitting">save</mat-icon>
+          <span>{{ isSubmitting ? "Saving..." : "Save Changes" }}</span>
+        </button>
+      </div>
+    </form>
+  </mat-card>
+</div>

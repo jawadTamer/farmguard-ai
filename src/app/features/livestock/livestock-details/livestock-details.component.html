@@ -1,1 +1,297 @@
-<p>livestock-details works!</p>
+<div class="livestock-details-page">
+
+  <!-- Header -->
+
+  <div class="page-header">
+
+    <div class="header-left">
+
+      <button
+        mat-icon-button
+        type="button"
+        (click)="goBack()">
+
+        <mat-icon>
+          arrow_back
+        </mat-icon>
+
+      </button>
+
+      <div>
+
+        <div class="breadcrumb">
+
+          <span>Livestock</span>
+
+          <mat-icon>
+            chevron_right
+          </mat-icon>
+
+          <span>
+            {{ livestock?.livestockType || 'Livestock Details' }}
+          </span>
+
+        </div>
+
+        <h1>
+          {{ livestock?.livestockType || 'Livestock Details' }}
+        </h1>
+
+        <p>
+          Livestock monitoring and information.
+        </p>
+
+      </div>
+
+    </div>
+
+
+    <div class="header-actions">
+
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="editLivestock()"
+        [disabled]="!livestock">
+
+        <mat-icon>
+          edit
+        </mat-icon>
+
+        Edit
+
+      </button>
+
+
+      <button
+        mat-flat-button
+        color="warn"
+        type="button"
+        (click)="deleteLivestock()"
+        [disabled]="!livestock">
+
+        <mat-icon>
+          delete
+        </mat-icon>
+
+        Delete
+
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- Loading -->
+
+  <div
+    *ngIf="isLoading"
+    class="loading">
+
+    <mat-spinner diameter="42"></mat-spinner>
+
+    <span>
+      Loading livestock...
+    </span>
+
+  </div>
+
+
+  <!-- Error -->
+
+  <div
+    *ngIf="!isLoading && errorMessage"
+    class="error-alert">
+
+    <mat-icon>
+      error_outline
+    </mat-icon>
+
+    <span>
+      {{ errorMessage }}
+    </span>
+
+    <button
+      mat-button
+      type="button"
+      (click)="loadData()">
+
+      Retry
+
+    </button>
+
+  </div>
+
+
+  <!-- Details -->
+
+  <div
+    *ngIf="!isLoading && livestock"
+    class="details-content">
+
+
+    <!-- Main Card -->
+
+    <mat-card class="main-card">
+
+      <div class="livestock-hero">
+
+        <div class="livestock-icon">
+
+          <mat-icon>
+            pets
+          </mat-icon>
+
+        </div>
+
+        <div>
+
+          <span class="eyebrow">
+            LIVESTOCK
+          </span>
+
+          <h2>
+            {{ livestock.livestockType }}
+          </h2>
+
+          <p *ngIf="livestock.breed">
+            Breed: {{ livestock.breed }}
+          </p>
+
+          <p
+            *ngIf="!livestock.breed"
+            class="muted">
+
+            No breed specified.
+
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <mat-divider></mat-divider>
+
+
+      <!-- Information -->
+
+      <div class="info-grid">
+
+        <div class="info-box">
+
+          <div class="info-icon">
+            <mat-icon>groups</mat-icon>
+          </div>
+
+          <div>
+
+            <span>
+              Count
+            </span>
+
+            <strong>
+              {{ livestock.count || 0 }}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="info-box">
+
+          <div class="info-icon">
+            <mat-icon>location_on</mat-icon>
+          </div>
+
+          <div>
+
+            <span>
+              Zone
+            </span>
+
+            <strong>
+              {{ zone?.name || 'Unknown' }}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="info-box">
+
+          <div class="info-icon">
+            <mat-icon>event</mat-icon>
+          </div>
+
+          <div>
+
+            <span>
+              Created
+            </span>
+
+            <strong>
+              {{ getCreatedDate() }}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="info-box">
+
+          <div class="info-icon">
+            <mat-icon>category</mat-icon>
+          </div>
+
+          <div>
+
+            <span>
+              Age Group
+            </span>
+
+            <strong>
+              {{ livestock.ageGroup || 'Not specified' }}
+            </strong>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </mat-card>
+
+
+    <!-- Future Intelligence -->
+
+    <mat-card class="future-card">
+
+      <mat-icon>
+        auto_awesome
+      </mat-icon>
+
+      <div>
+
+        <h3>
+          FarmGuard Intelligence
+        </h3>
+
+        <p>
+          Temperature monitoring, heat stress analysis,
+          health tracking and AI recommendations
+          for this livestock will appear here once
+          the intelligence modules are connected.
+        </p>
+
+      </div>
+
+    </mat-card>
+
+  </div>
+
+</div>

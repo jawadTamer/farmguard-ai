@@ -63,16 +63,16 @@ export class LivestockService {
       livestockType: string;
       breed?: string;
       count?: number;
-      status?: 'healthy' | 'warning' | 'critical';
     },
   ): Promise<Livestock> {
     const payload = {
       zone_id: zoneId,
-      livestock_type: livestock.livestockType,
+      animal_type: livestock.livestockType,
       breed: livestock.breed ?? null,
-      count: livestock.count ?? null,
-      status: livestock.status ?? 'healthy',
+      quantity: livestock.count ?? 0,
     };
+
+    console.log('Attempting to insert livestock with payload:', payload);
 
     const { data, error } = await this.supabase.client
       .from('livestock')
@@ -81,7 +81,12 @@ export class LivestockService {
       .single();
 
     if (error) {
-      console.error('Failed to create livestock:', error);
+      console.error('Failed to create livestock. Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
       throw error;
     }
 
@@ -95,7 +100,6 @@ export class LivestockService {
       livestockType?: string;
       breed?: string;
       count?: number;
-      status?: 'healthy' | 'warning' | 'critical';
     },
   ): Promise<Livestock> {
     const payload: Record<string, unknown> = {};
@@ -105,7 +109,7 @@ export class LivestockService {
     }
 
     if (livestock.livestockType !== undefined) {
-      payload['livestock_type'] = livestock.livestockType;
+      payload['animal_type'] = livestock.livestockType;
     }
 
     if (livestock.breed !== undefined) {
@@ -113,11 +117,7 @@ export class LivestockService {
     }
 
     if (livestock.count !== undefined) {
-      payload['count'] = livestock.count ?? null;
-    }
-
-    if (livestock.status !== undefined) {
-      payload['status'] = livestock.status;
+      payload['quantity'] = livestock.count ?? 0;
     }
 
     const { data, error } = await this.supabase.client
@@ -152,10 +152,10 @@ export class LivestockService {
       id: data.id,
       zoneId: data.zone_id,
       livestockType:
-        data.livestock_type ?? data.animal_type ?? data.species ?? 'Unknown',
+        data.animal_type ?? data.livestock_type ?? data.species ?? 'Unknown',
       breed: data.breed ?? undefined,
-      count: data.count ?? data.head_count ?? undefined,
-      status: data.status ?? 'healthy',
+      count: data.quantity ?? data.count ?? data.head_count ?? undefined,
+      ageGroup: data.age_group ?? undefined,
       createdAt: data.created_at ?? undefined,
       updatedAt: data.updated_at ?? undefined,
     };

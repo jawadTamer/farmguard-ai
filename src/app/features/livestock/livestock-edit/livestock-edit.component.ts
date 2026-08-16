@@ -66,7 +66,6 @@ export class LivestockEditComponent implements OnInit {
       ],
       breed: ['', [Validators.maxLength(80)]],
       count: [1, [Validators.required, Validators.min(1)]],
-      status: ['healthy', [Validators.required]],
     });
   }
 
@@ -106,7 +105,6 @@ export class LivestockEditComponent implements OnInit {
         livestockType: livestock.livestockType,
         breed: livestock.breed ?? '',
         count: livestock.count ?? 1,
-        status: livestock.status ?? 'healthy',
       });
     } catch (error) {
       console.error('Failed to load livestock record:', error);
@@ -134,7 +132,6 @@ export class LivestockEditComponent implements OnInit {
         livestockType: formValue.livestockType.trim(),
         breed: formValue.breed?.trim() || undefined,
         count: Number(formValue.count),
-        status: formValue.status,
       });
 
       await this.router.navigate(['/livestock', this.livestockId]);

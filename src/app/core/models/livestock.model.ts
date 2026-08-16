@@ -6,7 +6,7 @@ export interface Livestock {
   breed?: string;
   count?: number;
 
-  status?: 'healthy' | 'warning' | 'critical';
+  ageGroup?: string;
 
   createdAt?: string;
   updatedAt?: string;

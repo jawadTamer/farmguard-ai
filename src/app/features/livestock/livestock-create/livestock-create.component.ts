@@ -61,7 +61,6 @@ export class LivestockCreateComponent implements OnInit {
       ],
       breed: ['', [Validators.maxLength(80)]],
       count: [1, [Validators.required, Validators.min(1)]],
-      status: ['healthy', [Validators.required]],
     });
   }
 
@@ -108,7 +107,6 @@ export class LivestockCreateComponent implements OnInit {
         livestockType: formValue.livestockType.trim(),
         breed: formValue.breed?.trim() || undefined,
         count: Number(formValue.count),
-        status: formValue.status,
       });
 
       await this.router.navigate(['/livestock']);
