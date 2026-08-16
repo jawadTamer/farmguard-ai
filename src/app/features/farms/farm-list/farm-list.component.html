@@ -295,7 +295,14 @@
 
             <strong>
               {{ farm.area || '--' }}
-              {{ farm.areaUnit || '' }}
+              <ng-container *ngIf="farm.areaUnit">
+                <ng-container [ngSwitch]="farm.areaUnit">
+                  <ng-container *ngSwitchCase="'feddan'">Feddan</ng-container>
+                  <ng-container *ngSwitchCase="'acre'">Acres</ng-container>
+                  <ng-container *ngSwitchCase="'hectare'">Hectares</ng-container>
+                  <ng-container *ngSwitchCase="'square_meter'">m²</ng-container>
+                </ng-container>
+              </ng-container>
             </strong>
 
           </div>

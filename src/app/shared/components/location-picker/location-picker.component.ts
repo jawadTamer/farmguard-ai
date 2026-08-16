@@ -41,6 +41,7 @@ export class LocationPickerComponent
   @Output() locationSelected = new EventEmitter<{
     latitude: number;
     longitude: number;
+    locationName?: string;
   }>();
 
   private map: L.Map | null = null;
@@ -48,9 +49,11 @@ export class LocationPickerComponent
 
   isLoadingLocation = false;
   locationError = '';
+  isLoadingReverseGeocode = false;
 
   currentLat?: number;
   currentLng?: number;
+  currentLocationName?: string;
 
   ngOnInit(): void {
     this.currentLat = this.latitude;
@@ -124,7 +127,40 @@ export class LocationPickerComponent
 
     this.addMarker(lat, lng);
 
-    this.locationSelected.emit({ latitude: lat, longitude: lng });
+    this.reverseGeocode(lat, lng);
+  }
+
+  private async reverseGeocode(lat: number, lng: number): Promise<void> {
+    this.isLoadingReverseGeocode = true;
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10`
+      );
+      const data = await response.json();
+
+      if (data.display_name) {
+        this.currentLocationName = data.display_name;
+        this.locationSelected.emit({
+          latitude: lat,
+          longitude: lng,
+          locationName: data.display_name,
+        });
+      } else {
+        this.locationSelected.emit({
+          latitude: lat,
+          longitude: lng,
+        });
+      }
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+      this.locationSelected.emit({
+        latitude: lat,
+        longitude: lng,
+      });
+    } finally {
+      this.isLoadingReverseGeocode = false;
+    }
   }
 
   useCurrentLocation(): void {

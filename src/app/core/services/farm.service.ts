@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 
 import { Farm } from '../models/farm.model';
 import { SupabaseService } from '../supabase/supabase.service';
-
+import { AreaUnit } from '../models/farm.model';
 export type FarmStatus = 'active' | 'inactive';
 
 export interface CreateFarmData {
@@ -12,7 +12,7 @@ export interface CreateFarmData {
   latitude?: number;
   longitude?: number;
   area?: number;
-  areaUnit?: 'acre' | 'hectare';
+  areaUnit?: AreaUnit;
   status?: FarmStatus;
 }
 
@@ -120,6 +120,8 @@ export class FarmService {
 
         name: farmData.name,
 
+        location: farmData.location ?? null,
+
         description: farmData.description ?? null,
 
         latitude: farmData.latitude ?? null,
@@ -128,7 +130,7 @@ export class FarmService {
 
         area: farmData.area ?? null,
 
-        area_unit: farmData.areaUnit ?? 'acre',
+        area_unit: farmData.areaUnit ?? 'feddan',
 
         status: farmData.status ?? 'active',
       })
@@ -157,6 +159,8 @@ export class FarmService {
       .update({
         name: farmData.name,
 
+        location: farmData.location ?? null,
+
         description: farmData.description ?? null,
 
         latitude: farmData.latitude ?? null,
@@ -165,7 +169,7 @@ export class FarmService {
 
         area: farmData.area ?? null,
 
-        area_unit: farmData.areaUnit ?? 'acre',
+        area_unit: farmData.areaUnit ?? 'feddan',
 
         status: farmData.status ?? 'active',
       })

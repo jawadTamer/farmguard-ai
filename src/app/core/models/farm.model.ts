@@ -1,3 +1,9 @@
+export type AreaUnit =
+  | 'acre'
+  | 'hectare'
+  | 'feddan'
+  | 'square_meter';
+
 export interface Farm {
   id: string;
   name: string;
@@ -8,7 +14,7 @@ export interface Farm {
   longitude?: number;
 
   area?: number;
-  areaUnit?: 'acre' | 'hectare';
+  areaUnit?: AreaUnit;
 
   status: 'active' | 'inactive';
 

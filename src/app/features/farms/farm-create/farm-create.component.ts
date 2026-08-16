@@ -68,7 +68,7 @@ export class FarmCreateComponent {
 
       area: [null, [Validators.required, Validators.min(0.1)]],
 
-      areaUnit: ['acre', Validators.required],
+      areaUnit: ['feddan', Validators.required],
 
       status: ['active', Validators.required],
 
@@ -106,10 +106,15 @@ export class FarmCreateComponent {
   // Location Picker
   // =====================================================
 
-  onLocationSelected(event: { latitude: number; longitude: number }): void {
+  onLocationSelected(event: {
+    latitude: number;
+    longitude: number;
+    locationName?: string;
+  }): void {
     this.farmForm.patchValue({
       latitude: event.latitude,
       longitude: event.longitude,
+      location: event.locationName || this.farmForm.get('location')?.value,
     });
   }
 
@@ -181,7 +186,7 @@ export class FarmCreateComponent {
 
   resetForm(): void {
     this.farmForm.reset({
-      areaUnit: 'acre',
+      areaUnit: 'feddan',
 
       status: 'active',
     });

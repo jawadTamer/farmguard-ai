@@ -105,7 +105,12 @@
             {{ farm.area ?? "--" }}
 
             <small *ngIf="farm.areaUnit">
-              {{ farm.areaUnit === "acre" ? "Acres" : "Hectares" }}
+              <ng-container [ngSwitch]="farm.areaUnit">
+                <ng-container *ngSwitchCase="'feddan'">Feddan</ng-container>
+                <ng-container *ngSwitchCase="'acre'">Acres</ng-container>
+                <ng-container *ngSwitchCase="'hectare'">Hectares</ng-container>
+                <ng-container *ngSwitchCase="'square_meter'">m²</ng-container>
+              </ng-container>
             </small>
           </strong>
         </div>
@@ -202,9 +207,15 @@
               <span> Location </span>
             </div>
 
-            <strong>
-              {{ farm.location }}
-            </strong>
+            <div class="location-display">
+              <strong>
+                {{ farm.location || 'Not specified' }}
+              </strong>
+
+              <small *ngIf="hasCoordinates()" class="coordinates">
+                {{ farm.latitude?.toFixed(6) }}, {{ farm.longitude?.toFixed(6) }}
+              </small>
+            </div>
           </div>
 
           <div class="info-row">
@@ -218,7 +229,12 @@
               {{ farm.area ?? "--" }}
 
               <span *ngIf="farm.areaUnit">
-                {{ farm.areaUnit === "acre" ? "Acres" : "Hectares" }}
+                <ng-container [ngSwitch]="farm.areaUnit">
+                  <ng-container *ngSwitchCase="'feddan'">Feddan</ng-container>
+                  <ng-container *ngSwitchCase="'acre'">Acres</ng-container>
+                  <ng-container *ngSwitchCase="'hectare'">Hectares</ng-container>
+                  <ng-container *ngSwitchCase="'square_meter'">m²</ng-container>
+                </ng-container>
               </span>
             </strong>
           </div>

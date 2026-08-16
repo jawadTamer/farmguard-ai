@@ -255,10 +255,15 @@ export class FarmEditComponent implements OnInit {
   // Location Picker
   // =====================================================
 
-  onLocationSelected(event: { latitude: number; longitude: number }): void {
+  onLocationSelected(event: {
+    latitude: number;
+    longitude: number;
+    locationName?: string;
+  }): void {
     this.farmForm.patchValue({
       latitude: event.latitude,
       longitude: event.longitude,
+      location: event.locationName || this.farmForm.get('location')?.value,
     });
   }
 }
