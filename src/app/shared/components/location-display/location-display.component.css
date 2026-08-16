@@ -39,6 +39,40 @@
   color: #1f2937;
 }
 
+.location-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.info-row mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #2e7d32;
+}
+
+.google-maps-btn {
+  width: 100%;
+  border-radius: 8px;
+}
+
+.google-maps-btn mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+}
+
 .no-location {
   display: flex;
   align-items: center;

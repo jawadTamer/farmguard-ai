@@ -1,7 +1,7 @@
 <div class="location-picker">
   <div class="location-header">
-    <h3>Select Location</h3>
-    <p>Click on the map or use your current location</p>
+    <h3>Farm Location</h3>
+    <p>Select your farm location on the map</p>
   </div>
 
   <div class="map-controls">
@@ -23,6 +23,40 @@
       <mat-icon>refresh</mat-icon>
       <span>Reset</span>
     </button>
+  </div>
+
+  <div class="search-section">
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>Search Location</mat-label>
+      <input
+        matInput
+        [formControl]="searchQuery"
+        (keyup.enter)="searchLocation()"
+        placeholder="e.g., Cairo, Fayoum">
+      <button
+        mat-icon-button
+        matSuffix
+        (click)="searchLocation()"
+        [disabled]="isSearching || !searchQuery.value">
+        <mat-icon>search</mat-icon>
+      </button>
+    </mat-form-field>
+
+    <div *ngIf="searchResults.length > 0" class="search-results">
+      <div
+        *ngFor="let result of searchResults"
+        class="search-result-item"
+        (click)="selectSearchResult(result)">
+        <mat-icon>location_on</mat-icon>
+        <span>{{ result.display_name }}</span>
+      </div>
+      <button
+        mat-button
+        class="clear-search-btn"
+        (click)="clearSearchResults()">
+        Clear
+      </button>
+    </div>
   </div>
 
   <div *ngIf="locationError" class="error-message">

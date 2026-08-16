@@ -13,6 +13,10 @@ import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { ReactiveFormsModule, FormsModule } from '@angular/forms';
+import { FormControl } from '@angular/forms';
 
 import * as L from 'leaflet';
 
@@ -24,6 +28,10 @@ import * as L from 'leaflet';
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    MatInputModule,
+    MatFormFieldModule,
+    ReactiveFormsModule,
+    FormsModule,
   ],
   templateUrl: './location-picker.component.html',
   styleUrl: './location-picker.component.css',
@@ -50,10 +58,18 @@ export class LocationPickerComponent
   isLoadingLocation = false;
   locationError = '';
   isLoadingReverseGeocode = false;
+  isSearching = false;
 
   currentLat?: number;
   currentLng?: number;
   currentLocationName?: string;
+
+  searchQuery = new FormControl('');
+  searchResults: Array<{
+    display_name: string;
+    lat: number;
+    lon: number;
+  }> = [];
 
   ngOnInit(): void {
     this.currentLat = this.latitude;
@@ -232,5 +248,49 @@ export class LocationPickerComponent
 
   get hasLocation(): boolean {
     return this.currentLat !== undefined && this.currentLng !== undefined;
+  }
+
+  async searchLocation(): Promise<void> {
+    const query = this.searchQuery.value?.trim();
+    if (!query) {
+      return;
+    }
+
+    this.isSearching = true;
+    this.searchResults = [];
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`
+      );
+      const data = await response.json();
+
+      if (Array.isArray(data)) {
+        this.searchResults = data.map((item: any) => ({
+          display_name: item.display_name,
+          lat: parseFloat(item.lat),
+          lon: parseFloat(item.lon),
+        }));
+      }
+    } catch (error) {
+      console.error('Geocoding search failed:', error);
+    } finally {
+      this.isSearching = false;
+    }
+  }
+
+  selectSearchResult(result: { display_name: string; lat: number; lon: number }): void {
+    this.searchResults = [];
+    this.searchQuery.setValue('');
+    this.updateLocation(result.lat, result.lon);
+
+    if (this.map) {
+      this.map.setView([result.lat, result.lon], 15);
+    }
+  }
+
+  clearSearchResults(): void {
+    this.searchResults = [];
+    this.searchQuery.setValue('');
   }
 }

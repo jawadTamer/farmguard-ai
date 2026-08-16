@@ -5,19 +5,35 @@
     [style.height]="height">
   </div>
 
-  <div class="coordinates-info">
-    <div class="coordinate-item">
-      <mat-icon>place</mat-icon>
-      <span>Latitude: <strong>{{ latitude?.toFixed(6) }}</strong></span>
+  <div class="location-info">
+    <div class="info-row">
+      <mat-icon>location_on</mat-icon>
+      <span *ngIf="locationName">{{ locationName }}</span>
+      <span *ngIf="!locationName">Location not specified</span>
     </div>
-    <div class="coordinate-item">
-      <mat-icon>place</mat-icon>
-      <span>Longitude: <strong>{{ longitude?.toFixed(6) }}</strong></span>
+
+    <div class="coordinates-info">
+      <div class="coordinate-item">
+        <mat-icon>place</mat-icon>
+        <span>Latitude: <strong>{{ latitude?.toFixed(6) }}</strong></span>
+      </div>
+      <div class="coordinate-item">
+        <mat-icon>place</mat-icon>
+        <span>Longitude: <strong>{{ longitude?.toFixed(6) }}</strong></span>
+      </div>
     </div>
+
+    <button
+      mat-stroked-button
+      class="google-maps-btn"
+      (click)="openInGoogleMaps()">
+      <mat-icon>open_in_new</mat-icon>
+      <span>Open in Google Maps</span>
+    </button>
   </div>
 </div>
 
 <div *ngIf="!hasLocation" class="no-location">
   <mat-icon>location_off</mat-icon>
-  <span>No location coordinates available</span>
+  <span>Location not available</span>
 </div>

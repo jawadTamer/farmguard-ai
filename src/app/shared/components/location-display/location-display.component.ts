@@ -6,21 +6,23 @@ import {
   ElementRef,
   ViewChild,
   OnInit,
+  OnChanges,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 
 import * as L from 'leaflet';
 
 @Component({
   selector: 'app-location-display',
   standalone: true,
-  imports: [CommonModule, MatIconModule],
+  imports: [CommonModule, MatIconModule, MatButtonModule],
   templateUrl: './location-display.component.html',
   styleUrl: './location-display.component.css',
 })
 export class LocationDisplayComponent
-  implements AfterViewInit, OnDestroy, OnInit
+  implements AfterViewInit, OnDestroy, OnInit, OnChanges
 {
   @ViewChild('mapContainer', { static: false })
   mapContainer!: ElementRef<HTMLDivElement>;
@@ -28,6 +30,7 @@ export class LocationDisplayComponent
   @Input() latitude?: number;
   @Input() longitude?: number;
   @Input() height = '300px';
+  @Input() locationName?: string;
 
   private map: L.Map | null = null;
   private marker: L.Marker | null = null;
@@ -40,6 +43,27 @@ export class LocationDisplayComponent
       this.longitude !== undefined &&
       this.latitude !== 0 &&
       this.longitude !== 0;
+  }
+
+  ngOnChanges(): void {
+    this.hasLocation =
+      this.latitude !== undefined &&
+      this.longitude !== undefined &&
+      this.latitude !== 0 &&
+      this.longitude !== 0;
+
+    // Reinitialize map if coordinates change and map already exists
+    if (this.hasLocation && this.latitude && this.longitude && this.map) {
+      this.map.setView([this.latitude, this.longitude], 13);
+      if (this.marker) {
+        this.marker.setLatLng([this.latitude, this.longitude]);
+      } else {
+        this.addMarker();
+      }
+    } else if (this.hasLocation && this.latitude && this.longitude && !this.map) {
+      // Initialize map if it doesn't exist yet
+      this.initializeMap();
+    }
   }
 
   ngAfterViewInit(): void {
@@ -75,6 +99,14 @@ export class LocationDisplayComponent
       maxZoom: 19,
     }).addTo(this.map);
 
+    this.addMarker();
+  }
+
+  private addMarker(): void {
+    if (!this.map || !this.latitude || !this.longitude) {
+      return;
+    }
+
     const icon = L.icon({
       iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
       iconRetinaUrl:
@@ -89,5 +121,17 @@ export class LocationDisplayComponent
     this.marker = L.marker([this.latitude, this.longitude], { icon }).addTo(
       this.map
     );
+
+    if (this.locationName) {
+      this.marker.bindPopup(this.locationName).openPopup();
+    }
+  }
+
+  openInGoogleMaps(): void {
+    if (!this.latitude || !this.longitude) {
+      return;
+    }
+    const url = `https://www.google.com/maps?q=${this.latitude},${this.longitude}`;
+    window.open(url, '_blank');
   }
 }
