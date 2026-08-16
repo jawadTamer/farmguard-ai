@@ -38,7 +38,11 @@ export class LoginComponent {
     try {
       const { email, password } = this.loginForm.getRawValue();
 
-      await this.authService.signIn(email, password);
+      const { error } = await this.authService.signIn(email, password);
+
+      if (error) {
+        throw error;
+      }
 
       await this.router.navigate(['/dashboard']);
     } catch (error: any) {

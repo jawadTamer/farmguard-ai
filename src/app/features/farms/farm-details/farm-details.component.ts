@@ -23,14 +23,13 @@ import { Farm } from '../../../core/models/farm.model';
     MatButtonModule,
     MatIconModule,
     MatChipsModule,
-    MatDividerModule
+    MatDividerModule,
   ],
 
   templateUrl: './farm-details.component.html',
-  styleUrl: './farm-details.component.css'
+  styleUrl: './farm-details.component.css',
 })
 export class FarmDetailsComponent implements OnInit {
-
   // =====================================================
   // Farm
   // =====================================================
@@ -41,182 +40,121 @@ export class FarmDetailsComponent implements OnInit {
 
   notFound = false;
 
-
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private farmService: FarmService
+    private farmService: FarmService,
   ) {}
-
 
   // =====================================================
   // Lifecycle
   // =====================================================
 
   ngOnInit(): void {
-
     void this.loadFarm();
-
   }
-
 
   // =====================================================
   // Load Farm
   // =====================================================
 
   private async loadFarm(): Promise<void> {
-
-    const farmId =
-      this.route.snapshot.paramMap.get('id');
-
+    const farmId = this.route.snapshot.paramMap.get('id');
 
     if (!farmId) {
-
       this.notFound = true;
 
       this.isLoading = false;
 
       return;
-
     }
 
-
-    const farm =
-      await this.farmService.getFarmById(farmId);
-
+    const farm = await this.farmService.getFarmById(farmId);
 
     if (!farm) {
-
       this.notFound = true;
 
       this.isLoading = false;
 
       return;
-
     }
-
 
     this.farm = farm;
 
     this.isLoading = false;
-
   }
-
 
   // =====================================================
   // Edit
   // =====================================================
 
   editFarm(): void {
-
     if (!this.farm) {
       return;
     }
 
-
-    this.router.navigate([
-      '/farms',
-      'edit',
-      this.farm.id
-    ]);
-
+    this.router.navigate(['/farms', this.farm.id, 'edit']);
   }
-
 
   // =====================================================
   // Back
   // =====================================================
 
   goBack(): void {
-
     this.router.navigate(['/farms']);
-
   }
-
 
   // =====================================================
   // Status
   // =====================================================
 
   getStatusClass(): string {
-
-    return this.farm?.status === 'active'
-      ? 'status-active'
-      : 'status-inactive';
-
+    return this.farm?.status === 'active' ? 'status-active' : 'status-inactive';
   }
-
 
   getStatusLabel(): string {
-
-    return this.farm?.status === 'active'
-      ? 'Active'
-      : 'Inactive';
-
+    return this.farm?.status === 'active' ? 'Active' : 'Inactive';
   }
-
 
   // =====================================================
   // Coordinates
   // =====================================================
 
   hasCoordinates(): boolean {
-
     return (
-      this.farm?.latitude !== undefined &&
-      this.farm?.longitude !== undefined
+      this.farm?.latitude !== undefined && this.farm?.longitude !== undefined
     );
-
   }
-
 
   // =====================================================
   // Created Date
   // =====================================================
 
   getCreatedDate(): string {
-
     if (!this.farm?.createdAt) {
       return 'Not available';
     }
 
-
-    return new Date(
-      this.farm.createdAt
-    ).toLocaleDateString(
-      'en-US',
-      {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }
-    );
-
+    return new Date(this.farm.createdAt).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   }
-
 
   // =====================================================
   // Updated Date
   // =====================================================
 
   getUpdatedDate(): string {
-
     if (!this.farm?.updatedAt) {
       return 'Not available';
     }
 
-
-    return new Date(
-      this.farm.updatedAt
-    ).toLocaleDateString(
-      'en-US',
-      {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }
-    );
-
+    return new Date(this.farm.updatedAt).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   }
-
 }

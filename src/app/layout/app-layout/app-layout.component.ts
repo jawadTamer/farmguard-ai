@@ -37,11 +37,22 @@ import { AuthService } from '../../core/auth/auth.service';
 export class AppLayoutComponent {
   private readonly authService = inject(AuthService);
 
-  user = {
-    name: 'Jawad Tamer',
-    email: 'jawad@example.com',
-    initials: 'JT',
-  };
+  get user() {
+    const authUser = this.authService.user();
+    const email = authUser?.email ?? 'No email';
+    const metadataName = authUser?.user_metadata?.['full_name'];
+    const nameFromMetadata =
+      typeof metadataName === 'string' ? metadataName.trim() : '';
+    const fallbackName = authUser?.email?.split('@')[0]?.trim() || 'Farm User';
+    const name = nameFromMetadata || fallbackName;
+    const initials = this.buildInitials(name);
+
+    return {
+      name,
+      email,
+      initials,
+    };
+  }
 
   notifications = [
     {
@@ -92,5 +103,19 @@ export class AppLayoutComponent {
 
   async logout(): Promise<void> {
     await this.authService.signOut();
+  }
+
+  private buildInitials(name: string): string {
+    const parts = name.split(' ').filter(Boolean);
+
+    if (parts.length === 0) {
+      return 'FU';
+    }
+
+    if (parts.length === 1) {
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }
 }

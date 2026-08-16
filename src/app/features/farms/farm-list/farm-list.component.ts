@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import Swal from 'sweetalert2';
 
 import { FarmService } from '../../../core/services/farm.service';
 import { Farm } from '../../../core/models/farm.model';
@@ -135,7 +136,7 @@ export class FarmListComponent implements OnInit {
   }
 
   editFarm(farmId: string): void {
-    this.router.navigate(['/farms', 'edit', farmId]);
+    this.router.navigate(['/farms', farmId, 'edit']);
   }
 
   createFarm(): void {
@@ -146,25 +147,44 @@ export class FarmListComponent implements OnInit {
   // Delete
   // =====================================================
 
-  deleteFarm(farm: Farm): void {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${farm.name}"?`,
-    );
+  async deleteFarm(farm: Farm): Promise<void> {
+    const result = await Swal.fire({
+      title: 'Delete farm?',
+      text: `"${farm.name}" will be permanently deleted.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#c62828',
+      reverseButtons: true,
+    });
 
-    if (!confirmed) {
+    if (!result.isConfirmed) {
       return;
     }
 
-    /*
-     * Delete will be connected to Supabase later.
-     *
-     * For now we remove the farm locally so the UI
-     * behaves correctly while the backend is not ready.
-     */
+    try {
+      await this.farmService.deleteFarm(farm.id);
 
-    this.farms = this.farms.filter((item) => item.id !== farm.id);
+      this.farms = this.farms.filter((item) => item.id !== farm.id);
+      this.applyFilters();
 
-    this.applyFilters();
+      await Swal.fire({
+        title: 'Deleted',
+        text: 'Farm deleted successfully.',
+        icon: 'success',
+        timer: 1800,
+        showConfirmButton: false,
+      });
+    } catch (error: any) {
+      console.error('Failed to delete farm:', error);
+
+      await Swal.fire({
+        title: 'Delete failed',
+        text: error?.message || 'Unable to delete this farm. Please try again.',
+        icon: 'error',
+      });
+    }
   }
 
   // =====================================================

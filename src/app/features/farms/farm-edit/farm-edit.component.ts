@@ -51,7 +51,9 @@ export class FarmEditComponent implements OnInit {
 
   isLoading = true;
   isSaving = false;
+
   notFound = false;
+  errorMessage = '';
 
   constructor(
     private fb: FormBuilder,
@@ -61,10 +63,8 @@ export class FarmEditComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-
     this.createForm();
     this.loadFarm();
-
   }
 
   // =====================================================
@@ -79,21 +79,24 @@ export class FarmEditComponent implements OnInit {
         '',
         [
           Validators.required,
-          Validators.minLength(2)
+          Validators.minLength(2),
+          Validators.maxLength(100)
         ]
       ],
 
       location: [
         '',
         [
-          Validators.required
+          Validators.required,
+          Validators.minLength(2)
         ]
       ],
 
       area: [
         null,
         [
-          Validators.min(0)
+          Validators.required,
+          Validators.min(0.1)
         ]
       ],
 
@@ -131,7 +134,7 @@ export class FarmEditComponent implements OnInit {
   // Load Farm
   // =====================================================
 
-  private loadFarm(): void {
+  private async loadFarm(): Promise<void> {
 
     const id =
       this.route.snapshot.paramMap.get('id');
@@ -147,12 +150,14 @@ export class FarmEditComponent implements OnInit {
 
     this.farmId = id;
 
-    this.farmService.getFarmById(id).then(farm => {
+    try {
+
+      const farm =
+        await this.farmService.getFarmById(id);
 
       if (!farm) {
 
         this.notFound = true;
-        this.isLoading = false;
 
         return;
 
@@ -170,7 +175,7 @@ export class FarmEditComponent implements OnInit {
 
         areaUnit: farm.areaUnit ?? 'acre',
 
-        status: farm.status,
+        status: farm.status ?? 'active',
 
         latitude: farm.latitude ?? null,
 
@@ -178,17 +183,31 @@ export class FarmEditComponent implements OnInit {
 
       });
 
+    } catch (error) {
+
+      console.error(
+        'Failed to load farm:',
+        error
+      );
+
+      this.errorMessage =
+        'Unable to load this farm. Please try again.';
+
+    } finally {
+
       this.isLoading = false;
 
-    });
+    }
 
   }
 
   // =====================================================
-  // Submit
+  // Save
   // =====================================================
 
-  saveFarm(): void {
+  async saveFarm(): Promise<void> {
+
+    this.errorMessage = '';
 
     if (this.farmForm.invalid) {
 
@@ -200,38 +219,69 @@ export class FarmEditComponent implements OnInit {
 
     this.isSaving = true;
 
-    const formValue = this.farmForm.getRawValue();
+    try {
 
-    const updatedFarm =
-      this.farmService.updateFarm(
-        this.farmId,
-        {
+      const formValue =
+        this.farmForm.getRawValue();
 
-          name: formValue.name,
+      const updatedFarm =
+        await this.farmService.updateFarm(
 
-          location: formValue.location,
+          this.farmId,
 
-          area: formValue.area,
+          {
 
-          latitude: formValue.latitude,
+            name:
+              formValue.name.trim(),
 
-          longitude: formValue.longitude
+            location:
+              formValue.location?.trim(),
 
-        }
+            area:
+              formValue.area !== null
+                ? Number(formValue.area)
+                : undefined,
+
+            latitude:
+              formValue.latitude !== null
+                ? Number(formValue.latitude)
+                : undefined,
+
+            longitude:
+              formValue.longitude !== null
+                ? Number(formValue.longitude)
+                : undefined
+
+          }
+
+        );
+
+      console.log(
+        'Farm updated successfully:',
+        updatedFarm
       );
 
-    if (!updatedFarm) {
+      await this.router.navigate([
+        '/farms',
+        this.farmId
+      ]);
+
+    } catch (error: any) {
+
+      console.error(
+        'Failed to update farm:',
+        error
+      );
+
+      this.errorMessage =
+        error?.message ||
+        'Something went wrong while updating the farm. Please try again.';
+
+    } finally {
 
       this.isSaving = false;
 
-      return;
-
     }
-
-    this.router.navigate([
-      '/farms',
-      this.farmId
-    ]);
 
   }
 
@@ -254,12 +304,14 @@ export class FarmEditComponent implements OnInit {
 
   goBack(): void {
 
-    this.router.navigate(['/farms']);
+    this.router.navigate([
+      '/farms'
+    ]);
 
   }
 
   // =====================================================
-  // Helpers
+  // Getters
   // =====================================================
 
   get name() {
