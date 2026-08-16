@@ -341,7 +341,7 @@
             </mat-card-title>
 
             <mat-card-subtitle>
-              Optional GPS coordinates for your farm
+              Select your farm location on the map
             </mat-card-subtitle>
 
           </div>
@@ -354,75 +354,12 @@
 
         <mat-card-content>
 
-          <div class="row g-3">
-
-            <!-- Latitude -->
-            <div class="col-12 col-md-6">
-
-              <mat-form-field
-                appearance="outline"
-                class="full-width">
-
-                <mat-label>Latitude</mat-label>
-
-                <input
-                  matInput
-                  type="number"
-                  formControlName="latitude"
-                  step="any"
-                  placeholder="29.3084">
-
-                <mat-hint>
-                  Between -90 and 90
-                </mat-hint>
-
-                <mat-error
-                  *ngIf="latitude?.hasError('min') ||
-                         latitude?.hasError('max')">
-
-                  Latitude must be between -90 and 90.
-
-                </mat-error>
-
-              </mat-form-field>
-
-            </div>
-
-
-            <!-- Longitude -->
-            <div class="col-12 col-md-6">
-
-              <mat-form-field
-                appearance="outline"
-                class="full-width">
-
-                <mat-label>Longitude</mat-label>
-
-                <input
-                  matInput
-                  type="number"
-                  formControlName="longitude"
-                  step="any"
-                  placeholder="30.8428">
-
-                <mat-hint>
-                  Between -180 and 180
-                </mat-hint>
-
-                <mat-error
-                  *ngIf="longitude?.hasError('min') ||
-                         longitude?.hasError('max')">
-
-                  Longitude must be between -180 and 180.
-
-                </mat-error>
-
-              </mat-form-field>
-
-            </div>
-
-          </div>
-
+          <app-location-picker
+            [latitude]="latitude?.value"
+            [longitude]="longitude?.value"
+            [height]="'400px'"
+            (locationSelected)="onLocationSelected($event)">
+          </app-location-picker>
 
           <div class="coordinates-info">
 

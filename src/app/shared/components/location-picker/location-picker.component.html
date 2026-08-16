@@ -1,0 +1,49 @@
+<div class="location-picker">
+  <div class="location-header">
+    <h3>Select Location</h3>
+    <p>Click on the map or use your current location</p>
+  </div>
+
+  <div class="map-controls">
+    <button
+      mat-stroked-button
+      class="location-btn"
+      (click)="useCurrentLocation()"
+      [disabled]="isLoadingLocation">
+      <mat-spinner *ngIf="isLoadingLocation" diameter="18"></mat-spinner>
+      <mat-icon *ngIf="!isLoadingLocation">my_location</mat-icon>
+      <span>{{ isLoadingLocation ? 'Getting Location...' : 'Use My Current Location' }}</span>
+    </button>
+
+    <button
+      mat-stroked-button
+      class="reset-btn"
+      (click)="resetLocation()"
+      *ngIf="hasLocation">
+      <mat-icon>refresh</mat-icon>
+      <span>Reset</span>
+    </button>
+  </div>
+
+  <div *ngIf="locationError" class="error-message">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ locationError }}</span>
+  </div>
+
+  <div
+    #mapContainer
+    class="map-container"
+    [style.height]="height">
+  </div>
+
+  <div *ngIf="hasLocation" class="coordinates-display">
+    <div class="coordinate-item">
+      <mat-icon>place</mat-icon>
+      <span>Latitude: <strong>{{ currentLat?.toFixed(6) }}</strong></span>
+    </div>
+    <div class="coordinate-item">
+      <mat-icon>place</mat-icon>
+      <span>Longitude: <strong>{{ currentLng?.toFixed(6) }}</strong></span>
+    </div>
+  </div>
+</div>

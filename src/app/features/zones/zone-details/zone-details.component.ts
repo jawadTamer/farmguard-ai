@@ -14,6 +14,7 @@ import { FarmService } from '../../../core/services/farm.service';
 
 import { FarmZone } from '../../../core/models/farm-zone.model';
 import { Farm } from '../../../core/models/farm.model';
+import { LocationDisplayComponent } from '../../../shared/components/location-display/location-display.component';
 
 @Component({
   selector: 'app-zone-details',
@@ -26,6 +27,7 @@ import { Farm } from '../../../core/models/farm.model';
     MatIconModule,
     MatProgressSpinnerModule,
     MatDividerModule,
+    LocationDisplayComponent,
   ],
 
   templateUrl: './zone-details.component.html',

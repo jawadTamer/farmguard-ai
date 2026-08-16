@@ -46,7 +46,7 @@
     <form [formGroup]="zoneForm" (ngSubmit)="saveZone()">
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Farm</mat-label>
-        <mat-select formControlName="farmId">
+        <mat-select formControlName="farmId" (selectionChange)="onFarmChange($event.value)">
           <mat-option *ngFor="let farmOption of farms" [value]="farmOption.id">
             {{ farmOption.name }}
           </mat-option>
@@ -115,36 +115,18 @@
         </div>
       </div>
 
-      <div class="coordinates-grid">
-        <mat-form-field appearance="outline">
-          <mat-label>Latitude</mat-label>
-          <input
-            matInput
-            type="number"
-            formControlName="latitude"
-            placeholder="e.g. 29.3084"
-          />
-          <mat-icon matSuffix>location_on</mat-icon>
-          <mat-error
-            *ngIf="latitude?.hasError('min') || latitude?.hasError('max')"
-            >Latitude must be between -90 and 90.</mat-error
-          >
-        </mat-form-field>
+      <div class="location-section">
+        <div class="section-title">
+          <mat-icon>map</mat-icon>
+          <span>Zone Location</span>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Longitude</mat-label>
-          <input
-            matInput
-            type="number"
-            formControlName="longitude"
-            placeholder="e.g. 30.8428"
-          />
-          <mat-icon matSuffix>location_on</mat-icon>
-          <mat-error
-            *ngIf="longitude?.hasError('min') || longitude?.hasError('max')"
-            >Longitude must be between -180 and 180.</mat-error
-          >
-        </mat-form-field>
+        <app-location-picker
+          [latitude]="latitude?.value"
+          [longitude]="longitude?.value"
+          [height]="'400px'"
+          (locationSelected)="onLocationSelected($event)">
+        </app-location-picker>
       </div>
 
       <div class="form-actions">

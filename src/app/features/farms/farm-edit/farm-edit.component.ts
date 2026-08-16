@@ -19,6 +19,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { FarmService } from '../../../core/services/farm.service';
 import { Farm } from '../../../core/models/farm.model';
+import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 
 @Component({
   selector: 'app-farm-edit',
@@ -36,6 +37,7 @@ import { Farm } from '../../../core/models/farm.model';
     MatSelectModule,
     MatDividerModule,
     MatProgressSpinnerModule,
+    LocationPickerComponent,
   ],
 
   templateUrl: './farm-edit.component.html',
@@ -178,6 +180,8 @@ export class FarmEditComponent implements OnInit {
 
           area: formValue.area !== null ? Number(formValue.area) : undefined,
 
+          areaUnit: formValue.areaUnit,
+
           latitude:
             formValue.latitude !== null
               ? Number(formValue.latitude)
@@ -245,5 +249,16 @@ export class FarmEditComponent implements OnInit {
 
   get longitude() {
     return this.farmForm.get('longitude');
+  }
+
+  // =====================================================
+  // Location Picker
+  // =====================================================
+
+  onLocationSelected(event: { latitude: number; longitude: number }): void {
+    this.farmForm.patchValue({
+      latitude: event.latitude,
+      longitude: event.longitude,
+    });
   }
 }

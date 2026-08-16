@@ -1,0 +1,59 @@
+.location-display {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.map-container {
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #d1d5db;
+}
+
+.coordinates-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #f8faf9;
+}
+
+.coordinate-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #374151;
+  font-size: 13px;
+}
+
+.coordinate-item mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #2e7d32;
+}
+
+.coordinate-item strong {
+  color: #1f2937;
+}
+
+.no-location {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  border-radius: 10px;
+  background: #f8faf9;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.no-location mat-icon {
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+  color: #9ca3af;
+}

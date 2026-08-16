@@ -309,34 +309,13 @@
 
       </div>
 
+      <mat-divider></mat-divider>
 
-      <div class="coordinates-display">
-
-        <div>
-
-          <span>
-            Latitude
-          </span>
-
-          <strong>
-            {{ zone.latitude }}
-          </strong>
-
-        </div>
-
-        <div>
-
-          <span>
-            Longitude
-          </span>
-
-          <strong>
-            {{ zone.longitude }}
-          </strong>
-
-        </div>
-
-      </div>
+      <app-location-display
+        [latitude]="zone.latitude"
+        [longitude]="zone.longitude"
+        [height]="'300px'">
+      </app-location-display>
 
     </mat-card>
 

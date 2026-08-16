@@ -256,29 +256,13 @@
 
         <mat-divider></mat-divider>
 
-        <div *ngIf="hasCoordinates()" class="coordinates">
-          <div class="coordinate">
-            <span> Latitude </span>
+        <app-location-display
+          [latitude]="farm.latitude"
+          [longitude]="farm.longitude"
+          [height]="'300px'">
+        </app-location-display>
 
-            <strong>
-              {{ farm.latitude }}
-            </strong>
-          </div>
-
-          <div class="coordinate">
-            <span> Longitude </span>
-
-            <strong>
-              {{ farm.longitude }}
-            </strong>
-          </div>
-        </div>
-
-        <div *ngIf="!hasCoordinates()" class="no-location">
-          <mat-icon> location_off </mat-icon>
-
-          <p>GPS coordinates haven't been added yet.</p>
-
+        <div *ngIf="!hasCoordinates()" class="no-location-action">
           <button mat-stroked-button (click)="editFarm()">Add Location</button>
         </div>
       </mat-card>

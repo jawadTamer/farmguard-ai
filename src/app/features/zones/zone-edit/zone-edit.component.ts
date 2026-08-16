@@ -20,6 +20,7 @@ import { ZoneService } from '../../../core/services/zone.service';
 import { FarmService } from '../../../core/services/farm.service';
 import { Farm } from '../../../core/models/farm.model';
 import { FarmZone } from '../../../core/models/farm-zone.model';
+import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 
 @Component({
   selector: 'app-zone-edit',
@@ -34,6 +35,7 @@ import { FarmZone } from '../../../core/models/farm-zone.model';
     MatInputModule,
     MatProgressSpinnerModule,
     MatSelectModule,
+    LocationPickerComponent,
   ],
   templateUrl: './zone-edit.component.html',
   styleUrl: './zone-edit.component.css',
@@ -208,5 +210,32 @@ export class ZoneEditComponent implements OnInit {
 
   get longitude() {
     return this.zoneForm.get('longitude');
+  }
+
+  // =====================================================
+  // Farm Selection
+  // =====================================================
+
+  onFarmChange(farmId: string): void {
+    this.farmId = farmId;
+    const selectedFarm = this.farms.find((f) => f.id === farmId);
+
+    if (selectedFarm?.latitude && selectedFarm?.longitude) {
+      this.zoneForm.patchValue({
+        latitude: selectedFarm.latitude,
+        longitude: selectedFarm.longitude,
+      });
+    }
+  }
+
+  // =====================================================
+  // Location Picker
+  // =====================================================
+
+  onLocationSelected(event: { latitude: number; longitude: number }): void {
+    this.zoneForm.patchValue({
+      latitude: event.latitude,
+      longitude: event.longitude,
+    });
   }
 }

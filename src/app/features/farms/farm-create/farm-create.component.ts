@@ -17,6 +17,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { FarmService } from '../../../core/services/farm.service';
+import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 
 @Component({
   selector: 'app-farm-create',
@@ -33,6 +34,7 @@ import { FarmService } from '../../../core/services/farm.service';
     MatInputModule,
     MatSelectModule,
     MatProgressSpinnerModule,
+    LocationPickerComponent,
   ],
 
   templateUrl: './farm-create.component.html',
@@ -101,6 +103,17 @@ export class FarmCreateComponent {
   }
 
   // =====================================================
+  // Location Picker
+  // =====================================================
+
+  onLocationSelected(event: { latitude: number; longitude: number }): void {
+    this.farmForm.patchValue({
+      latitude: event.latitude,
+      longitude: event.longitude,
+    });
+  }
+
+  // =====================================================
   // Submit
   // =====================================================
 
@@ -125,6 +138,8 @@ export class FarmCreateComponent {
         description: formValue.description?.trim(),
 
         area: formValue.area !== null ? Number(formValue.area) : undefined,
+
+        areaUnit: formValue.areaUnit,
 
         latitude:
           formValue.latitude !== null ? Number(formValue.latitude) : undefined,

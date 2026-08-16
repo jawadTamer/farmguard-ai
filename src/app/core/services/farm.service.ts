@@ -12,6 +12,7 @@ export interface CreateFarmData {
   latitude?: number;
   longitude?: number;
   area?: number;
+  areaUnit?: 'acre' | 'hectare';
   status?: FarmStatus;
 }
 
@@ -127,6 +128,8 @@ export class FarmService {
 
         area: farmData.area ?? null,
 
+        area_unit: farmData.areaUnit ?? 'acre',
+
         status: farmData.status ?? 'active',
       })
       .select()
@@ -161,6 +164,8 @@ export class FarmService {
         longitude: farmData.longitude ?? null,
 
         area: farmData.area ?? null,
+
+        area_unit: farmData.areaUnit ?? 'acre',
 
         status: farmData.status ?? 'active',
       })
@@ -377,8 +382,7 @@ export class FarmService {
 
       area: data.area ?? undefined,
 
-      // Supabase currently does not have areaUnit.
-      areaUnit: 'acre',
+      areaUnit: data.area_unit ?? 'acre',
 
       status: data.status === 'inactive' ? 'inactive' : 'active',
 

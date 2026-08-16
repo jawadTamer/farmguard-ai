@@ -10,6 +10,7 @@ import { MatDividerModule } from '@angular/material/divider';
 
 import { FarmService } from '../../../core/services/farm.service';
 import { Farm } from '../../../core/models/farm.model';
+import { LocationDisplayComponent } from '../../../shared/components/location-display/location-display.component';
 
 @Component({
   selector: 'app-farm-details',
@@ -24,6 +25,7 @@ import { Farm } from '../../../core/models/farm.model';
     MatIconModule,
     MatChipsModule,
     MatDividerModule,
+    LocationDisplayComponent,
   ],
 
   templateUrl: './farm-details.component.html',

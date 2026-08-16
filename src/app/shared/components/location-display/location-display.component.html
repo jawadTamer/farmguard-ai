@@ -1,0 +1,23 @@
+<div *ngIf="hasLocation" class="location-display">
+  <div
+    #mapContainer
+    class="map-container"
+    [style.height]="height">
+  </div>
+
+  <div class="coordinates-info">
+    <div class="coordinate-item">
+      <mat-icon>place</mat-icon>
+      <span>Latitude: <strong>{{ latitude?.toFixed(6) }}</strong></span>
+    </div>
+    <div class="coordinate-item">
+      <mat-icon>place</mat-icon>
+      <span>Longitude: <strong>{{ longitude?.toFixed(6) }}</strong></span>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="!hasLocation" class="no-location">
+  <mat-icon>location_off</mat-icon>
+  <span>No location coordinates available</span>
+</div>

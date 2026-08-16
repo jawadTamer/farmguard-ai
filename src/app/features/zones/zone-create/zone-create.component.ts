@@ -19,6 +19,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { ZoneService } from '../../../core/services/zone.service';
 import { FarmService } from '../../../core/services/farm.service';
 import { Farm } from '../../../core/models/farm.model';
+import { LocationPickerComponent } from '../../../shared/components/location-picker/location-picker.component';
 
 @Component({
   selector: 'app-zone-create',
@@ -35,6 +36,7 @@ import { Farm } from '../../../core/models/farm.model';
     MatInputModule,
     MatProgressSpinnerModule,
     MatSelectModule,
+    LocationPickerComponent,
   ],
 
   templateUrl: './zone-create.component.html',
@@ -146,6 +148,33 @@ export class ZoneCreateComponent implements OnInit {
 
   get longitude() {
     return this.zoneForm.get('longitude');
+  }
+
+  // =====================================================
+  // Farm Selection
+  // =====================================================
+
+  onFarmChange(farmId: string): void {
+    this.farmId = farmId;
+    this.farm = this.farms.find((f) => f.id === farmId);
+
+    if (this.farm?.latitude && this.farm?.longitude) {
+      this.zoneForm.patchValue({
+        latitude: this.farm.latitude,
+        longitude: this.farm.longitude,
+      });
+    }
+  }
+
+  // =====================================================
+  // Location Picker
+  // =====================================================
+
+  onLocationSelected(event: { latitude: number; longitude: number }): void {
+    this.zoneForm.patchValue({
+      latitude: event.latitude,
+      longitude: event.longitude,
+    });
   }
 
   // =====================================================
