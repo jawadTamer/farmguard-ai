@@ -9,7 +9,7 @@ export const authGuard: CanActivateFn = async () => {
 
   await authService.initialize();
 
-  if (authService.isAuthenticated()) {
+  if (await authService.hasValidSession()) {
     return true;
   }
 

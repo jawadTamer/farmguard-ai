@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink } from '@angular/router';
 
@@ -10,6 +10,7 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { MatDividerModule } from '@angular/material/divider';
 
 import { SidebarComponent } from '../sidebar/sidebar.component';
+import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
   selector: 'app-app-layout',
@@ -27,18 +28,19 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
     MatBadgeModule,
     MatDividerModule,
 
-    SidebarComponent
+    SidebarComponent,
   ],
 
   templateUrl: './app-layout.component.html',
-  styleUrl: './app-layout.component.css'
+  styleUrl: './app-layout.component.css',
 })
 export class AppLayoutComponent {
+  private readonly authService = inject(AuthService);
 
   user = {
     name: 'Jawad Tamer',
     email: 'jawad@example.com',
-    initials: 'JT'
+    initials: 'JT',
   };
 
   notifications = [
@@ -49,7 +51,7 @@ export class AppLayoutComponent {
       time: '5 min ago',
       icon: 'warning',
       type: 'danger',
-      read: false
+      read: false,
     },
     {
       id: 2,
@@ -58,7 +60,7 @@ export class AppLayoutComponent {
       time: '20 min ago',
       icon: 'water_drop',
       type: 'info',
-      read: false
+      read: false,
     },
     {
       id: 3,
@@ -67,20 +69,17 @@ export class AppLayoutComponent {
       time: '1 hour ago',
       icon: 'thermostat',
       type: 'warning',
-      read: true
-    }
+      read: true,
+    },
   ];
 
   get unreadNotifications(): number {
-    return this.notifications.filter(
-      notification => !notification.read
-    ).length;
+    return this.notifications.filter((notification) => !notification.read)
+      .length;
   }
 
   markNotificationAsRead(id: number): void {
-    const notification = this.notifications.find(
-      item => item.id === id
-    );
+    const notification = this.notifications.find((item) => item.id === id);
 
     if (notification) {
       notification.read = true;
@@ -88,14 +87,10 @@ export class AppLayoutComponent {
   }
 
   markAllAsRead(): void {
-    this.notifications.forEach(
-      notification => notification.read = true
-    );
+    this.notifications.forEach((notification) => (notification.read = true));
   }
 
-  logout(): void {
-    // هنربطها بـ Supabase Auth بعدين
-    console.log('Logout');
+  async logout(): Promise<void> {
+    await this.authService.signOut();
   }
-
 }

@@ -1,12 +1,7 @@
 <aside class="sidebar">
-
   <!-- Brand -->
   <div class="brand">
-    <img
-      src="/favicon.ico"
-      alt="FarmGuard AI"
-      class="brand-logo"
-    />
+    <img src="/favicon.ico" alt="FarmGuard AI" class="brand-logo" />
 
     <div class="brand-text">
       <span class="brand-name">FarmGuard AI</span>
@@ -16,100 +11,73 @@
 
   <!-- Navigation -->
   <nav class="navigation">
-
-    <a routerLink="/dashboard"
-       routerLinkActive="active"
-       [routerLinkActiveOptions]="{ exact: true }"
-       class="nav-item">
-
+    <a
+      routerLink="/dashboard"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      class="nav-item"
+    >
       <span class="material-symbols-outlined">dashboard</span>
       <span>Dashboard</span>
     </a>
 
-    <a routerLink="/farms"
-       routerLinkActive="active"
-       class="nav-item">
-
+    <a routerLink="/farms" routerLinkActive="active" class="nav-item">
       <span class="material-symbols-outlined">agriculture</span>
       <span>Farms</span>
     </a>
 
-    <a routerLink="/zones"
-       routerLinkActive="active"
-       class="nav-item">
-
+    <a routerLink="/zones" routerLinkActive="active" class="nav-item">
       <span class="material-symbols-outlined">map</span>
       <span>Zones</span>
     </a>
 
-    <a routerLink="/crops"
-       routerLinkActive="active"
-       class="nav-item">
-
+    <a routerLink="/crops" routerLinkActive="active" class="nav-item">
       <span class="material-symbols-outlined">grass</span>
       <span>Crops</span>
     </a>
 
-    <a routerLink="/livestock"
-       routerLinkActive="active"
-       class="nav-item">
-
+    <a routerLink="/livestock" routerLinkActive="active" class="nav-item">
       <span class="material-symbols-outlined">pets</span>
       <span>Livestock</span>
     </a>
 
     <div class="nav-divider"></div>
 
-    <a routerLink="/heat-intelligence"
-       routerLinkActive="active"
-       class="nav-item">
-
+    <a
+      routerLink="/heat-intelligence"
+      routerLinkActive="active"
+      class="nav-item"
+    >
       <span class="material-symbols-outlined">thermostat</span>
       <span>Heat Intelligence</span>
     </a>
 
-    <a routerLink="/recommendations"
-       routerLinkActive="active"
-       class="nav-item">
-
+    <a routerLink="/recommendations" routerLinkActive="active" class="nav-item">
       <span class="material-symbols-outlined">auto_awesome</span>
       <span>AI Advisor</span>
     </a>
 
-    <a routerLink="/alerts"
-       routerLinkActive="active"
-       class="nav-item">
-
+    <a routerLink="/alerts" routerLinkActive="active" class="nav-item">
       <span class="material-symbols-outlined">notifications</span>
       <span>Alerts</span>
     </a>
-
   </nav>
 
   <!-- Bottom -->
   <div class="sidebar-bottom">
-
-    <a routerLink="/profile"
-       routerLinkActive="active"
-       class="nav-item">
-
+    <a routerLink="/profile" routerLinkActive="active" class="nav-item">
       <span class="material-symbols-outlined">person</span>
       <span>Profile</span>
     </a>
 
-    <a routerLink="/settings"
-       routerLinkActive="active"
-       class="nav-item">
-
+    <a routerLink="/settings" routerLinkActive="active" class="nav-item">
       <span class="material-symbols-outlined">settings</span>
       <span>Settings</span>
     </a>
 
-    <button class="nav-item logout-button">
+    <button class="nav-item logout-button" (click)="requestLogout()">
       <span class="material-symbols-outlined">logout</span>
       <span>Logout</span>
     </button>
-
   </div>
-
 </aside>

@@ -21,7 +21,8 @@
 
     <mat-divider></mat-divider>
 
-    <app-sidebar class="mobile-sidebar"> </app-sidebar>
+    <app-sidebar class="mobile-sidebar" (logoutRequested)="logout()">
+    </app-sidebar>
 
     <div class="mobile-drawer-footer">
       <button mat-button class="logout-button" (click)="logout()">
@@ -41,7 +42,10 @@
     <!-- Desktop Sidebar -->
     <!-- ======================================= -->
 
-    <app-sidebar class="desktop-sidebar"></app-sidebar>
+    <app-sidebar
+      class="desktop-sidebar"
+      (logoutRequested)="logout()"
+    ></app-sidebar>
 
     <!-- ======================================= -->
     <!-- Main Area -->
