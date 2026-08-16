@@ -137,6 +137,24 @@ export class AuthService {
 
 
   // =========================
+  // UPDATE USER METADATA
+  // =========================
+  async updateUserMetadata(metadata: Record<string, any>) {
+
+    const { data, error } =
+      await this.supabase.auth.updateUser({
+        data: metadata
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+
+  // =========================
   // CHECK AUTH
   // =========================
   async isAuthenticated(): Promise<boolean> {

@@ -1,1 +1,117 @@
-<p>profile works!</p>
+<div class="profile-page">
+  <div class="page-header">
+    <div class="header-left">
+      <div class="breadcrumb">
+        <span>Dashboard</span>
+        <mat-icon>chevron_right</mat-icon>
+        <span>Profile</span>
+      </div>
+
+      <h1>My Profile</h1>
+      <p>Manage your account information and preferences.</p>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="42"></mat-spinner>
+    <span>Loading profile...</span>
+  </div>
+
+  <div *ngIf="errorMessage" class="error-alert">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <div *ngIf="!isLoading && currentUser" class="profile-content">
+    <!-- Profile Card -->
+    <mat-card class="profile-card">
+      <div class="card-header">
+        <div class="profile-avatar">
+          <mat-icon>person</mat-icon>
+        </div>
+        <div>
+          <h2>{{ currentUser.user_metadata?.['full_name'] || 'User' }}</h2>
+          <p>{{ currentUser.email }}</p>
+        </div>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <form [formGroup]="profileForm" (ngSubmit)="onSave()">
+        <div class="form-section">
+          <h3>Personal Information</h3>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Full Name</mat-label>
+            <input matInput formControlName="fullName" placeholder="Enter your full name" />
+            <mat-icon matSuffix>person</mat-icon>
+            <mat-error *ngIf="fullName?.hasError('required')">
+              Full name is required.
+            </mat-error>
+            <mat-error *ngIf="fullName?.hasError('minlength')">
+              Full name must be at least 2 characters.
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Email</mat-label>
+            <input matInput formControlName="email" [disabled]="true" />
+            <mat-icon matSuffix>email</mat-icon>
+            <mat-hint>Email cannot be changed.</mat-hint>
+          </mat-form-field>
+        </div>
+
+        <div class="form-actions">
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            [disabled]="isSaving">
+            <mat-spinner *ngIf="isSaving" diameter="20"></mat-spinner>
+            <mat-icon *ngIf="!isSaving">save</mat-icon>
+            <span>{{ isSaving ? 'Saving...' : 'Save Changes' }}</span>
+          </button>
+        </div>
+      </form>
+    </mat-card>
+
+    <!-- Account Info Card -->
+    <mat-card class="info-card">
+      <div class="card-header">
+        <div>
+          <h3>Account Information</h3>
+          <p>Details about your account.</p>
+        </div>
+        <mat-icon>info</mat-icon>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <div class="info-list">
+        <div class="info-row">
+          <div class="info-label">
+            <mat-icon>calendar_today</mat-icon>
+            <span>Account Created</span>
+          </div>
+          <strong>{{ getCreatedDate() }}</strong>
+        </div>
+
+        <div class="info-row">
+          <div class="info-label">
+            <mat-icon>verified</mat-icon>
+            <span>Email Verified</span>
+          </div>
+          <strong>{{ currentUser.email_confirmed_at ? 'Yes' : 'No' }}</strong>
+        </div>
+
+        <div class="info-row">
+          <div class="info-label">
+            <mat-icon>security</mat-icon>
+            <span>Last Sign In</span>
+          </div>
+          <strong>{{ getLastSignInDate() }}</strong>
+        </div>
+      </div>
+    </mat-card>
+  </div>
+</div>

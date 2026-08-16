@@ -1,1 +1,131 @@
-<p>settings works!</p>
+<div class="settings-page">
+  <div class="page-header">
+    <div class="header-left">
+      <div class="breadcrumb">
+        <span>Dashboard</span>
+        <mat-icon>chevron_right</mat-icon>
+        <span>Settings</span>
+      </div>
+
+      <h1>Settings</h1>
+      <p>Manage your account settings and security preferences.</p>
+    </div>
+  </div>
+
+  <div *ngIf="errorMessage" class="error-alert">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <div class="settings-content">
+    <!-- Change Password Card -->
+    <mat-card class="settings-card">
+      <div class="card-header">
+        <div class="header-icon">
+          <mat-icon>lock</mat-icon>
+        </div>
+        <div>
+          <h2>Change Password</h2>
+          <p>Update your password to keep your account secure.</p>
+        </div>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <form [formGroup]="passwordForm" (ngSubmit)="onChangePassword()">
+        <div class="form-section">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Current Password</mat-label>
+            <input
+              matInput
+              type="password"
+              formControlName="currentPassword"
+              placeholder="Enter your current password" />
+            <mat-icon matSuffix>key</mat-icon>
+            <mat-error *ngIf="currentPassword?.hasError('required')">
+              Current password is required.
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>New Password</mat-label>
+            <input
+              matInput
+              type="password"
+              formControlName="newPassword"
+              placeholder="Enter your new password" />
+            <mat-icon matSuffix>vpn_key</mat-icon>
+            <mat-error *ngIf="newPassword?.hasError('required')">
+              New password is required.
+            </mat-error>
+            <mat-error *ngIf="newPassword?.hasError('minlength')">
+              Password must be at least 6 characters.
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Confirm New Password</mat-label>
+            <input
+              matInput
+              type="password"
+              formControlName="confirmPassword"
+              placeholder="Confirm your new password" />
+            <mat-icon matSuffix>check_circle</mat-icon>
+            <mat-error *ngIf="confirmPassword?.hasError('required')">
+              Please confirm your new password.
+            </mat-error>
+            <mat-error *ngIf="passwordForm.hasError('passwordMismatch')">
+              Passwords do not match.
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-actions">
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            [disabled]="isSaving">
+            <mat-spinner *ngIf="isSaving" diameter="20"></mat-spinner>
+            <mat-icon *ngIf="!isSaving">save</mat-icon>
+            <span>{{ isSaving ? 'Changing...' : 'Change Password' }}</span>
+          </button>
+        </div>
+      </form>
+    </mat-card>
+
+    <!-- Security Tips Card -->
+    <mat-card class="tips-card">
+      <div class="card-header">
+        <div class="header-icon">
+          <mat-icon>security</mat-icon>
+        </div>
+        <div>
+          <h2>Security Tips</h2>
+          <p>Keep your account safe with these best practices.</p>
+        </div>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <div class="tips-list">
+        <div class="tip-item">
+          <mat-icon>check_circle</mat-icon>
+          <span>Use a strong password with at least 8 characters, including numbers and symbols.</span>
+        </div>
+        <div class="tip-item">
+          <mat-icon>check_circle</mat-icon>
+          <span>Don't reuse passwords from other accounts.</span>
+        </div>
+        <div class="tip-item">
+          <mat-icon>check_circle</mat-icon>
+          <span>Change your password regularly for better security.</span>
+        </div>
+        <div class="tip-item">
+          <mat-icon>check_circle</mat-icon>
+          <span>Never share your password with anyone.</span>
+        </div>
+      </div>
+    </mat-card>
+  </div>
+</div>
