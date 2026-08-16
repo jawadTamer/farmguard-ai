@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
-import { AuthService } from '../../../core/auth/auth.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-forgot-password',
@@ -34,14 +34,7 @@ export class ForgotPasswordComponent {
     this.loading.set(true);
 
     try {
-
-      const { error } =
-        await this.authService.resetPassword(this.email);
-
-      if (error) {
-        this.errorMessage.set(error.message);
-        return;
-      }
+      await this.authService.resetPassword(this.email);
 
       this.successMessage.set(
         'Password reset link has been sent to your email.'
