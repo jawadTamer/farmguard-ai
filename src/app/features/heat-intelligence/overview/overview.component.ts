@@ -107,34 +107,55 @@ export class OverviewComponent implements OnInit {
 
     const zone = this.zones.find(z => z.id === zoneId);
 
-    this.currentTemperature = this.temperatureService.getCurrentTemperature(farmId, zoneId);
+    this.currentTemperature = await this.temperatureService.getCurrentTemperature(farmId, zoneId);
 
     if (this.currentTemperature) {
-      this.currentRisk = this.heatRiskService.calculateRisk(
-        this.currentTemperature.temperature,
-        farmId,
-        zoneId
-      );
+      const hasRecentRisk = await this.heatRiskService.hasRecentRiskAssessment(farmId, zoneId);
 
-      this.recommendations = this.recommendationService.generateRecommendations(
-        farmId,
-        zoneId || '',
-        this.currentRisk.riskLevel,
-        this.currentTemperature.temperature
-      );
+      if (!hasRecentRisk) {
+        this.currentRisk = this.heatRiskService.calculateRisk(
+          this.currentTemperature.temperature,
+          farmId,
+          zoneId
+        );
 
-      if (this.currentRisk.riskLevel === 'high' || this.currentRisk.riskLevel === 'critical') {
-        this.alertService.createAlert(
+        await this.heatRiskService.saveRiskAssessment(this.currentRisk);
+      } else {
+        const risks = await this.heatRiskService.getRisks(farmId, zoneId);
+        this.currentRisk = risks.length > 0 ? risks[0] : undefined;
+      }
+
+      if (this.currentRisk) {
+        const hasRecentRecommendations = await this.recommendationService.hasRecentRecommendations(
           farmId,
           zoneId || '',
-          this.currentRisk.riskLevel,
-          this.currentTemperature.temperature,
-          zone?.name
+          this.currentRisk.riskLevel
         );
+
+        if (!hasRecentRecommendations) {
+          this.recommendations = await this.recommendationService.generateRecommendations(
+            farmId,
+            zoneId || '',
+            this.currentRisk.riskLevel,
+            this.currentTemperature.temperature
+          );
+        } else {
+          this.recommendations = await this.recommendationService.getRecommendations(farmId, zoneId);
+        }
+
+        if (this.currentRisk.riskLevel === 'high' || this.currentRisk.riskLevel === 'critical') {
+          await this.alertService.createAlert(
+            farmId,
+            zoneId || '',
+            this.currentRisk.riskLevel,
+            this.currentTemperature.temperature,
+            zone?.name
+          );
+        }
       }
     }
 
-    this.alerts = this.alertService.getUnreadAlerts(farmId, zoneId);
+    this.alerts = await this.alertService.getUnreadAlerts(farmId, zoneId);
   }
 
   getRiskColor(riskLevel: string): string {

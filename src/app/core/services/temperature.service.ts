@@ -3,6 +3,7 @@ import {
   TemperatureForecast,
   TemperatureReading
 } from '../models/temperature.model';
+import { SupabaseService } from './supabase.service';
 
 @Injectable({
   providedIn: 'root'
@@ -76,16 +77,59 @@ export class TemperatureService {
     }
   ];
 
-  getCurrentTemperature(farmId?: string, zoneId?: string): TemperatureReading {
+  constructor(private supabaseService: SupabaseService) {}
+
+  async getCurrentTemperature(farmId?: string, zoneId?: string): Promise<TemperatureReading> {
     if (farmId || zoneId) {
-      const filtered = this.temperatureHistory.filter(
-        t => (!farmId || t.farmId === farmId) && (!zoneId || t.zoneId === zoneId)
-      );
-      if (filtered.length > 0) {
-        return filtered[filtered.length - 1];
+      try {
+        const { data, error } = await this.supabaseService.client
+          .from('temperature_readings')
+          .select('*')
+          .eq('farm_id', farmId || '')
+          .eq('zone_id', zoneId || '')
+          .order('recorded_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (data && !error) {
+          return {
+            id: data.id,
+            farmId: data.farm_id,
+            zoneId: data.zone_id,
+            temperature: data.temperature,
+            feelsLike: data.feels_like,
+            humidity: data.humidity,
+            recordedAt: data.recorded_at,
+            source: data.source || 'api'
+          };
+        }
+      } catch (error) {
+        console.error('Failed to fetch temperature from Supabase:', error);
       }
     }
     return this.currentTemperature;
+  }
+
+  async saveTemperatureReading(reading: TemperatureReading): Promise<void> {
+    try {
+      const { error } = await this.supabaseService.client
+        .from('temperature_readings')
+        .insert({
+          farm_id: reading.farmId,
+          zone_id: reading.zoneId,
+          temperature: reading.temperature,
+          feels_like: reading.feelsLike,
+          humidity: reading.humidity,
+          recorded_at: reading.recordedAt,
+          source: reading.source || 'mock'
+        });
+
+      if (error) {
+        console.error('Failed to save temperature reading:', error);
+      }
+    } catch (error) {
+      console.error('Failed to save temperature reading:', error);
+    }
   }
 
   getForecast(farmId?: string, zoneId?: string): TemperatureForecast[] {
@@ -121,7 +165,36 @@ export class TemperatureService {
     ];
   }
 
-  getTemperatureHistory(farmId?: string, zoneId?: string, days: number = 7): TemperatureReading[] {
+  async getTemperatureHistory(farmId?: string, zoneId?: string, days: number = 7): Promise<TemperatureReading[]> {
+    try {
+      if (farmId || zoneId) {
+        const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+        const { data, error } = await this.supabaseService.client
+          .from('temperature_readings')
+          .select('*')
+          .eq('farm_id', farmId || '')
+          .eq('zone_id', zoneId || '')
+          .gte('recorded_at', cutoffDate)
+          .order('recorded_at', { ascending: false });
+
+        if (data && !error) {
+          return data.map(reading => ({
+            id: reading.id,
+            farmId: reading.farm_id,
+            zoneId: reading.zone_id,
+            temperature: reading.temperature,
+            feelsLike: reading.feels_like,
+            humidity: reading.humidity,
+            recordedAt: reading.recorded_at,
+            source: reading.source || 'api'
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch temperature history from Supabase:', error);
+    }
+
     let history = this.temperatureHistory;
 
     if (farmId || zoneId) {

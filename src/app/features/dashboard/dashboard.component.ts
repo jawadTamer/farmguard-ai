@@ -253,22 +253,24 @@ export class DashboardComponent implements OnInit {
   // Lifecycle
   // =====================================================
 
-  ngOnInit(): void {
-    this.loadTemperature();
+  async ngOnInit(): Promise<void> {
+    this.currentDate = new Date();
 
-    void this.loadFarms();
+    await this.loadTemperature();
 
-    this.loadHeatRisks();
+    this.loadFarms();
 
-    this.loadAlerts();
+    await this.loadHeatRisks();
+
+    await this.loadAlerts();
   }
 
   // =====================================================
   // Load Temperature
   // =====================================================
 
-  private loadTemperature(): void {
-    const temperature = this.temperatureService.getCurrentTemperature();
+  private async loadTemperature(): Promise<void> {
+    const temperature = await this.temperatureService.getCurrentTemperature();
 
     this.currentTemperature = temperature.temperature;
 
@@ -368,11 +370,11 @@ export class DashboardComponent implements OnInit {
   // Load Heat Risks
   // =====================================================
 
-  private loadHeatRisks(): void {
-    const risks = this.heatRiskService.getRisks();
+  private async loadHeatRisks(): Promise<void> {
+    const risks = await this.heatRiskService.getRisks();
 
     const attentionRisks = risks.filter(
-      (risk) => risk.riskLevel === 'high' || risk.riskLevel === 'critical',
+      (risk: any) => risk.riskLevel === 'high' || risk.riskLevel === 'critical',
     );
 
     this.stats[2].value = attentionRisks.length.toString();
@@ -388,7 +390,7 @@ export class DashboardComponent implements OnInit {
     // Convert service data to Dashboard RiskItem
     // ================================================
 
-    this.riskAreas = risks.map((risk) => {
+    this.riskAreas = risks.map((risk: any) => {
       let level: 'Low' | 'Moderate' | 'High';
 
       switch (risk.riskLevel) {
@@ -463,13 +465,13 @@ export class DashboardComponent implements OnInit {
   // Load Alerts
   // =====================================================
 
-  private loadAlerts(): void {
-    const alerts = this.alertService.getAlerts();
+  private async loadAlerts(): Promise<void> {
+    const alerts = await this.alertService.getAlerts();
 
-    const activeAlerts = alerts.filter((alert) => !alert.isRead);
+    const activeAlerts = alerts.filter((alert: any) => !alert.isRead);
 
     const criticalAlerts = activeAlerts.filter(
-      (alert) => alert.severity === 'critical',
+      (alert: any) => alert.severity === 'critical',
     );
 
     this.stats[3].value = activeAlerts.length.toString();
@@ -496,16 +498,16 @@ export class DashboardComponent implements OnInit {
   // Refresh Dashboard
   // =====================================================
 
-  refreshDashboard(): void {
+  async refreshDashboard(): Promise<void> {
     this.currentDate = new Date();
 
-    this.loadTemperature();
+    await this.loadTemperature();
 
     this.loadFarms();
 
-    this.loadHeatRisks();
+    await this.loadHeatRisks();
 
-    this.loadAlerts();
+    await this.loadAlerts();
   }
 
   // =====================================================

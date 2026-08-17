@@ -5,6 +5,7 @@ import {
   RecommendationPriority
 } from '../models/recommendation.model';
 import { HeatRiskLevel } from '../models/heat-risk.model';
+import { SupabaseService } from './supabase.service';
 
 @Injectable({
   providedIn: 'root'
@@ -13,18 +14,51 @@ export class RecommendationService {
 
   private recommendations: Recommendation[] = [];
 
-  getRecommendations(farmId?: string, zoneId?: string): Recommendation[] {
+  constructor(private supabaseService: SupabaseService) {}
+
+  async getRecommendations(farmId?: string, zoneId?: string): Promise<Recommendation[]> {
+    try {
+      if (farmId || zoneId) {
+        const { data, error } = await this.supabaseService.client
+          .from('recommendations')
+          .select('*')
+          .eq('farm_id', farmId || '')
+          .eq('zone_id', zoneId || '')
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (data && !error) {
+          return data.map(rec => ({
+            id: rec.id,
+            farmId: rec.farm_id,
+            zoneId: rec.zone_id,
+            type: rec.type,
+            priority: rec.priority,
+            title: rec.title,
+            description: rec.description,
+            actionItems: rec.action_items || [],
+            riskLevel: rec.risk_level,
+            createdAt: rec.created_at,
+            expiresAt: rec.expires_at,
+            isCompleted: rec.is_completed
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch recommendations from Supabase:', error);
+    }
+
     return this.recommendations.filter(
       rec => (!farmId || rec.farmId === farmId) && (!zoneId || rec.zoneId === zoneId)
     );
   }
 
-  generateRecommendations(
+  async generateRecommendations(
     farmId: string,
     zoneId: string,
     riskLevel: HeatRiskLevel,
     temperature: number
-  ): Recommendation[] {
+  ): Promise<Recommendation[]> {
     const newRecommendations: Recommendation[] = [];
 
     if (riskLevel === 'critical') {
@@ -46,8 +80,58 @@ export class RecommendationService {
       );
     }
 
+    for (const rec of newRecommendations) {
+      await this.saveRecommendation(rec);
+    }
+
     this.recommendations = [...this.recommendations, ...newRecommendations];
     return newRecommendations;
+  }
+
+  async saveRecommendation(rec: Recommendation): Promise<void> {
+    try {
+      const { error } = await this.supabaseService.client
+        .from('recommendations')
+        .insert({
+          farm_id: rec.farmId,
+          zone_id: rec.zoneId,
+          type: rec.type,
+          priority: rec.priority,
+          title: rec.title,
+          description: rec.description,
+          action_items: rec.actionItems,
+          risk_level: rec.riskLevel,
+          created_at: rec.createdAt,
+          expires_at: rec.expiresAt,
+          is_completed: rec.isCompleted || false
+        });
+
+      if (error) {
+        console.error('Failed to save recommendation:', error);
+      }
+    } catch (error) {
+      console.error('Failed to save recommendation:', error);
+    }
+  }
+
+  async hasRecentRecommendations(farmId: string, zoneId: string, riskLevel: HeatRiskLevel): Promise<boolean> {
+    try {
+      const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+
+      const { data, error } = await this.supabaseService.client
+        .from('recommendations')
+        .select('id')
+        .eq('farm_id', farmId)
+        .eq('zone_id', zoneId)
+        .eq('risk_level', riskLevel)
+        .gte('created_at', sixHoursAgo)
+        .maybeSingle();
+
+      return !error && !!data;
+    } catch (error) {
+      console.error('Failed to check for recent recommendations:', error);
+      return false;
+    }
   }
 
   private createIrrigationRecommendation(
@@ -154,17 +238,44 @@ export class RecommendationService {
     };
   }
 
-  markAsCompleted(id: string): void {
-    const recommendation = this.recommendations.find(r => r.id === id);
-    if (recommendation) {
-      recommendation.isCompleted = true;
+  async markAsCompleted(id: string): Promise<void> {
+    try {
+      const { error } = await this.supabaseService.client
+        .from('recommendations')
+        .update({ is_completed: true })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Failed to mark recommendation as completed:', error);
+      }
+
+      const recommendation = this.recommendations.find(r => r.id === id);
+      if (recommendation) {
+        recommendation.isCompleted = true;
+      }
+    } catch (error) {
+      console.error('Failed to mark recommendation as completed:', error);
     }
   }
 
-  clearExpiredRecommendations(): void {
-    const now = new Date();
-    this.recommendations = this.recommendations.filter(
-      rec => !rec.expiresAt || new Date(rec.expiresAt) > now
-    );
+  async clearExpiredRecommendations(): Promise<void> {
+    try {
+      const now = new Date().toISOString();
+
+      const { error } = await this.supabaseService.client
+        .from('recommendations')
+        .delete()
+        .lt('expires_at', now);
+
+      if (error) {
+        console.error('Failed to clear expired recommendations:', error);
+      }
+
+      this.recommendations = this.recommendations.filter(
+        rec => !rec.expiresAt || new Date(rec.expiresAt) > new Date()
+      );
+    } catch (error) {
+      console.error('Failed to clear expired recommendations:', error);
+    }
   }
 }

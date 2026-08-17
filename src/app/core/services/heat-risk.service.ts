@@ -3,6 +3,7 @@ import {
   HeatRisk,
   HeatRiskLevel
 } from '../models/heat-risk.model';
+import { SupabaseService } from './supabase.service';
 
 @Injectable({
   providedIn: 'root'
@@ -70,8 +71,38 @@ export class HeatRiskService {
 
   ];
 
+  constructor(private supabaseService: SupabaseService) {}
 
-  getRisks(farmId?: string, zoneId?: string): HeatRisk[] {
+  async getRisks(farmId?: string, zoneId?: string): Promise<HeatRisk[]> {
+    try {
+      if (farmId || zoneId) {
+        const { data, error } = await this.supabaseService.client
+          .from('risk_assessments')
+          .select('*')
+          .eq('farm_id', farmId || '')
+          .eq('zone_id', zoneId || '')
+          .order('detected_at', { ascending: false })
+          .limit(10);
+
+        if (data && !error) {
+          return data.map(risk => ({
+            id: risk.id,
+            farmId: risk.farm_id,
+            zoneId: risk.zone_id,
+            cropId: risk.crop_id,
+            temperature: risk.temperature,
+            riskLevel: risk.risk_level,
+            riskScore: risk.risk_score,
+            reason: risk.reason,
+            detectedAt: risk.detected_at,
+            expiresAt: risk.expires_at
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch risks from Supabase:', error);
+    }
+
     return this.risks.filter(
       risk => (!farmId || risk.farmId === farmId) && (!zoneId || risk.zoneId === zoneId)
     );
@@ -116,6 +147,49 @@ export class HeatRiskService {
       detectedAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
     };
+  }
+
+  async saveRiskAssessment(risk: HeatRisk): Promise<void> {
+    try {
+      const { error } = await this.supabaseService.client
+        .from('risk_assessments')
+        .insert({
+          farm_id: risk.farmId,
+          zone_id: risk.zoneId,
+          crop_id: risk.cropId,
+          temperature: risk.temperature,
+          risk_level: risk.riskLevel,
+          risk_score: risk.riskScore,
+          reason: risk.reason,
+          detected_at: risk.detectedAt,
+          expires_at: risk.expiresAt
+        });
+
+      if (error) {
+        console.error('Failed to save risk assessment:', error);
+      }
+    } catch (error) {
+      console.error('Failed to save risk assessment:', error);
+    }
+  }
+
+  async hasRecentRiskAssessment(farmId: string, zoneId?: string): Promise<boolean> {
+    try {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+      const { data, error } = await this.supabaseService.client
+        .from('risk_assessments')
+        .select('id')
+        .eq('farm_id', farmId)
+        .eq('zone_id', zoneId || '')
+        .gte('detected_at', oneHourAgo)
+        .maybeSingle();
+
+      return !error && !!data;
+    } catch (error) {
+      console.error('Failed to check for recent risk assessment:', error);
+      return false;
+    }
   }
 
   private calculateRiskScore(temperature: number, riskLevel: HeatRiskLevel): number {

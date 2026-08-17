@@ -1,1 +1,80 @@
-<p>forecast works!</p>
+<div class="forecast-page">
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-state">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p>Loading forecast data...</p>
+  </div>
+
+  <!-- Content -->
+  <div *ngIf="!isLoading" class="forecast-content">
+    <!-- Header -->
+    <div class="page-header">
+      <h1>Temperature Forecast</h1>
+      <p>View predicted temperature and risk levels for your farms</p>
+    </div>
+
+    <!-- Farm/Zone Selection -->
+    <div class="selection-section">
+      <div class="selection-row">
+        <mat-form-field appearance="outline" class="farm-select">
+          <mat-label>Select Farm</mat-label>
+          <mat-select [(value)]="selectedFarmId" (selectionChange)="onFarmChange()">
+            <mat-option *ngFor="let farm of farms" [value]="farm.id">
+              {{ farm.name }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="zone-select" *ngIf="zones.length > 0">
+          <mat-label>Select Zone</mat-label>
+          <mat-select [(value)]="selectedZoneId" (selectionChange)="onZoneChange()">
+            <mat-option *ngFor="let zone of zones" [value]="zone.id">
+              {{ zone.name }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </div>
+
+    <!-- Forecast Cards -->
+    <div class="forecast-grid" *ngIf="forecast.length > 0">
+      <mat-card class="forecast-card" *ngFor="let item of forecast">
+        <div class="forecast-header">
+          <mat-icon>{{ getConditionIcon(item.condition || 'Sunny') }}</mat-icon>
+          <span class="condition">{{ item.condition }}</span>
+        </div>
+        <div class="forecast-body">
+          <div class="forecast-time">{{ formatDate(item.timestamp) }}</div>
+          <div class="forecast-temp">{{ item.temperature }}°C</div>
+          <div class="forecast-details">
+            <div class="detail">
+              <span class="detail-label">Feels Like</span>
+              <span class="detail-value">{{ item.feelsLike }}°C</span>
+            </div>
+            <div class="detail">
+              <span class="detail-label">Humidity</span>
+              <span class="detail-value">{{ item.humidity }}%</span>
+            </div>
+          </div>
+          <div class="forecast-risk">
+            <span class="risk-label">Expected Risk</span>
+            <span class="risk-badge" [style.background-color]="getRiskColor(getRiskLevelForTemp(item.temperature))">
+              {{ getRiskLevelForTemp(item.temperature) | titlecase }}
+            </span>
+          </div>
+        </div>
+      </mat-card>
+    </div>
+
+    <!-- No Data State -->
+    <mat-card class="no-data-card" *ngIf="forecast.length === 0">
+      <mat-card-content>
+        <div class="no-data-content">
+          <mat-icon>cloud_off</mat-icon>
+          <h3>No Forecast Data Available</h3>
+          <p>Select a farm and zone to view temperature forecast.</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>
