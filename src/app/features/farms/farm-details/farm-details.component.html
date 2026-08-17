@@ -218,6 +218,18 @@
             </div>
           </div>
 
+          <div class="info-row" *ngIf="farm.description">
+            <div class="info-label">
+              <mat-icon> description </mat-icon>
+
+              <span> Description </span>
+            </div>
+
+            <strong>
+              {{ farm.description }}
+            </strong>
+          </div>
+
           <div class="info-row">
             <div class="info-label">
               <mat-icon> straighten </mat-icon>

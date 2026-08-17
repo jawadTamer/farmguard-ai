@@ -6,6 +6,7 @@
 
   <div class="map-controls">
     <button
+      type="button"
       mat-stroked-button
       class="location-btn"
       (click)="useCurrentLocation()"
@@ -16,6 +17,7 @@
     </button>
 
     <button
+      type="button"
       mat-stroked-button
       class="reset-btn"
       (click)="resetLocation()"
@@ -34,6 +36,7 @@
         (keyup.enter)="searchLocation()"
         placeholder="e.g., Cairo, Fayoum">
       <button
+        type="button"
         mat-icon-button
         matSuffix
         (click)="searchLocation()"
@@ -51,6 +54,7 @@
         <span>{{ result.display_name }}</span>
       </div>
       <button
+        type="button"
         mat-button
         class="clear-search-btn"
         (click)="clearSearchResults()">

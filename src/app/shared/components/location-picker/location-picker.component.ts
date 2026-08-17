@@ -9,6 +9,7 @@ import {
   ViewChild,
   OnInit,
 } from '@angular/core';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -17,6 +18,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { FormControl } from '@angular/forms';
+import { Subscription } from 'rxjs';
 
 import * as L from 'leaflet';
 
@@ -71,9 +73,23 @@ export class LocationPickerComponent
     lon: number;
   }> = [];
 
+  private searchSubscription?: Subscription;
+
   ngOnInit(): void {
     this.currentLat = this.latitude;
     this.currentLng = this.longitude;
+
+    // Set up debounced search while typing
+    this.searchSubscription = this.searchQuery.valueChanges.pipe(
+      debounceTime(500),
+      distinctUntilChanged()
+    ).subscribe((value) => {
+      if (value && value.trim().length >= 2) {
+        this.searchLocation();
+      } else if (!value || value.trim().length === 0) {
+        this.searchResults = [];
+      }
+    });
   }
 
   ngAfterViewInit(): void {
@@ -84,6 +100,10 @@ export class LocationPickerComponent
     if (this.map) {
       this.map.remove();
       this.map = null;
+    }
+
+    if (this.searchSubscription) {
+      this.searchSubscription.unsubscribe();
     }
   }
 
