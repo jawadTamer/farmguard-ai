@@ -71,31 +71,101 @@ export class HeatRiskService {
   ];
 
 
-  getRisks(): HeatRisk[] {
-
-    return this.risks;
-
+  getRisks(farmId?: string, zoneId?: string): HeatRisk[] {
+    return this.risks.filter(
+      risk => (!farmId || risk.farmId === farmId) && (!zoneId || risk.zoneId === zoneId)
+    );
   }
 
-
-  getRiskLevel(
-    temperature: number
-  ): HeatRiskLevel {
-
-    if (temperature >= 42) {
+  getRiskLevel(temperature: number): HeatRiskLevel {
+    if (temperature > 40) {
       return 'critical';
     }
 
-    if (temperature >= 38) {
+    if (temperature >= 36) {
       return 'high';
     }
 
-    if (temperature >= 34) {
+    if (temperature >= 31) {
       return 'moderate';
     }
 
     return 'low';
-
   }
 
+  calculateRisk(
+    temperature: number,
+    farmId: string,
+    zoneId?: string,
+    cropId?: string
+  ): HeatRisk {
+    const riskLevel = this.getRiskLevel(temperature);
+    const riskScore = this.calculateRiskScore(temperature, riskLevel);
+    const thresholdTemperature = this.getThresholdTemperature(riskLevel);
+    const reason = this.generateReason(temperature, riskLevel, thresholdTemperature);
+
+    return {
+      id: `risk-${Date.now()}`,
+      farmId,
+      zoneId,
+      cropId,
+      temperature,
+      riskLevel,
+      riskScore,
+      reason,
+      detectedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    };
+  }
+
+  private calculateRiskScore(temperature: number, riskLevel: HeatRiskLevel): number {
+    const baseScores = {
+      low: 25,
+      moderate: 50,
+      high: 75,
+      critical: 90
+    };
+
+    const baseScore = baseScores[riskLevel];
+
+    if (riskLevel === 'critical') {
+      return Math.min(100, baseScore + (temperature - 40) * 2);
+    }
+
+    if (riskLevel === 'high') {
+      return baseScore + (temperature - 36) * 3;
+    }
+
+    if (riskLevel === 'moderate') {
+      return baseScore + (temperature - 31) * 2;
+    }
+
+    return baseScore + temperature * 0.5;
+  }
+
+  private getThresholdTemperature(riskLevel: HeatRiskLevel): number {
+    const thresholds = {
+      low: 30,
+      moderate: 31,
+      high: 36,
+      critical: 40
+    };
+
+    return thresholds[riskLevel];
+  }
+
+  private generateReason(
+    temperature: number,
+    riskLevel: HeatRiskLevel,
+    threshold: number
+  ): string {
+    const reasons = {
+      low: `Temperature (${temperature}°C) is within the safe range (below ${threshold}°C).`,
+      moderate: `Temperature (${temperature}°C) is approaching the upper safe limit (${threshold}°C). Monitor closely.`,
+      high: `Temperature (${temperature}°C) exceeds the safe threshold (${threshold}°C). Heat stress risk is elevated.`,
+      critical: `Critical temperature (${temperature}°C) detected. Immediate action required to prevent heat damage.`
+    };
+
+    return reasons[riskLevel];
+  }
 }

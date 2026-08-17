@@ -1,7 +1,10 @@
 import { Injectable } from '@angular/core';
 import {
-  FarmAlert
+  FarmAlert,
+  AlertType,
+  AlertSeverity
 } from '../models/alert.model';
+import { HeatRiskLevel } from '../models/heat-risk.model';
 
 @Injectable({
   providedIn: 'root'
@@ -77,24 +80,65 @@ export class AlertService {
   ];
 
 
-  getAlerts(): FarmAlert[] {
-
-    return this.alerts;
-
+  getAlerts(farmId?: string, zoneId?: string): FarmAlert[] {
+    return this.alerts.filter(
+      alert => (!farmId || alert.farmId === farmId) && (!zoneId || alert.zoneId === zoneId)
+    );
   }
 
-
-  getUnreadAlerts(): FarmAlert[] {
-
+  getUnreadAlerts(farmId?: string, zoneId?: string): FarmAlert[] {
     return this.alerts.filter(
-      alert => !alert.isRead
+      alert => !alert.isRead &&
+        (!farmId || alert.farmId === farmId) &&
+        (!zoneId || alert.zoneId === zoneId)
+    );
+  }
+
+  createAlert(
+    farmId: string,
+    zoneId: string,
+    riskLevel: HeatRiskLevel,
+    temperature: number,
+    zoneName?: string
+  ): FarmAlert | null {
+    if (riskLevel !== 'high' && riskLevel !== 'critical') {
+      return null;
+    }
+
+    const existingAlert = this.alerts.find(
+      alert => alert.farmId === farmId &&
+        alert.zoneId === zoneId &&
+        alert.type === 'temperature' &&
+        !alert.isRead &&
+        new Date(alert.createdAt).getTime() > Date.now() - 6 * 60 * 60 * 1000
     );
 
+    if (existingAlert) {
+      return null;
+    }
+
+    const severity: AlertSeverity = riskLevel === 'critical' ? 'critical' : 'warning';
+
+    const newAlert: FarmAlert = {
+      id: `alert-${Date.now()}`,
+      farmId,
+      zoneId,
+      type: 'temperature',
+      severity,
+      title: riskLevel === 'critical' ? 'Critical heat risk detected' : 'High heat risk detected',
+      message: zoneName
+        ? `${zoneName} reached ${temperature}°C. ${riskLevel === 'critical' ? 'Immediate action required.' : 'Take preventive measures.'}`
+        : `Temperature reached ${temperature}°C. ${riskLevel === 'critical' ? 'Immediate action required.' : 'Take preventive measures.'}`,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    };
+
+    this.alerts.push(newAlert);
+    return newAlert;
   }
 
-
   markAsRead(id: string): void {
-
     const alert = this.alerts.find(
       item => item.id === id
     );
@@ -102,16 +146,24 @@ export class AlertService {
     if (alert) {
       alert.isRead = true;
     }
-
   }
 
-
-  markAllAsRead(): void {
-
+  markAllAsRead(farmId?: string, zoneId?: string): void {
     this.alerts.forEach(
-      alert => alert.isRead = true
+      alert => {
+        if (!farmId || alert.farmId === farmId) {
+          if (!zoneId || alert.zoneId === zoneId) {
+            alert.isRead = true;
+          }
+        }
+      }
     );
-
   }
 
+  clearExpiredAlerts(): void {
+    const now = new Date();
+    this.alerts = this.alerts.filter(
+      alert => !alert.expiresAt || new Date(alert.expiresAt) > now
+    );
+  }
 }
