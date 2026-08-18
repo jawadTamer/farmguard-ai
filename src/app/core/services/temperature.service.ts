@@ -33,7 +33,11 @@ export class TemperatureService {
   }
 
   async getCurrentTemperature(farmId?: string, zoneId?: string): Promise<TemperatureReading> {
-    const result = await this.provider.getCurrentTemperature(farmId || '', zoneId);
+    if (!farmId || farmId.trim() === '') {
+      throw new Error('Farm ID is required to get current temperature.');
+    }
+
+    const result = await this.provider.getCurrentTemperature(farmId, zoneId);
     if (result) {
       return result;
     }

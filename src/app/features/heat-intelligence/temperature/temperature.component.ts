@@ -36,6 +36,8 @@ import { TemperatureReading } from '../../../core/models/temperature.model';
 })
 export class TemperatureComponent implements OnInit {
   isLoading = true;
+  isRefreshing = false;
+  loadError?: string;
   farms: Farm[] = [];
   zones: FarmZone[] = [];
 
@@ -100,8 +102,88 @@ export class TemperatureComponent implements OnInit {
 
     if (!farmId) return;
 
-    this.currentTemperature = await this.temperatureService.getCurrentTemperature(farmId, zoneId);
-    this.temperatureHistory = await this.temperatureService.getTemperatureHistory(farmId, zoneId, 7);
+    this.loadError = undefined;
+
+    try {
+      console.log('[Temperature] Loading current temperature for farm:', farmId, 'zone:', zoneId);
+      this.currentTemperature = await this.temperatureService.getCurrentTemperature(farmId, zoneId);
+      console.log('[Temperature] Current temperature loaded:', this.currentTemperature);
+      
+      this.temperatureHistory = await this.temperatureService.getTemperatureHistory(farmId, zoneId, 7);
+      console.log('[Temperature] Temperature history loaded:', this.temperatureHistory.length, 'records');
+    } catch (error) {
+      console.error('[Temperature] Failed to load temperature data:', error);
+      this.loadError = this.getErrorMessage(error);
+    }
+  }
+
+  async refreshTemperature(): Promise<void> {
+    if (this.isRefreshing) return;
+
+    this.isRefreshing = true;
+    this.loadError = undefined;
+
+    try {
+      console.log('[Temperature] Refreshing temperature data');
+      const farmId = this.selectedFarmId;
+      const zoneId = this.selectedZoneId;
+
+      if (!farmId) return;
+
+      this.currentTemperature = await this.temperatureService.getCurrentTemperature(farmId, zoneId);
+      console.log('[Temperature] Refreshed current temperature:', this.currentTemperature);
+      
+      this.temperatureHistory = await this.temperatureService.getTemperatureHistory(farmId, zoneId, 7);
+      console.log('[Temperature] Refreshed temperature history:', this.temperatureHistory.length, 'records');
+    } catch (error) {
+      console.error('[Temperature] Failed to refresh temperature data:', error);
+      this.loadError = this.getErrorMessage(error);
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
+  private getErrorMessage(error: unknown): string {
+    const message = (error as Error)?.message || 'Unknown error occurred';
+    
+    if (message.includes('latitude') || message.includes('longitude')) {
+      return 'Location coordinates are required. Please add a valid location to your farm or zone.';
+    }
+    if (message.includes('API key') || message.includes('FORTYGUARD_API_KEY')) {
+      return 'Temperature service is not configured. Please contact your administrator.';
+    }
+    if (message.includes('401') || message.includes('403')) {
+      return 'Temperature service authentication failed. Please contact your administrator.';
+    }
+    if (message.includes('429')) {
+      return 'Temperature service rate limit reached. Please try again later.';
+    }
+    if (message.includes('network') || message.includes('timeout')) {
+      return 'Unable to connect to temperature service. Please check your connection.';
+    }
+    
+    return 'Unable to load temperature data. Please try again.';
+  }
+
+  getSafeValue(value: number | undefined | null): string {
+    if (value === undefined || value === null || !Number.isFinite(value)) {
+      return '—';
+    }
+    return value.toString();
+  }
+
+  getSourceLabel(source: string | undefined): string {
+    if (!source) return 'Unknown';
+    if (source === 'api') return 'FortyGuard';
+    if (source === 'mock') return 'Demo data';
+    return source;
+  }
+
+  getSourceClass(source: string | undefined): string {
+    if (!source) return 'source-unknown';
+    if (source === 'api') return 'source-fortyguard';
+    if (source === 'mock') return 'source-mock';
+    return 'source-unknown';
   }
 
   calculateHeatIndex(temp: number, humidity: number): number {

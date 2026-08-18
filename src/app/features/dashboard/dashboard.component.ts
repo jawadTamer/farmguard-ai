@@ -256,9 +256,9 @@ export class DashboardComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     this.currentDate = new Date();
 
-    await this.loadTemperature();
-
     this.loadFarms();
+
+    await this.loadTemperature();
 
     await this.loadHeatRisks();
 
@@ -270,15 +270,31 @@ export class DashboardComponent implements OnInit {
   // =====================================================
 
   private async loadTemperature(): Promise<void> {
-    const temperature = await this.temperatureService.getCurrentTemperature();
+    try {
+      const farms = await this.farmService.getFarms();
+      const activeFarm = farms.find((farm: Farm) => farm.status === 'active');
 
-    this.currentTemperature = temperature.temperature;
+      if (!activeFarm) {
+        console.warn('[Dashboard] No active farm found, skipping temperature load');
+        this.stats[0].value = '--';
+        this.stats[0].subtitle = 'No farm selected';
+        return;
+      }
 
-    this.feelsLike = temperature.feelsLike ?? temperature.temperature;
+      const temperature = await this.temperatureService.getCurrentTemperature(activeFarm.id);
 
-    this.updateTemperatureStatus(this.currentTemperature);
+      this.currentTemperature = temperature.temperature;
 
-    this.updateTemperatureStat();
+      this.feelsLike = temperature.feelsLike ?? temperature.temperature;
+
+      this.updateTemperatureStatus(this.currentTemperature);
+
+      this.updateTemperatureStat();
+    } catch (error) {
+      console.error('[Dashboard] Failed to load temperature:', error);
+      this.stats[0].value = '--';
+      this.stats[0].subtitle = 'Unable to load';
+    }
   }
 
   // =====================================================

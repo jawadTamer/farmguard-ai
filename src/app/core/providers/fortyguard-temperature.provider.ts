@@ -24,6 +24,10 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     farmId: string,
     zoneId?: string,
   ): Promise<TemperatureReading | null> {
+    if (!farmId || farmId.trim() === '') {
+      throw new Error('Farm ID is required to get current temperature.');
+    }
+
     const coordinates = await this.getCoordinates(farmId, zoneId);
 
     if (!coordinates) {
@@ -182,7 +186,11 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     farmId: string,
     zoneId?: string,
   ): Promise<{ latitude: number; longitude: number } | null> {
-    if (zoneId) {
+    if (!farmId || farmId.trim() === '') {
+      return null;
+    }
+
+    if (zoneId && zoneId.trim() !== '') {
       const { data: zone, error: zoneError } = await this.supabaseService.client
         .from('farm_zones')
         .select('latitude, longitude')
@@ -196,8 +204,8 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
 
       if (this.validCoordinates(zone?.latitude, zone?.longitude)) {
         return {
-          latitude: Number(zone.latitude),
-          longitude: Number(zone.longitude),
+          latitude: Number(zone!.latitude),
+          longitude: Number(zone!.longitude),
         };
       }
     }
@@ -217,8 +225,8 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     }
 
     return {
-      latitude: Number(farm.latitude),
-      longitude: Number(farm.longitude),
+      latitude: Number(farm!.latitude),
+      longitude: Number(farm!.longitude),
     };
   }
 
