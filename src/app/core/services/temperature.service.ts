@@ -4,12 +4,20 @@ import {
   TemperatureReading
 } from '../models/temperature.model';
 import { SupabaseService } from './supabase.service';
+import { TemperatureProvider } from '../providers/temperature-provider.interface';
+import { MockTemperatureProvider } from '../providers/mock-temperature.provider';
+import { FortyGuardTemperatureProvider } from '../providers/fortyguard-temperature.provider';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TemperatureService {
+  // Provider configuration - set to 'mock' or 'fortyguard'
+  private readonly providerMode: 'mock' | 'fortyguard' = 'mock';
+  
+  private provider: TemperatureProvider;
 
+  // Legacy mock data for fallback
   private currentTemperature: TemperatureReading = {
     id: 'temp-001',
     farmId: 'farm-001',
@@ -77,62 +85,68 @@ export class TemperatureService {
     }
   ];
 
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(private supabaseService: SupabaseService) {
+    // Initialize provider based on configuration
+    if (this.providerMode === 'fortyguard') {
+      this.provider = new FortyGuardTemperatureProvider(this.supabaseService, null as any);
+    } else {
+      this.provider = new MockTemperatureProvider(this.supabaseService);
+    }
+  }
 
   async getCurrentTemperature(farmId?: string, zoneId?: string): Promise<TemperatureReading> {
-    if (farmId || zoneId) {
-      try {
-        const { data, error } = await this.supabaseService.client
-          .from('temperature_readings')
-          .select('*')
-          .eq('farm_id', farmId || '')
-          .eq('zone_id', zoneId || '')
-          .order('recorded_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (data && !error) {
-          return {
-            id: data.id,
-            farmId: data.farm_id,
-            zoneId: data.zone_id,
-            temperature: data.temperature,
-            feelsLike: data.feels_like,
-            humidity: data.humidity,
-            recordedAt: data.recorded_at,
-            source: data.source || 'api'
-          };
-        }
-      } catch (error) {
-        console.error('Failed to fetch temperature from Supabase:', error);
+    try {
+      const result = await this.provider.getCurrentTemperature(farmId || '', zoneId);
+      if (result) {
+        return result;
       }
+    } catch (error) {
+      console.error(`Provider (${this.provider.providerName}) failed, using fallback:`, error);
     }
+    
+    // Fallback to legacy mock data
     return this.currentTemperature;
   }
 
   async saveTemperatureReading(reading: TemperatureReading): Promise<void> {
     try {
-      const { error } = await this.supabaseService.client
-        .from('temperature_readings')
-        .insert({
-          farm_id: reading.farmId,
-          zone_id: reading.zoneId,
-          temperature: reading.temperature,
-          feels_like: reading.feelsLike,
-          humidity: reading.humidity,
-          recorded_at: reading.recordedAt,
-          source: reading.source || 'mock'
-        });
-
-      if (error) {
-        console.error('Failed to save temperature reading:', error);
-      }
+      await this.provider.saveTemperatureReading(reading);
     } catch (error) {
-      console.error('Failed to save temperature reading:', error);
+      console.error(`Provider (${this.provider.providerName}) failed to save:`, error);
+      // Try direct Supabase save as fallback
+      try {
+        const { error } = await this.supabaseService.client
+          .from('temperature_readings')
+          .insert({
+            farm_id: reading.farmId,
+            zone_id: reading.zoneId,
+            temperature: reading.temperature,
+            feels_like: reading.feelsLike,
+            humidity: reading.humidity,
+            recorded_at: reading.recordedAt,
+            source: reading.source || 'mock'
+          });
+
+        if (error) {
+          console.error('Fallback save also failed:', error);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback save error:', fallbackError);
+      }
     }
   }
 
-  getForecast(farmId?: string, zoneId?: string): TemperatureForecast[] {
+  async getForecast(farmId?: string, zoneId?: string): Promise<TemperatureForecast[]> {
+    try {
+      const result = await this.provider.getForecast(farmId || '', zoneId);
+      if (result.length > 0) {
+        return result;
+      }
+    } catch (error) {
+      console.error(`Provider (${this.provider.providerName}) failed, using fallback:`, error);
+    }
+    
+    // Fallback to legacy mock data
     return [
       {
         timestamp: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
@@ -166,6 +180,16 @@ export class TemperatureService {
   }
 
   async getTemperatureHistory(farmId?: string, zoneId?: string, days: number = 7): Promise<TemperatureReading[]> {
+    try {
+      const result = await this.provider.getTemperatureHistory(farmId || '', zoneId, days);
+      if (result.length > 0) {
+        return result;
+      }
+    } catch (error) {
+      console.error(`Provider (${this.provider.providerName}) failed, using fallback:`, error);
+    }
+    
+    // Fallback to legacy implementation
     try {
       if (farmId || zoneId) {
         const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -205,5 +229,24 @@ export class TemperatureService {
 
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     return history.filter(t => new Date(t.recordedAt) >= cutoffDate);
+  }
+
+  /**
+   * Get the current provider name (useful for debugging)
+   */
+  getProviderName(): string {
+    return this.provider.providerName;
+  }
+
+  /**
+   * Switch provider at runtime (useful for testing)
+   */
+  switchProvider(mode: 'mock' | 'fortyguard'): void {
+    if (mode === 'fortyguard') {
+      this.provider = new FortyGuardTemperatureProvider(this.supabaseService, null as any);
+    } else {
+      this.provider = new MockTemperatureProvider(this.supabaseService);
+    }
+    console.log(`Switched to ${this.provider.providerName}`);
   }
 }

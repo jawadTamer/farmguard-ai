@@ -95,7 +95,7 @@ export class ForecastComponent implements OnInit {
 
     if (!farmId) return;
 
-    this.forecast = this.temperatureService.getForecast(farmId, zoneId);
+    this.forecast = await this.temperatureService.getForecast(farmId, zoneId);
   }
 
   getRiskLevelForTemp(temp: number): string {
