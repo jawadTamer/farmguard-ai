@@ -22,27 +22,36 @@ function jsonResponse(body: unknown, status = 200) {
 
 function getUtcDateTime() {
   const now = new Date();
-  const startDate = now.toISOString().slice(0, 10);
-  const startTime = now.toISOString().slice(11, 16);
-  return { startDate, startTime };
-}
-
-function buildPointPolygon({ latitude, longitude }: Coordinates) {
-  // Small ~100m x 100m AOI around the farm/zone coordinate.
-  const delta = 0.0005;
   return {
-    type: 'Polygon',
-    coordinates: [[
-      [longitude - delta, latitude - delta],
-      [longitude + delta, latitude - delta],
-      [longitude + delta, latitude + delta],
-      [longitude - delta, latitude + delta],
-      [longitude - delta, latitude - delta],
-    ]],
+    startDate: now.toISOString().slice(0, 10),
+    startTime: now.toISOString().slice(11, 16),
   };
 }
 
-async function fortyGuardRequest(path: string, init: RequestInit) {
+function buildPointFeatureCollection({ latitude, longitude }: Coordinates) {
+  const delta = 0.0005;
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [longitude - delta, latitude - delta],
+            [longitude + delta, latitude - delta],
+            [longitude + delta, latitude + delta],
+            [longitude - delta, latitude + delta],
+            [longitude - delta, latitude - delta],
+          ]],
+        },
+      },
+    ],
+  };
+}
+
+async function fortyGuardRequest(path: string, init: RequestInit = {}) {
   const apiKey = Deno.env.get('FORTYGUARD_API_KEY');
   if (!apiKey) {
     throw new Error('FORTYGUARD_API_KEY is not configured in Supabase secrets.');
@@ -78,7 +87,7 @@ async function waitForActivity(activityId: string) {
   for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
     const payload = await fortyGuardRequest(`/v1/status/${activityId}`, {
       method: 'GET',
-      headers: { 'Content-Type': undefined as any },
+      headers: { 'Content-Type': '' },
     });
 
     const status = String(payload?.data?.status ?? '').toLowerCase();
@@ -97,38 +106,33 @@ async function waitForActivity(activityId: string) {
   throw new Error('FortyGuard activity timed out while waiting for completion.');
 }
 
-function extractMeanTemperature(result: any): number | null {
-  const candidates = [
-    result?.stats_data?.temperature_stats?.mean,
-    result?.stats_data?.Temperature_stats?.Mean,
-    result?.stats_data?.temperature_stats?.Mean,
-    result?.stats_data?.Temperature_stats?.mean,
-  ];
-
-  for (const candidate of candidates) {
-    const value = Number(candidate);
-    if (Number.isFinite(value)) return value;
+function firstNumeric(value: unknown): number | null {
+  if (Array.isArray(value)) {
+    const number = Number(value[0]);
+    return Number.isFinite(number) ? number : null;
   }
 
-  return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
-function firstNumeric(values: unknown): number | null {
-  if (!Array.isArray(values)) return null;
-  const value = Number(values[0]);
-  return Number.isFinite(value) ? value : null;
+function extractMeanTemperature(result: any): number | null {
+  const mean = result?.stats_data?.Temperature_stats?.Mean
+    ?? result?.stats_data?.temperature_stats?.mean;
+
+  return firstNumeric(mean);
 }
 
 async function getCurrentTemperature(coordinates: Coordinates) {
-  const { startDate, startTime } = getUtcDateTime();
+  const dateTime = getUtcDateTime();
 
   const submitted = await fortyGuardRequest('/v1/heatmap', {
     method: 'POST',
     body: JSON.stringify({
-      polygon_aoi: buildPointPolygon(coordinates),
+      polygon_aoi: buildPointFeatureCollection(coordinates),
       date_time: {
-        start_date: startDate,
-        start_time: startTime,
+        start_date: dateTime.startDate,
+        start_time: dateTime.startTime,
         filter_type: 1,
       },
       granularity: 100,
@@ -153,7 +157,7 @@ async function getCurrentTemperature(coordinates: Coordinates) {
     recordedAt: new Date().toISOString(),
     activityId,
     result,
-    dateTime: { startDate, startTime },
+    dateTime,
   };
 }
 
@@ -187,7 +191,7 @@ async function getEnvironmentalParameters(
 
   return {
     activityId,
-    temperature: Number(location?.temperature ?? temperature),
+    temperature: firstNumeric(location?.temperature) ?? temperature,
     heatIndex: firstNumeric(parameters.heat_index_celsius),
     apparentTemperature: firstNumeric(parameters.apparent_temperature_celsius),
     humidity: firstNumeric(parameters.relative_humidity_percent),
@@ -267,11 +271,10 @@ serve(async (req) => {
         }, 400);
       }
 
-      const { startDate, startTime } = getUtcDateTime();
       const environmental = await getEnvironmentalParameters(
         coordinates,
         temperature,
-        { startDate, startTime },
+        getUtcDateTime(),
       );
 
       return jsonResponse({ success: true, action, data: environmental });
