@@ -33,16 +33,12 @@ export class TemperatureService {
   }
 
   async getCurrentTemperature(farmId?: string, zoneId?: string): Promise<TemperatureReading> {
-    try {
-      const result = await this.provider.getCurrentTemperature(farmId || '', zoneId);
-      if (result) {
-        return result;
-      }
-    } catch (error) {
-      console.error(`Provider (${this.provider.providerName}) failed, using fallback:`, error);
+    const result = await this.provider.getCurrentTemperature(farmId || '', zoneId);
+    if (result) {
+      return result;
     }
 
-    return this.currentTemperature;
+    throw new Error('No current temperature was returned by the active provider.');
   }
 
   async saveTemperatureReading(reading: TemperatureReading): Promise<void> {
@@ -64,42 +60,14 @@ export class TemperatureService {
     }
 
     return [
-      {
-        timestamp: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
-        temperature: 37,
-        feelsLike: 39,
-        humidity: 42,
-        condition: 'Sunny'
-      },
-      {
-        timestamp: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
-        temperature: 41,
-        feelsLike: 43,
-        humidity: 38,
-        condition: 'Hot'
-      },
-      {
-        timestamp: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString(),
-        temperature: 34,
-        feelsLike: 35,
-        humidity: 48,
-        condition: 'Clear'
-      },
-      {
-        timestamp: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
-        temperature: 30,
-        feelsLike: 31,
-        humidity: 55,
-        condition: 'Clear'
-      }
+      { timestamp: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(), temperature: 37, feelsLike: 39, humidity: 42, condition: 'Sunny' },
+      { timestamp: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), temperature: 41, feelsLike: 43, humidity: 38, condition: 'Hot' },
+      { timestamp: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString(), temperature: 34, feelsLike: 35, humidity: 48, condition: 'Clear' },
+      { timestamp: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(), temperature: 30, feelsLike: 31, humidity: 55, condition: 'Clear' }
     ];
   }
 
-  async getTemperatureHistory(
-    farmId?: string,
-    zoneId?: string,
-    days: number = 7
-  ): Promise<TemperatureReading[]> {
+  async getTemperatureHistory(farmId?: string, zoneId?: string, days: number = 7): Promise<TemperatureReading[]> {
     try {
       const result = await this.provider.getTemperatureHistory(farmId || '', zoneId, days);
       if (result.length > 0) {
@@ -110,26 +78,17 @@ export class TemperatureService {
     }
 
     try {
-      const cutoffDate = new Date(
-        Date.now() - days * 24 * 60 * 60 * 1000
-      ).toISOString();
-
+      const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
       let query = this.supabaseService.client
         .from('temperature_readings')
         .select('*')
         .gte('recorded_at', cutoffDate)
         .order('recorded_at', { ascending: false });
 
-      if (farmId) {
-        query = query.eq('farm_id', farmId);
-      }
-
-      if (zoneId) {
-        query = query.eq('zone_id', zoneId);
-      }
+      if (farmId) query = query.eq('farm_id', farmId);
+      if (zoneId) query = query.eq('zone_id', zoneId);
 
       const { data, error } = await query;
-
       if (data && !error) {
         return data.map(reading => ({
           id: reading.id,
