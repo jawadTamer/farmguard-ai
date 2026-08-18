@@ -54,11 +54,11 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
       
       console.error('[FortyGuard] Error context:', {
         status: errorContext?.status,
-        text: errorContext?.text,
         statusCode: (error as any).statusCode
       });
       
-      if (errorContext?.text) {
+      // Safely check if errorContext.text is a string before parsing
+      if (errorContext?.text && typeof errorContext.text === 'string') {
         try {
           const errorBody = JSON.parse(errorContext.text);
           console.error('[FortyGuard] Parsed error body:', errorBody);
@@ -68,6 +68,7 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
           throw new Error(`FortyGuard API error: ${fgMessage}${fgStatus ? ` (HTTP ${fgStatus})` : ''}${fgEndpoint ? ` - ${fgEndpoint}` : ''}`);
         } catch (parseError) {
           console.error('[FortyGuard] Failed to parse error body:', parseError);
+          console.error('[FortyGuard] Raw error text:', errorContext.text);
         }
       }
       

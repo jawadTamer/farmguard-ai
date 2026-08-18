@@ -90,12 +90,22 @@ async function waitForActivity(activityId: string) {
   for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
     try {
       const payload = await fortyGuardRequest(`/v1/status/${activityId}`, { method: 'GET' });
-      console.log(`[FortyGuard] Status check attempt ${attempt + 1}:`, payload?.data?.status);
-      const status = String(payload?.data?.status ?? '').toLowerCase();
-      if (status === 'completed' || status === 'succeeded') return payload?.data?.result ?? null;
-      if (status === 'failed' || status === 'error') throw new Error(payload?.data?.message ?? 'FortyGuard activity failed.');
+      const status = String(payload?.data?.status ?? '').toLowerCase().trim();
+      console.log(`[FortyGuard] Status check attempt ${attempt + 1}: ${status}`);
+      
+      if (status === 'completed' || status === 'succeeded') {
+        console.log('[FortyGuard] Activity completed successfully');
+        return payload?.data?.result ?? null;
+      }
+      
+      if (status === 'failed' || status === 'error') {
+        const message = payload?.data?.message ?? 'FortyGuard activity failed.';
+        console.error('[FortyGuard] Activity failed:', message);
+        throw new Error(message);
+      }
     } catch (error) {
-      if ((error as { status?: number })?.status !== 404) throw error;
+      const errorStatus = (error as { status?: number })?.status;
+      if (errorStatus !== 404) throw error;
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_DELAY_MS));
   }
@@ -103,15 +113,111 @@ async function waitForActivity(activityId: string) {
 }
 
 function firstNumeric(value: unknown): number | null {
-  if (Array.isArray(value)) { const number = Number(value[0]); return Number.isFinite(number) ? number : null; }
-  const number = Number(value); return Number.isFinite(number) ? number : null;
+  if (value === null || value === undefined) return null;
+  
+  // Handle arrays - take first finite numeric value
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const num = Number(item);
+      if (Number.isFinite(num)) return num;
+    }
+    return null;
+  }
+  
+  // Handle strings
+  if (typeof value === 'string') {
+    const num = Number(value.trim());
+    return Number.isFinite(num) ? num : null;
+  }
+  
+  // Handle numbers
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
 }
 
 function extractMeanTemperature(result: any): number | null {
-  const feature = result?.map_data?.features?.[0];
-  const featureTemperature = firstNumeric(feature?.properties?.average_temperature);
-  if (featureTemperature !== null) return featureTemperature;
-  return firstNumeric(result?.stats_data?.Temperature_stats?.Mean ?? result?.stats_data?.temperature_stats?.mean);
+  // Log safe summary of result structure for debugging
+  const hasMapData = !!result?.map_data;
+  const featureCount = Array.isArray(result?.map_data?.features) ? result.map_data.features.length : 0;
+  const mapPropertyKeys = featureCount > 0 ? Object.keys(result.map_data.features[0].properties || {}) : [];
+  const statsDataKeys = result?.stats_data ? Object.keys(result.stats_data) : [];
+  const temperatureStatsKeys = result?.stats_data?.Temperature_stats ? Object.keys(result.stats_data.Temperature_stats) : [];
+  const temperatureStatsLowerKeys = result?.stats_data?.temperature_stats ? Object.keys(result.stats_data.temperature_stats) : [];
+  
+  console.log('[FortyGuard] Result structure summary:', {
+    hasMapData,
+    featureCount,
+    mapPropertyKeys,
+    statsDataKeys,
+    temperatureStatsKeys,
+    temperatureStatsLowerKeys
+  });
+
+  // Priority A: result.stats_data.Temperature_stats.Mean
+  let temp = firstNumeric(result?.stats_data?.Temperature_stats?.Mean);
+  if (temp !== null) {
+    console.log('[FortyGuard] Extracted from Temperature_stats.Mean:', temp);
+    return temp;
+  }
+
+  // Priority B: result.stats_data.Temperature_stats.mean
+  temp = firstNumeric(result?.stats_data?.Temperature_stats?.mean);
+  if (temp !== null) {
+    console.log('[FortyGuard] Extracted from Temperature_stats.mean:', temp);
+    return temp;
+  }
+
+  // Priority C: result.stats_data.temperature_stats.Mean
+  temp = firstNumeric(result?.stats_data?.temperature_stats?.Mean);
+  if (temp !== null) {
+    console.log('[FortyGuard] Extracted from temperature_stats.Mean:', temp);
+    return temp;
+  }
+
+  // Priority D: result.stats_data.temperature_stats.mean
+  temp = firstNumeric(result?.stats_data?.temperature_stats?.mean);
+  if (temp !== null) {
+    console.log('[FortyGuard] Extracted from temperature_stats.mean:', temp);
+    return temp;
+  }
+
+  // Priority E: result.stats_data.temperatureStats.Mean
+  temp = firstNumeric(result?.stats_data?.temperatureStats?.Mean);
+  if (temp !== null) {
+    console.log('[FortyGuard] Extracted from temperatureStats.Mean:', temp);
+    return temp;
+  }
+
+  // Priority F: result.stats_data.temperatureStats.mean
+  temp = firstNumeric(result?.stats_data?.temperatureStats?.mean);
+  if (temp !== null) {
+    console.log('[FortyGuard] Extracted from temperatureStats.mean:', temp);
+    return temp;
+  }
+
+  // Priority G: Search map_data features for common temperature property names
+  if (featureCount > 0) {
+    const tempProps = [
+      'average_temperature', 'avg_temperature', 'mean_temperature',
+      'temperature', 'Temperature', 'temp', 'Temp',
+      'temperature_celsius', 'temperatureCelsius',
+      'value', 'Value'
+    ];
+    
+    for (const feature of result.map_data.features) {
+      const props = feature?.properties || {};
+      for (const prop of tempProps) {
+        temp = firstNumeric(props[prop]);
+        if (temp !== null) {
+          console.log(`[FortyGuard] Extracted from feature.${prop}:`, temp);
+          return temp;
+        }
+      }
+    }
+  }
+
+  console.warn('[FortyGuard] Could not extract temperature from any known path');
+  return null;
 }
 
 async function getCurrentTemperature(coordinates: Coordinates) {
@@ -124,10 +230,31 @@ async function getCurrentTemperature(coordinates: Coordinates) {
   });
   const activityId = submitted?.data?.activity_id;
   if (!activityId) throw new Error('FortyGuard did not return an activity_id for the heatmap request.');
-  console.log(`[FortyGuard] Heatmap activity_id: ${activityId}`);
+  console.log(`[FortyGuard] Heatmap submitted, activity_id: ${activityId}`);
   const result = await waitForActivity(activityId);
+  
+  // Log comprehensive result structure for debugging
+  console.log('[FortyGuard] COMPLETED HEATMAP RESULT:', JSON.stringify(result));
+  console.log('[FortyGuard] Result top-level keys:', Object.keys(result || {}));
+  console.log('[FortyGuard] stats_data keys:', result?.stats_data ? Object.keys(result.stats_data) : 'none');
+  console.log('[FortyGuard] map_data feature count:', Array.isArray(result?.map_data?.features) ? result.map_data.features.length : 0);
+  if (result?.map_data?.features?.[0]) {
+    console.log('[FortyGuard] First feature properties:', Object.keys(result.map_data.features[0].properties || {}));
+  }
+  
   const temperature = extractMeanTemperature(result);
-  if (temperature === null) throw new Error('Could not extract temperature from FortyGuard heatmap result.');
+  if (temperature === null) {
+    const errorDetails = {
+      activityId,
+      resultKeys: Object.keys(result || {}),
+      hasStatsData: !!result?.stats_data,
+      hasMapData: !!result?.map_data,
+      statsDataKeys: result?.stats_data ? Object.keys(result.stats_data) : [],
+      featureCount: Array.isArray(result?.map_data?.features) ? result.map_data.features.length : 0
+    };
+    console.error('[FortyGuard] Temperature extraction failed with details:', errorDetails);
+    throw new Error(JSON.stringify(errorDetails));
+  }
   console.log(`[FortyGuard] Extracted temperature: ${temperature}°C`);
   return { temperature, recordedAt: new Date().toISOString(), activityId, dateTime };
 }
@@ -199,6 +326,26 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Unknown action. Use current-temperature or environmental-parameters.' }, 400);
   } catch (error) {
     console.error('FortyGuard proxy error:', error);
+    
+    // Check if this is a temperature extraction error (JSON stringified details)
+    if (error instanceof Error && error.message.startsWith('{')) {
+      try {
+        const errorDetails = JSON.parse(error.message);
+        return jsonResponse({
+          success: false,
+          error: 'FortyGuard result parsing error',
+          message: 'Could not extract temperature from heatmap result',
+          activityId: errorDetails.activityId,
+          resultKeys: errorDetails.resultKeys,
+          hasStatsData: errorDetails.hasStatsData,
+          hasMapData: errorDetails.hasMapData,
+          statsDataKeys: errorDetails.statsDataKeys,
+          featureCount: errorDetails.featureCount
+        }, 502);
+      } catch (parseError) {
+        // If parsing fails, return generic error
+      }
+    }
     
     if (error instanceof FortyGuardHttpError) {
       return jsonResponse({
