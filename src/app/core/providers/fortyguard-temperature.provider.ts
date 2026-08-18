@@ -34,6 +34,8 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
       throw new Error('No latitude/longitude is configured for this farm or zone.');
     }
 
+    console.log('[FortyGuard] Using coordinates:', { latitude: coordinates.latitude, longitude: coordinates.longitude });
+
     const { data, error } = await this.supabaseService.client.functions.invoke(
       'fortyguard-proxy',
       {
@@ -46,11 +48,38 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     );
 
     if (error) {
-      throw new Error(`FortyGuard Edge Function error: ${error.message}`);
+      console.error('[FortyGuard] Edge Function error:', error);
+      const errorMessage = error.message || 'Unknown Edge Function error';
+      const errorContext = (error as any).context;
+      
+      console.error('[FortyGuard] Error context:', {
+        status: errorContext?.status,
+        text: errorContext?.text,
+        statusCode: (error as any).statusCode
+      });
+      
+      if (errorContext?.text) {
+        try {
+          const errorBody = JSON.parse(errorContext.text);
+          console.error('[FortyGuard] Parsed error body:', errorBody);
+          const fgMessage = errorBody.message || errorBody.error || errorMessage;
+          const fgStatus = errorBody.status || errorContext.status || (error as any).statusCode;
+          const fgEndpoint = errorBody.endpoint;
+          throw new Error(`FortyGuard API error: ${fgMessage}${fgStatus ? ` (HTTP ${fgStatus})` : ''}${fgEndpoint ? ` - ${fgEndpoint}` : ''}`);
+        } catch (parseError) {
+          console.error('[FortyGuard] Failed to parse error body:', parseError);
+        }
+      }
+      
+      throw new Error(`FortyGuard Edge Function error: ${errorMessage}`);
     }
 
     if (!data?.success || !data?.data) {
-      throw new Error(data?.message ?? data?.error ?? 'Invalid FortyGuard response.');
+      const errorMessage = data?.message ?? data?.error ?? 'Invalid FortyGuard response.';
+      const fortyGuardStatus = data?.status ?? data?.statusCode;
+      const fortyGuardEndpoint = data?.endpoint;
+      console.error('[FortyGuard] API error response:', { errorMessage, fortyGuardStatus, fortyGuardEndpoint, data });
+      throw new Error(`FortyGuard API error: ${errorMessage}${fortyGuardStatus ? ` (HTTP ${fortyGuardStatus})` : ''}${fortyGuardEndpoint ? ` - ${fortyGuardEndpoint}` : ''}`);
     }
 
     const current = data.data as FortyGuardCurrentResponse;
@@ -187,8 +216,11 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     zoneId?: string,
   ): Promise<{ latitude: number; longitude: number } | null> {
     if (!farmId || farmId.trim() === '') {
+      console.warn('[FortyGuard] Invalid farmId provided');
       return null;
     }
+
+    console.log('[FortyGuard] Fetching coordinates for farmId:', farmId, 'zoneId:', zoneId);
 
     if (zoneId && zoneId.trim() !== '') {
       const { data: zone, error: zoneError } = await this.supabaseService.client
@@ -199,14 +231,19 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
         .maybeSingle();
 
       if (zoneError) {
+        console.error('[FortyGuard] Zone query error:', zoneError);
         throw zoneError;
       }
 
+      console.log('[FortyGuard] Zone coordinates:', { latitude: zone?.latitude, longitude: zone?.longitude });
+
       if (this.validCoordinates(zone?.latitude, zone?.longitude)) {
-        return {
+        const coords = {
           latitude: Number(zone!.latitude),
           longitude: Number(zone!.longitude),
         };
+        console.log('[FortyGuard] Using zone coordinates:', coords);
+        return coords;
       }
     }
 
@@ -217,17 +254,23 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
       .maybeSingle();
 
     if (farmError) {
+      console.error('[FortyGuard] Farm query error:', farmError);
       throw farmError;
     }
 
+    console.log('[FortyGuard] Farm coordinates:', { latitude: farm?.latitude, longitude: farm?.longitude });
+
     if (!this.validCoordinates(farm?.latitude, farm?.longitude)) {
+      console.warn('[FortyGuard] Invalid farm coordinates');
       return null;
     }
 
-    return {
+    const coords = {
       latitude: Number(farm!.latitude),
       longitude: Number(farm!.longitude),
     };
+    console.log('[FortyGuard] Using farm coordinates:', coords);
+    return coords;
   }
 
   private validCoordinates(latitude: unknown, longitude: unknown): boolean {
