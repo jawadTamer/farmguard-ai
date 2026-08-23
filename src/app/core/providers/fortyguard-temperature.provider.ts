@@ -48,7 +48,7 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
   private static readonly REFRESH_AFTER_MS = 5 * 60 * 1000;
   private static readonly refreshInFlight = new Map<string, Promise<TemperatureReading | null>>();
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(private readonly supabaseService: SupabaseService) { }
 
   async getCurrentTemperature(farmId: string, zoneId?: string): Promise<TemperatureReading | null> {
     if (!farmId?.trim()) throw new Error('Farm ID is required to get current temperature.');
@@ -111,7 +111,13 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
       const now = new Date().toISOString();
       const latest = points[points.length - 1];
       if (!latest || Math.abs(new Date(latest.timestamp).getTime() - Date.now()) > 60_000 || Number(latest.temperature) !== Number(currentTemperature)) {
-        points.push({ timestamp: now, temperature: Number(currentTemperature) });
+        points.push({
+          timestamp: now,
+          temperature: Number(currentTemperature.toFixed(1)),
+          apparentTemperature: undefined,
+          heatIndex: undefined,
+          humidity: undefined
+        });
       }
     }
 
@@ -257,7 +263,7 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
         const body = await response.clone().json().catch(() => null);
         if (body) detail = ` | ${JSON.stringify(body)}`;
       }
-    } catch {}
+    } catch { }
     return `FortyGuard Edge Function error: ${error?.message || 'Unknown error'}${detail}`;
   }
 
