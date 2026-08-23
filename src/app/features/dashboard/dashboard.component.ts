@@ -33,6 +33,9 @@ export class DashboardComponent implements OnInit {
   temperatureError: string | null = null;
   temperatureStatus = 'Loading temperature...';
   temperatureDescription = 'Waiting for the FortyGuard analysis to complete.';
+  trendLoading = false;
+  trendError: string | null = null;
+  trendStatus = 'Waiting for FortyGuard daily data...';
 
   stats: StatCard[] = [
     { title: 'Current Temperature', value: '--', subtitle: 'Loading...', icon: 'thermostat', status: 'normal' },
@@ -41,10 +44,7 @@ export class DashboardComponent implements OnInit {
     { title: 'Active Alerts', value: '0', subtitle: 'No active alerts', icon: 'notifications_active', status: 'normal' },
   ];
 
-  temperaturePoints: TemperaturePoint[] = [
-    { time: '06 AM', temperature: 25 }, { time: '08 AM', temperature: 28 }, { time: '10 AM', temperature: 33 }, { time: '12 PM', temperature: 37 },
-    { time: '02 PM', temperature: 41 }, { time: '04 PM', temperature: 39 }, { time: '06 PM', temperature: 34 }, { time: '08 PM', temperature: 30 },
-  ];
+  temperaturePoints: TemperaturePoint[] = [];
   riskAreas: RiskItem[] = [];
   recommendations = [
     { icon: 'water_drop', title: 'Irrigation recommended', description: 'Consider irrigation during the cooler evening period.', priority: 'High' },
@@ -60,8 +60,16 @@ export class DashboardComponent implements OnInit {
     this.currentDate = new Date();
     this.loadFarms();
     await this.loadTemperature();
+    await this.loadTodayTemperatureTrend();
     await this.loadHeatRisks();
     await this.loadAlerts();
+  }
+
+  private async getActiveFarm(): Promise<Farm> {
+    const farms = await this.farmService.getFarms();
+    const activeFarm = farms.find((farm: Farm) => farm.status === 'active');
+    if (!activeFarm) throw new Error('No active farm selected.');
+    return activeFarm;
   }
 
   private async loadTemperature(): Promise<void> {
@@ -73,15 +81,10 @@ export class DashboardComponent implements OnInit {
     this.temperatureDescription = 'FortyGuard is processing the environmental analysis.';
     this.stats[0].value = '--';
     this.stats[0].subtitle = 'Loading from FortyGuard...';
-
     try {
-      const farms = await this.farmService.getFarms();
-      const activeFarm = farms.find((farm: Farm) => farm.status === 'active');
-      if (!activeFarm) throw new Error('No active farm selected.');
-
+      const activeFarm = await this.getActiveFarm();
       const reading = await this.temperatureService.getCurrentTemperature(activeFarm.id);
       if (!reading || !Number.isFinite(Number(reading.temperature))) throw new Error('No valid temperature was returned by FortyGuard.');
-
       this.currentTemperature = Number(reading.temperature);
       this.feelsLike = Number.isFinite(Number(reading.feelsLike)) ? Number(reading.feelsLike) : this.currentTemperature;
       this.updateTemperatureStatus(this.currentTemperature);
@@ -91,20 +94,39 @@ export class DashboardComponent implements OnInit {
       this.temperatureError = error instanceof Error ? error.message : 'Unable to load temperature.';
       this.temperatureStatus = 'Temperature unavailable';
       this.temperatureDescription = 'The FortyGuard result was not available. Please refresh and try again.';
-      this.stats[0].value = '--';
-      this.stats[0].subtitle = 'Unable to load';
-      this.stats[0].status = 'warning';
-    } finally {
-      this.temperatureLoading = false;
-    }
+      this.stats[0].value = '--'; this.stats[0].subtitle = 'Unable to load'; this.stats[0].status = 'warning';
+    } finally { this.temperatureLoading = false; }
+  }
+
+  private async loadTodayTemperatureTrend(): Promise<void> {
+    this.trendLoading = true;
+    this.trendError = null;
+    this.temperaturePoints = [];
+    this.trendStatus = 'FortyGuard is processing today\'s environmental trend...';
+    try {
+      const activeFarm = await this.getActiveFarm();
+      const points = await this.temperatureService.getTodayTemperatureTrend(activeFarm.id, undefined, this.currentTemperature ?? undefined);
+      this.temperaturePoints = points.map((point) => ({ time: this.formatTrendTime(point.timestamp), temperature: Number(point.temperature) }));
+      this.trendStatus = this.temperaturePoints.length ? `${this.temperaturePoints.length} live data points received from FortyGuard.` : 'No trend points were available for this date.';
+      if (!this.temperaturePoints.length) this.trendError = 'FortyGuard returned no valid hourly temperature points.';
+    } catch (error) {
+      console.error('[Dashboard] Failed to load temperature trend:', error);
+      this.trendError = error instanceof Error ? error.message : 'Unable to load today\'s temperature trend.';
+      this.trendStatus = 'Trend unavailable.';
+    } finally { this.trendLoading = false; }
+  }
+
+  private formatTrendTime(timestamp: string): string {
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return timestamp;
+    return new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(date);
   }
 
   private updateTemperatureStatus(temperature: number): void {
     if (temperature >= 42) { this.temperatureStatus = 'Critical Heat Risk'; this.temperatureDescription = 'Temperature has reached a critical level and immediate action may be required.'; return; }
     if (temperature >= 38) { this.temperatureStatus = 'High Heat Risk'; this.temperatureDescription = 'Temperature is above the optimal range for some crops.'; return; }
     if (temperature >= 34) { this.temperatureStatus = 'Moderate Heat Risk'; this.temperatureDescription = 'Temperature is approaching the upper safe range.'; return; }
-    this.temperatureStatus = 'Low Heat Risk';
-    this.temperatureDescription = 'Temperature is currently within a safe range.';
+    this.temperatureStatus = 'Low Heat Risk'; this.temperatureDescription = 'Temperature is currently within a safe range.';
   }
 
   private updateTemperatureStat(): void {
@@ -116,38 +138,27 @@ export class DashboardComponent implements OnInit {
 
   private async loadFarms(): Promise<void> {
     try {
-      const farms = await this.farmService.getFarms();
-      const activeFarms = farms.filter((farm: Farm) => farm.status === 'active');
-      this.stats[1].value = activeFarms.length.toString();
-      this.stats[1].subtitle = activeFarms.length === 1 ? '1 farm monitored' : 'All farms monitored';
+      const farms = await this.farmService.getFarms(); const activeFarms = farms.filter((farm: Farm) => farm.status === 'active');
+      this.stats[1].value = activeFarms.length.toString(); this.stats[1].subtitle = activeFarms.length === 1 ? '1 farm monitored' : 'All farms monitored';
     } catch (error) { console.error('Failed to load farms for dashboard:', error); this.stats[1].value = '0'; this.stats[1].subtitle = 'Unable to load farms'; }
   }
 
   private async loadHeatRisks(): Promise<void> {
     const risks = await this.heatRiskService.getRisks();
     const attentionRisks = risks.filter((risk: any) => risk.riskLevel === 'high' || risk.riskLevel === 'critical');
-    this.stats[2].value = attentionRisks.length.toString();
-    this.stats[2].subtitle = attentionRisks.length === 0 ? 'No areas need attention' : attentionRisks.length === 1 ? '1 area needs attention' : 'Areas need attention';
-    this.riskAreas = risks.map((risk: any) => ({
-      name: this.getRiskAreaName(risk.id), type: this.getRiskAreaType(risk.id),
-      level: risk.riskLevel === 'critical' || risk.riskLevel === 'high' ? 'High' : risk.riskLevel === 'moderate' ? 'Moderate' : 'Low',
-      temperature: Number(risk.temperature),
-    }));
+    this.stats[2].value = attentionRisks.length.toString(); this.stats[2].subtitle = attentionRisks.length === 0 ? 'No areas need attention' : attentionRisks.length === 1 ? '1 area needs attention' : 'Areas need attention';
+    this.riskAreas = risks.map((risk: any) => ({ name: this.getRiskAreaName(risk.id), type: this.getRiskAreaType(risk.id), level: risk.riskLevel === 'critical' || risk.riskLevel === 'high' ? 'High' : risk.riskLevel === 'moderate' ? 'Moderate' : 'Low', temperature: Number(risk.temperature) }));
   }
 
   private getRiskAreaName(riskId?: string): string { return riskId === 'risk-001' ? 'Tomato Field A' : riskId === 'risk-002' ? 'Greenhouse B' : riskId === 'risk-003' ? 'Corn Field' : 'Farm Area'; }
   private getRiskAreaType(riskId?: string): string { return riskId === 'risk-001' ? 'Tomato · Flowering' : riskId === 'risk-002' ? 'Cucumber · Fruiting' : riskId === 'risk-003' ? 'Corn · Vegetative' : 'Unknown Crop'; }
 
   private async loadAlerts(): Promise<void> {
-    const alerts = await this.alertService.getAlerts();
-    const activeAlerts = alerts.filter((alert: any) => !alert.isRead);
-    const criticalAlerts = activeAlerts.filter((alert: any) => alert.severity === 'critical');
-    this.stats[3].value = activeAlerts.length.toString();
-    this.stats[3].subtitle = activeAlerts.length === 0 ? 'No active alerts' : criticalAlerts.length === 1 ? '1 critical alert' : criticalAlerts.length > 1 ? `${criticalAlerts.length} critical alerts` : 'No critical alerts';
-    this.stats[3].status = criticalAlerts.length > 0 ? 'danger' : activeAlerts.length > 0 ? 'warning' : 'normal';
+    const alerts = await this.alertService.getAlerts(); const activeAlerts = alerts.filter((alert: any) => !alert.isRead); const criticalAlerts = activeAlerts.filter((alert: any) => alert.severity === 'critical');
+    this.stats[3].value = activeAlerts.length.toString(); this.stats[3].subtitle = activeAlerts.length === 0 ? 'No active alerts' : criticalAlerts.length === 1 ? '1 critical alert' : criticalAlerts.length > 1 ? `${criticalAlerts.length} critical alerts` : 'No critical alerts'; this.stats[3].status = criticalAlerts.length > 0 ? 'danger' : activeAlerts.length > 0 ? 'warning' : 'normal';
   }
 
-  async refreshDashboard(): Promise<void> { this.currentDate = new Date(); await this.loadTemperature(); this.loadFarms(); await this.loadHeatRisks(); await this.loadAlerts(); }
+  async refreshDashboard(): Promise<void> { this.currentDate = new Date(); await this.loadTemperature(); await this.loadTodayTemperatureTrend(); this.loadFarms(); await this.loadHeatRisks(); await this.loadAlerts(); }
   getMaxTemperature(): number { return this.temperaturePoints.length ? Math.max(...this.temperaturePoints.map((point) => point.temperature)) : 0; }
   getMinTemperature(): number { return this.temperaturePoints.length ? Math.min(...this.temperaturePoints.map((point) => point.temperature)) : 0; }
   getRiskClass(level: string): string { return level === 'High' ? 'risk-high' : level === 'Moderate' ? 'risk-moderate' : 'risk-low'; }
