@@ -22,6 +22,7 @@ interface FortyGuardCurrentResponse {
 interface FortyGuardTrendResponse {
   points?: Array<{ timestamp: string; temperature: number | null; apparentTemperature?: number | null; heatIndex?: number | null; humidity?: number | null }>;
   requestedHours?: number; returnedHours?: number; source?: string;
+  resultReceived?: boolean; rawTemperatureSeriesFound?: boolean;
 }
 interface FortyGuardResponse<T = FortyGuardCurrentResponse> {
   success: boolean; action?: string; data?: T; error?: string; message?: string; status?: number; endpoint?: string;
@@ -46,20 +47,14 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
 
   async refreshCurrentTemperature(farmId: string, zoneId?: string): Promise<TemperatureReading | null> { return this.refreshFromFortyGuard(farmId, zoneId); }
 
-  /** Gets up to 12 completed hourly temperature values from the FortyGuard heatmap series. */
-  async getTodayTemperatureTrend(farmId: string, zoneId?: string, currentTemperature?: number): Promise<TemperatureTrendPoint[]> {
+  /** Gets up to 12 hourly temperature values from the FortyGuard heatmap range. */
+  async getTodayTemperatureTrend(farmId: string, zoneId?: string, _currentTemperature?: number): Promise<TemperatureTrendPoint[]> {
     if (!farmId?.trim()) throw new Error('Farm ID is required to get the temperature trend.');
     const coordinates = await this.getCoordinates(farmId, zoneId);
     if (!coordinates) throw new Error('No latitude/longitude is configured for this farm or zone.');
 
-    let temperature = this.toNumber(currentTemperature);
-    if (temperature === undefined) {
-      const cached = await this.getCurrentTemperature(farmId, zoneId);
-      temperature = this.toNumber(cached?.temperature);
-    }
-
     const { data, error } = await this.supabaseService.client.functions.invoke<FortyGuardResponse<FortyGuardTrendResponse>>('fortyguard-proxy', {
-      body: { action: 'temperature-trend', latitude: coordinates.latitude, longitude: coordinates.longitude, temperature, hours: 12 },
+      body: { action: 'temperature-trend', latitude: coordinates.latitude, longitude: coordinates.longitude, hours: 12 },
     });
 
     if (error) throw new Error(await this.formatFunctionError(error));
@@ -69,14 +64,16 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
       .filter(p => this.isFiniteNumber(p.temperature))
       .map(p => ({
         timestamp: p.timestamp,
-        temperature: Number(p.temperature),
+        temperature: this.roundTemperature(Number(p.temperature)),
         apparentTemperature: this.toNumber(p.apparentTemperature),
         heatIndex: this.toNumber(p.heatIndex),
         humidity: this.toNumber(p.humidity),
       }))
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-    if (!points.length) throw new Error('FortyGuard completed the 12-hour trend request but returned no valid temperature points.');
+    if (!points.length) {
+      throw new Error('FortyGuard completed the 12-hour trend request but returned no hourly temperature series.');
+    }
     return points;
   }
 
@@ -93,7 +90,7 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
 
   async saveTemperatureReading(reading: TemperatureReading): Promise<void> {
     const { error } = await this.supabaseService.client.from('temperature_readings').insert({
-      farm_id: reading.farmId, zone_id: reading.zoneId, temperature: reading.temperature,
+      farm_id: reading.farmId, zone_id: reading.zoneId, temperature: this.roundTemperature(reading.temperature),
       apparent_temperature: reading.feelsLike, humidity: reading.humidity, heat_index: reading.heatIndex,
       wet_bulb_temperature: reading.wetBulbTemperature, source: reading.source ?? 'api', recorded_at: reading.recordedAt,
       raw_data: { diagnostics: reading.diagnostics ?? null, precipitation: reading.precipitation ?? null, cloudCover: reading.cloudCover ?? null, aqi: reading.aqi ?? null, solarIrradiance: reading.solarIrradiance ?? null },
@@ -115,7 +112,7 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     if (!data?.success || !data.data) throw new Error(data?.message ?? data?.error ?? 'Invalid FortyGuard response.');
     const current = data.data; if (!this.isFiniteNumber(current.temperature)) throw new Error('FortyGuard completed but no valid temperature was returned.');
     const diagnostics: TemperatureDiagnostics = { status: 'Completed', resultReceived: true, heatmapActivityId: current.heatmapActivityId, environmentalActivityId: current.environmentalActivityId, resultKeys: current.resultKeys, statsKeys: current.statsKeys, nCells: current.nCells, featuresCount: current.featuresCount };
-    const reading: TemperatureReading = { farmId, zoneId, temperature: Number(current.temperature), feelsLike: this.toNumber(current.feelsLike), humidity: this.toNumber(current.humidity), heatIndex: this.toNumber(current.heatIndex), wetBulbTemperature: this.toNumber(current.wetBulbTemperature), precipitation: this.toNumber(current.precipitation), cloudCover: this.toNumber(current.cloudCover), aqi: this.toNumber(current.aqi), solarIrradiance: current.solarIrradiance ?? null, recordedAt: current.recordedAt ?? new Date().toISOString(), source: 'api', diagnostics };
+    const reading: TemperatureReading = { farmId, zoneId, temperature: this.roundTemperature(Number(current.temperature)), feelsLike: this.toNumber(current.feelsLike), humidity: this.toNumber(current.humidity), heatIndex: this.toNumber(current.heatIndex), wetBulbTemperature: this.toNumber(current.wetBulbTemperature), precipitation: this.toNumber(current.precipitation), cloudCover: this.toNumber(current.cloudCover), aqi: this.toNumber(current.aqi), solarIrradiance: current.solarIrradiance ?? null, recordedAt: current.recordedAt ?? new Date().toISOString(), source: 'api', diagnostics };
     await this.saveTemperatureReading(reading); return reading;
   }
 
@@ -123,7 +120,7 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     let query = this.supabaseService.client.from('temperature_readings').select('*').eq('farm_id', farmId).not('temperature', 'is', null).gt('temperature', 0).order('recorded_at', { ascending: false }).limit(1);
     if (zoneId) query = query.eq('zone_id', zoneId);
     const { data, error } = await query.maybeSingle(); if (error) throw error; if (!data) return null;
-    return { id: data.id, farmId: data.farm_id, zoneId: data.zone_id, temperature: Number(data.temperature), feelsLike: this.toNumber(data.apparent_temperature), humidity: this.toNumber(data.humidity), heatIndex: this.toNumber(data.heat_index), wetBulbTemperature: this.toNumber(data.wet_bulb_temperature), recordedAt: data.recorded_at, source: data.source || 'api' };
+    return { id: data.id, farmId: data.farm_id, zoneId: data.zone_id, temperature: this.roundTemperature(Number(data.temperature)), feelsLike: this.toNumber(data.apparent_temperature), humidity: this.toNumber(data.humidity), heatIndex: this.toNumber(data.heat_index), wetBulbTemperature: this.toNumber(data.wet_bulb_temperature), recordedAt: data.recorded_at, source: data.source || 'api' };
   }
 
   private async formatFunctionError(error: any): Promise<string> {
@@ -144,4 +141,5 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
   private validCoordinates(latitude: unknown, longitude: unknown): boolean { const lat = Number(latitude), lon = Number(longitude); return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180; }
   private isFiniteNumber(value: unknown): value is number { return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)); }
   private toNumber(value: unknown): number | undefined { return this.isFiniteNumber(value) ? Number(value) : undefined; }
+  private roundTemperature(value: number): number { return Math.round(value * 10) / 10; }
 }
