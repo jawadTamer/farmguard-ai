@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -22,6 +22,7 @@ import { LocationDisplayComponent } from '../../../shared/components/location-di
 
   imports: [
     CommonModule,
+    RouterLink,
     MatCardModule,
     MatButtonModule,
     MatIconModule,
@@ -51,7 +52,7 @@ export class ZoneDetailsComponent implements OnInit {
     private router: Router,
     private zoneService: ZoneService,
     private farmService: FarmService,
-  ) {}
+  ) { }
 
   // =====================================================
   // Init

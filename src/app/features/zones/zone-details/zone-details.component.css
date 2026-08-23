@@ -57,6 +57,13 @@
   height: 42px;
 }
 
+.heatmap-btn {
+  background: #f57c00 !important;
+  color: white !important;
+  font-weight: 600;
+  border-radius: 8px;
+}
+
 /* Main */
 
 .details-content {
@@ -220,9 +227,6 @@
 /* Future */
 
 .future-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 15px;
   padding: 22px;
   border-radius: 16px;
   background: linear-gradient(
@@ -232,20 +236,51 @@
   );
 }
 
-.future-card > mat-icon {
+.future-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.future-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eaf6ed;
   color: #2e7d32;
+  flex-shrink: 0;
+}
+
+.future-icon mat-icon {
   font-size: 28px;
+  width: 28px;
+  height: 28px;
+}
+
+.future-text {
+  flex: 1;
+}
+
+.future-label {
+  color: #2e7d32;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
 }
 
 .future-card h3 {
-  margin: 0 0 5px;
+  margin: 4px 0 5px;
   color: #1f2937;
+  font-size: 18px;
 }
 
 .future-card p {
   margin: 0;
   color: #6b7280;
-  line-height: 1.6;
+  line-height: 1.5;
   font-size: 13px;
 }
 
@@ -324,6 +359,15 @@
 
   .coordinates-display {
     grid-template-columns: 1fr;
+  }
+
+  .future-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .heatmap-btn {
+    width: 100%;
   }
 
 }

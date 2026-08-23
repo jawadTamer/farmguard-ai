@@ -36,7 +36,7 @@ export class TemperatureComponent implements OnInit {
   temperatureHistory: TemperatureReading[] = [];
   displayedColumns: string[] = ['time', 'temperature', 'feelsLike', 'humidity', 'source'];
 
-  constructor(private farmService: FarmService, private zoneService: ZoneService, private temperatureService: TemperatureService) {}
+  constructor(private farmService: FarmService, private zoneService: ZoneService, private temperatureService: TemperatureService) { }
 
   async ngOnInit(): Promise<void> { await this.loadData(); }
 
@@ -111,13 +111,40 @@ export class TemperatureComponent implements OnInit {
   }
 
   getSafeValue(value: number | undefined | null): string {
-    return value === undefined || value === null || !Number.isFinite(value) ? '—' : this.formatOneDecimal(value);
+    if (value === undefined || value === null || !Number.isFinite(value)) return '—';
+    return this.formatOneDecimal(value);
+  }
+
+  getProcessingTime(): string {
+    const diagnostics = this.currentTemperature?.diagnostics as any;
+    return diagnostics?.processingTimeSeconds ? diagnostics.processingTimeSeconds.toString() : '';
+  }
+
+  formatHumidity(value: number | undefined | null): string {
+    const safeValue = this.getSafeValue(value);
+    return safeValue === '—' ? '—' : `${safeValue}%`;
+  }
+
+  formatPrecipitation(value: number | undefined | null): string {
+    const safeValue = this.getSafeValue(value);
+    return safeValue === '—' ? '—' : `${safeValue} mm`;
+  }
+
+  formatCloudCover(value: number | undefined | null): string {
+    const safeValue = this.getSafeValue(value);
+    return safeValue === '—' ? '—' : `${safeValue}%`;
+  }
+
+  formatTemperature(value: number | undefined | null): string {
+    if (value === undefined || value === null || !Number.isFinite(value)) return '—';
+    return `${this.formatOneDecimal(value)}°C`;
   }
 
   formatOneDecimal(value: number | undefined | null): string {
     if (value === undefined || value === null || !Number.isFinite(value)) return '—';
-    // Keep the first digit after the decimal instead of rounding up.
-    return (Math.trunc(Number(value) * 10) / 10).toFixed(1);
+    // Keep the first digit after the decimal without rounding
+    const truncated = Math.trunc(Number(value) * 10) / 10;
+    return truncated.toFixed(1);
   }
 
   getSourceLabel(source: string | undefined): string {

@@ -19,7 +19,15 @@
 }
 
 .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 24px;
+  gap: 16px;
+}
+
+.page-header > div {
+  flex: 1;
 }
 
 .page-header h1 {
@@ -33,6 +41,16 @@
   margin: 0;
   color: #6b7280;
   font-size: 14px;
+}
+
+.heatmap-btn {
+  background: #f57c00 !important;
+  color: white !important;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 0 16px;
+  height: 40px;
+  white-space: nowrap;
 }
 
 .selection-section {
@@ -243,6 +261,15 @@
 @media (max-width: 768px) {
   .heat-intelligence-overview {
     padding: 16px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .heatmap-btn {
+    width: 100%;
   }
 
   .stats-grid {

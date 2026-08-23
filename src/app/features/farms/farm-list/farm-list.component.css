@@ -24,6 +24,21 @@
   gap: 20px;
 }
 
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.heatmap-btn {
+  background: #f57c00 !important;
+  color: white !important;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 0 16px;
+  height: 40px;
+}
+
 .breadcrumb {
   display: flex;
   align-items: center;
@@ -613,11 +628,18 @@
     flex-direction: column;
   }
 
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .heatmap-btn {
+    width: 100%;
+  }
 
   .page-header h1 {
     font-size: 27px;
   }
-
 
   .add-farm-btn {
     width: 100%;

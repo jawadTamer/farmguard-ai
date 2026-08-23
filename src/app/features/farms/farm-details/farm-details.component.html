@@ -78,6 +78,12 @@
           {{ getStatusLabel() }}
         </span>
 
+        <button mat-stroked-button class="heatmap-btn" [routerLink]="['/heat-intelligence/heatmap']">
+          <mat-icon> thermostat </mat-icon>
+
+          Heatmap
+        </button>
+
         <button mat-flat-button class="edit-btn" (click)="editFarm()">
           <mat-icon> edit </mat-icon>
 
@@ -394,9 +400,9 @@
           <button
             mat-flat-button
             class="ai-btn"
-            [routerLink]="['/heat-intelligence']"
+            [routerLink]="['/heat-intelligence/heatmap']"
           >
-            View Intelligence
+            View Heatmap
 
             <mat-icon> arrow_forward </mat-icon>
           </button>

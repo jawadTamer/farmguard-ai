@@ -24,17 +24,29 @@
 
       </div>
 
+      <div class="header-actions">
+        <button
+          mat-stroked-button
+          class="heatmap-btn"
+          [routerLink]="['/heat-intelligence/heatmap']">
 
-      <button
-        mat-flat-button
-        class="add-farm-btn"
-        (click)="createFarm()">
+          <mat-icon>thermostat</mat-icon>
 
-        <mat-icon>add</mat-icon>
+          Heatmap
 
-        Add Farm
+        </button>
 
-      </button>
+        <button
+          mat-flat-button
+          class="add-farm-btn"
+          (click)="createFarm()">
+
+          <mat-icon>add</mat-icon>
+
+          Add Farm
+
+        </button>
+      </div>
 
     </div>
 

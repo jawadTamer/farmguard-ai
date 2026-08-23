@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { RouterLink } from '@angular/router';
 
 import { FarmService } from '../../../core/services/farm.service';
 import { ZoneService } from '../../../core/services/zone.service';
@@ -24,7 +25,7 @@ import { FarmAlert } from '../../../core/models/alert.model';
 @Component({
   selector: 'app-overview',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatSelectModule, MatFormFieldModule],
+  imports: [CommonModule, MatCardModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatSelectModule, MatFormFieldModule, RouterLink],
   templateUrl: './overview.component.html',
   styleUrl: './overview.component.css'
 })
@@ -52,7 +53,7 @@ export class OverviewComponent implements OnInit {
     recordedAt: undefined as string | undefined,
   };
 
-  constructor(private farmService: FarmService, private zoneService: ZoneService, private temperatureService: TemperatureService, private heatRiskService: HeatRiskService, private recommendationService: RecommendationService, private alertService: AlertService) {}
+  constructor(private farmService: FarmService, private zoneService: ZoneService, private temperatureService: TemperatureService, private heatRiskService: HeatRiskService, private recommendationService: RecommendationService, private alertService: AlertService) { }
 
   async ngOnInit(): Promise<void> { await this.loadData(); }
 
@@ -136,7 +137,37 @@ export class OverviewComponent implements OnInit {
     }
   }
 
-  getRiskColor(riskLevel: string): string { const colors={low:'#2e7d32',moderate:'#f57c00',high:'#d32f2f',critical:'#b71c1c'}; return colors[riskLevel as keyof typeof colors]||'#757575'; }
-  getPriorityColor(priority: string): string { const colors={low:'#2e7d32',medium:'#f57c00',high:'#d32f2f',urgent:'#b71c1c'}; return colors[priority as keyof typeof colors]||'#757575'; }
+  getRiskColor(riskLevel: string): string { const colors = { low: '#2e7d32', moderate: '#f57c00', high: '#d32f2f', critical: '#b71c1c' }; return colors[riskLevel as keyof typeof colors] || '#757575'; }
+  getPriorityColor(priority: string): string { const colors = { low: '#2e7d32', medium: '#f57c00', high: '#d32f2f', urgent: '#b71c1c' }; return colors[priority as keyof typeof colors] || '#757575'; }
   formatDate(dateString: string): string { return new Date(dateString).toLocaleString(); }
+
+  formatOneDecimal(value: number | undefined | null): string {
+    if (value === undefined || value === null || !Number.isFinite(value)) return '—';
+    // Keep the first digit after the decimal without rounding
+    const truncated = Math.trunc(Number(value) * 10) / 10;
+    return truncated.toFixed(1);
+  }
+
+  formatTemperature(value: number | undefined | null): string {
+    if (value === undefined || value === null || !Number.isFinite(value)) return '—';
+    return `${this.formatOneDecimal(value)}°C`;
+  }
+
+  formatHumidity(value: number | undefined | null): string {
+    if (value === undefined || value === null || !Number.isFinite(value)) return '—';
+    return `${this.formatOneDecimal(value)}%`;
+  }
+
+  getSafeValue(value: number | undefined | null): string {
+    if (value === undefined || value === null || !Number.isFinite(value)) return '—';
+    return this.formatOneDecimal(value);
+  }
+
+  formatRiskReason(reason: string): string {
+    // Replace long decimal numbers in the reason text with formatted versions
+    return reason.replace(/(\d+\.\d{10,})/g, (match) => {
+      const num = parseFloat(match);
+      return this.formatOneDecimal(num);
+    });
+  }
 }

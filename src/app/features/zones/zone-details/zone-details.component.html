@@ -58,6 +58,21 @@
 
       <button
         mat-stroked-button
+        class="heatmap-btn"
+        type="button"
+        [routerLink]="['/heat-intelligence/heatmap']"
+        [disabled]="!zone">
+
+        <mat-icon>
+          thermostat
+        </mat-icon>
+
+        Heatmap
+
+      </button>
+
+      <button
+        mat-stroked-button
         type="button"
         (click)="editZone()"
         [disabled]="!zone">
@@ -324,23 +339,34 @@
 
     <mat-card class="future-card">
 
-      <mat-icon>
-        auto_awesome
-      </mat-icon>
+      <div class="future-content">
+        <div class="future-icon">
+          <mat-icon>
+            auto_awesome
+          </mat-icon>
+        </div>
 
-      <div>
+        <div class="future-text">
+          <span class="future-label"> FARMGUARD AI </span>
 
-        <h3>
-          FarmGuard Intelligence
-        </h3>
+          <h3>
+            Heat Intelligence
+          </h3>
 
-        <p>
-          Temperature monitoring, crop health,
-          heat risk analysis and AI recommendations
-          for this zone will appear here once
-          the intelligence modules are connected.
-        </p>
+          <p>
+            Temperature analysis and AI-powered heat risk insights for this
+            zone will appear here when the temperature API is connected.
+          </p>
+        </div>
 
+        <button
+          mat-stroked-button
+          class="heatmap-btn"
+          [routerLink]="['/heat-intelligence/heatmap']">
+          View Heatmap
+
+          <mat-icon> arrow_forward </mat-icon>
+        </button>
       </div>
 
     </mat-card>

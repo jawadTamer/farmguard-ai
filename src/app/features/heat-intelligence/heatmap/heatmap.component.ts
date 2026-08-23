@@ -375,7 +375,7 @@ export class HeatmapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openFullscreen(imageUrl: string): void {
-    const newWindow = window.open('', '_blank');
+    const newWindow = (window as any).open('', '_blank');
     if (newWindow) {
       newWindow.document.write(`
         <!DOCTYPE html>

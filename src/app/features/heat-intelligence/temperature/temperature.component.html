@@ -25,31 +25,115 @@
     <mat-card class="current-temp-card">
       <mat-card-content>
         <div class="hero-temperature" *ngIf="currentTemperature && !loadError && !isRefreshing">
-          <div class="hero-copy"><span class="hero-label">CURRENT FARM TEMPERATURE</span><div class="hero-value">{{ formatOneDecimal(currentTemperature.temperature) }}<span>°C</span></div><div class="hero-meta"><span class="source-badge source-fortyguard"><mat-icon>verified</mat-icon> FortyGuard</span><span><mat-icon>schedule</mat-icon>{{ formatDate(currentTemperature.recordedAt) }}</span></div></div>
-          <div class="hero-risk"><span>Heat signal</span><strong>{{ currentTemperature.heatIndex !== undefined ? formatOneDecimal(currentTemperature.heatIndex) + '°C' : '—' }}</strong><small>Heat index</small></div>
+          <div class="hero-copy">
+            <span class="hero-label">CURRENT FARM TEMPERATURE</span>
+            <div class="hero-value">{{ formatOneDecimal(currentTemperature.temperature) }}<span>°C</span></div>
+            <div class="hero-meta">
+              <span class="source-badge source-fortyguard"><mat-icon>verified</mat-icon> FortyGuard</span>
+              <span><mat-icon>schedule</mat-icon>{{ formatDate(currentTemperature.recordedAt) }}</span>
+              <span *ngIf="getProcessingTime()"><mat-icon>timer</mat-icon>{{ getProcessingTime() }}s</span>
+            </div>
+          </div>
+          <div class="hero-risk">
+            <span>Heat signal</span>
+            <strong>{{ formatTemperature(currentTemperature.heatIndex) }}</strong>
+            <small>Heat index</small>
+          </div>
         </div>
 
-        <div *ngIf="isRefreshing" class="temp-loading"><mat-spinner diameter="32"></mat-spinner><span>FortyGuard is processing the request and polling the activity result...</span></div>
-        <div *ngIf="loadError && !isRefreshing" class="temp-error"><mat-icon class="error-icon">error_outline</mat-icon><h3>Unable to load temperature</h3><p>{{ loadError }}</p><button mat-raised-button color="primary" (click)="refreshTemperature()">Try Again</button></div>
+        <div *ngIf="isRefreshing" class="temp-loading">
+          <mat-spinner diameter="32"></mat-spinner>
+          <span>FortyGuard is processing the request and polling the activity result...</span>
+        </div>
+
+        <div *ngIf="loadError && !isRefreshing" class="temp-error">
+          <mat-icon class="error-icon">error_outline</mat-icon>
+          <h3>Unable to load temperature</h3>
+          <p>{{ loadError }}</p>
+          <button mat-raised-button color="primary" (click)="refreshTemperature()">Try Again</button>
+        </div>
 
         <div *ngIf="currentTemperature && !loadError && !isRefreshing" class="metrics-grid">
-          <div class="metric-card"><div class="metric-icon"><mat-icon>thermostat</mat-icon></div><span>Feels Like</span><strong>{{ getSafeValue(currentTemperature.feelsLike) }}°C</strong></div>
-          <div class="metric-card"><div class="metric-icon"><mat-icon>water_drop</mat-icon></div><span>Humidity</span><strong>{{ getSafeValue(currentTemperature.humidity) }}%</strong></div>
-          <div class="metric-card"><div class="metric-icon"><mat-icon>local_fire_department</mat-icon></div><span>Heat Index</span><strong>{{ getSafeValue(currentTemperature.heatIndex) }}°C</strong></div>
-          <div class="metric-card"><div class="metric-icon"><mat-icon>opacity</mat-icon></div><span>Wet Bulb</span><strong>{{ getSafeValue(currentTemperature.wetBulbTemperature) }}°C</strong></div>
-          <div class="metric-card"><div class="metric-icon"><mat-icon>grain</mat-icon></div><span>Precipitation</span><strong>{{ getSafeValue(currentTemperature.precipitation) }} mm</strong></div>
-          <div class="metric-card"><div class="metric-icon"><mat-icon>cloud</mat-icon></div><span>Cloud Cover</span><strong>{{ getSafeValue(currentTemperature.cloudCover) }}</strong></div>
-          <div class="metric-card"><div class="metric-icon"><mat-icon>air</mat-icon></div><span>AQI</span><strong>{{ getSafeValue(currentTemperature.aqi) }}</strong></div>
-          <div class="metric-card"><div class="metric-icon"><mat-icon>verified</mat-icon></div><span>Data Source</span><strong>FortyGuard</strong></div>
+          <div class="metric-card">
+            <div class="metric-icon"><mat-icon>thermostat</mat-icon></div>
+            <span>Feels Like</span>
+            <strong>{{ formatTemperature(currentTemperature.feelsLike) }}</strong>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon"><mat-icon>water_drop</mat-icon></div>
+            <span>Humidity</span>
+            <strong>{{ formatHumidity(currentTemperature.humidity) }}</strong>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon"><mat-icon>local_fire_department</mat-icon></div>
+            <span>Heat Index</span>
+            <strong>{{ formatTemperature(currentTemperature.heatIndex) }}</strong>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon"><mat-icon>opacity</mat-icon></div>
+            <span>Wet Bulb</span>
+            <strong>{{ formatTemperature(currentTemperature.wetBulbTemperature) }}</strong>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon"><mat-icon>grain</mat-icon></div>
+            <span>Precipitation</span>
+            <strong>{{ formatPrecipitation(currentTemperature.precipitation) }}</strong>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon"><mat-icon>cloud</mat-icon></div>
+            <span>Cloud Cover</span>
+            <strong>{{ formatCloudCover(currentTemperature.cloudCover) }}</strong>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon"><mat-icon>air</mat-icon></div>
+            <span>AQI</span>
+            <strong>{{ getSafeValue(currentTemperature.aqi) }}</strong>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon"><mat-icon>verified</mat-icon></div>
+            <span>Data Source</span>
+            <strong>FortyGuard</strong>
+          </div>
         </div>
 
-        <div *ngIf="!currentTemperature && !loadError && !isRefreshing" class="temp-no-data"><mat-icon>thermostat</mat-icon><h3>No Temperature Data</h3><p>Select a farm and wait for the completed FortyGuard result.</p></div>
+        <div *ngIf="!currentTemperature && !loadError && !isRefreshing" class="temp-no-data">
+          <mat-icon>thermostat</mat-icon>
+          <h3>No Temperature Data</h3>
+          <p>Select a farm and wait for the completed FortyGuard result.</p>
+        </div>
       </mat-card-content>
     </mat-card>
 
     <mat-card class="history-card" *ngIf="temperatureHistory.length > 0">
-      <mat-card-header><mat-card-title>Recent Temperature Readings</mat-card-title></mat-card-header>
-      <mat-card-content><table mat-table [dataSource]="temperatureHistory" class="history-table"><ng-container matColumnDef="time"><th mat-header-cell *matHeaderCellDef>Time</th><td mat-cell *matCellDef="let reading">{{ formatDate(reading.recordedAt) }}</td></ng-container><ng-container matColumnDef="temperature"><th mat-header-cell *matHeaderCellDef>Temperature</th><td mat-cell *matCellDef="let reading"><strong>{{ formatOneDecimal(reading.temperature) }}°C</strong></td></ng-container><ng-container matColumnDef="feelsLike"><th mat-header-cell *matHeaderCellDef>Feels Like</th><td mat-cell *matCellDef="let reading">{{ getSafeValue(reading.feelsLike) }}°C</td></ng-container><ng-container matColumnDef="humidity"><th mat-header-cell *matHeaderCellDef>Humidity</th><td mat-cell *matCellDef="let reading">{{ getSafeValue(reading.humidity) }}%</td></ng-container><ng-container matColumnDef="source"><th mat-header-cell *matHeaderCellDef>Source</th><td mat-cell *matCellDef="let reading"><span class="source-badge source-fortyguard">FortyGuard</span></td></ng-container><tr mat-header-row *matHeaderRowDef="displayedColumns"></tr><tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr></table></mat-card-content>
+      <mat-card-header>
+        <mat-card-title>Recent Temperature Readings</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <table mat-table [dataSource]="temperatureHistory" class="history-table">
+          <ng-container matColumnDef="time">
+            <th mat-header-cell *matHeaderCellDef>Time</th>
+            <td mat-cell *matCellDef="let reading">{{ formatDate(reading.recordedAt) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="temperature">
+            <th mat-header-cell *matHeaderCellDef>Temperature</th>
+            <td mat-cell *matCellDef="let reading"><strong>{{ formatTemperature(reading.temperature) }}</strong></td>
+          </ng-container>
+          <ng-container matColumnDef="feelsLike">
+            <th mat-header-cell *matHeaderCellDef>Feels Like</th>
+            <td mat-cell *matCellDef="let reading">{{ formatTemperature(reading.feelsLike) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="humidity">
+            <th mat-header-cell *matHeaderCellDef>Humidity</th>
+            <td mat-cell *matCellDef="let reading">{{ formatHumidity(reading.humidity) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="source">
+            <th mat-header-cell *matHeaderCellDef>Source</th>
+            <td mat-cell *matCellDef="let reading"><span class="source-badge source-fortyguard">FortyGuard</span></td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        </table>
+      </mat-card-content>
     </mat-card>
   </div>
 </div>
