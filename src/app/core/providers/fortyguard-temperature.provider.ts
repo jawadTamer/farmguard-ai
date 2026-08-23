@@ -3,7 +3,7 @@ import { TemperatureReading, TemperatureForecast, TemperatureDiagnostics } from 
 import { SupabaseService } from '../services/supabase.service';
 
 interface FortyGuardCurrentResponse {
-  temperature: number;
+  temperature: number | null;
   feelsLike?: number | null;
   humidity?: number | null;
   heatIndex?: number | null;
@@ -12,7 +12,7 @@ interface FortyGuardCurrentResponse {
   cloudCover?: number | null;
   aqi?: number | null;
   solarIrradiance?: unknown;
-  recordedAt: string;
+  recordedAt?: string;
   coordinates?: { latitude: number; longitude: number };
   heatmapActivityId?: string;
   environmentalActivityId?: string;
@@ -74,8 +74,11 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     }
 
     const current = data.data;
-    if (!Number.isFinite(Number(current.temperature))) {
-      throw new Error('FortyGuard completed successfully but returned an invalid temperature.');
+    if (!this.isFiniteNumber(current.temperature)) {
+      const reason = typeof current.environmentalError === 'string'
+        ? ` ${current.environmentalError}`
+        : '';
+      throw new Error(`FortyGuard completed but no valid temperature was returned.${reason}`);
     }
 
     const diagnostics: TemperatureDiagnostics = {
@@ -92,7 +95,7 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     const reading: TemperatureReading = {
       farmId,
       zoneId,
-      temperature: Number(current.temperature),
+      temperature: current.temperature,
       feelsLike: this.toNumber(current.feelsLike),
       humidity: this.toNumber(current.humidity),
       heatIndex: this.toNumber(current.heatIndex),
@@ -182,14 +185,14 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     if (!coordinates) throw new Error('No latitude/longitude is configured for this farm or zone.');
 
     const currentTemperature = temperature ?? (await this.getCurrentTemperature(farmId, zoneId))?.temperature;
-    if (!Number.isFinite(Number(currentTemperature))) throw new Error('A valid temperature is required for environmental parameters.');
+    if (!this.isFiniteNumber(currentTemperature)) throw new Error('A valid temperature is required for environmental parameters.');
 
     const { data, error } = await this.supabaseService.client.functions.invoke('fortyguard-proxy', {
       body: {
         action: 'environmental-parameters',
         latitude: coordinates.latitude,
         longitude: coordinates.longitude,
-        temperature: Number(currentTemperature),
+        temperature: currentTemperature,
       },
     });
 
@@ -200,19 +203,15 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
 
   private async formatFunctionError(error: any): Promise<string> {
     let detail = '';
-
     try {
       const response = error?.context as Response | undefined;
       if (response) {
         const body = await response.clone().json().catch(() => null);
-        if (body) {
-          detail = ` | ${JSON.stringify(body)}`;
-        }
+        if (body) detail = ` | ${JSON.stringify(body)}`;
       }
     } catch {
       // Keep the normal Supabase error message when the response body is unavailable.
     }
-
     return `FortyGuard Edge Function error: ${error?.message || 'Unknown error'}${detail}`;
   }
 
@@ -249,7 +248,12 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
   }
 
+  private isFiniteNumber(value: unknown): value is number {
+    return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+  }
+
   private toNumber(value: unknown): number | undefined {
+    if (value === null || value === undefined || value === '') return undefined;
     const number = Number(value);
     return Number.isFinite(number) ? number : undefined;
   }
