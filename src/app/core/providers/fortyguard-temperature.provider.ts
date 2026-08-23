@@ -1,12 +1,36 @@
 import { TemperatureProvider } from './temperature-provider.interface';
-import { TemperatureReading, TemperatureForecast } from '../models/temperature.model';
+import { TemperatureReading, TemperatureForecast, TemperatureDiagnostics } from '../models/temperature.model';
 import { SupabaseService } from '../services/supabase.service';
 
 interface FortyGuardCurrentResponse {
   temperature: number;
   feelsLike?: number | null;
   humidity?: number | null;
+  heatIndex?: number | null;
+  wetBulbTemperature?: number | null;
+  precipitation?: number | null;
+  cloudCover?: number | null;
+  aqi?: number | null;
+  solarIrradiance?: unknown;
   recordedAt: string;
+  coordinates?: { latitude: number; longitude: number };
+  heatmapActivityId?: string;
+  environmentalActivityId?: string;
+  nCells?: number;
+  featuresCount?: number;
+  resultKeys?: string[];
+  statsKeys?: string[];
+}
+
+interface FortyGuardResponse {
+  success: boolean;
+  action?: string;
+  data?: FortyGuardCurrentResponse;
+  error?: string;
+  message?: string;
+  status?: number;
+  endpoint?: string;
+  diagnostics?: TemperatureDiagnostics;
 }
 
 export class FortyGuardTemperatureProvider implements TemperatureProvider {
@@ -20,7 +44,9 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     const coordinates = await this.getCoordinates(farmId, zoneId);
     if (!coordinates) throw new Error('No latitude/longitude is configured for this farm or zone.');
 
-    const { data, error } = await this.supabaseService.client.functions.invoke('fortyguard-proxy', {
+    console.log('[FortyGuard] Requesting current temperature', { farmId, zoneId, coordinates });
+
+    const { data, error } = await this.supabaseService.client.functions.invoke<FortyGuardResponse>('fortyguard-proxy', {
       body: {
         action: 'current-temperature',
         latitude: coordinates.latitude,
@@ -33,13 +59,28 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
       throw new Error(`FortyGuard Edge Function error: ${error.message || 'Unknown error'}`);
     }
 
+    console.log('[FortyGuard] Proxy response:', data);
+
     if (!data?.success || !data?.data) {
       const message = data?.message ?? data?.error ?? 'Invalid FortyGuard response.';
       throw new Error(`FortyGuard API error: ${message}${data?.status ? ` (HTTP ${data.status})` : ''}${data?.endpoint ? ` - ${data.endpoint}` : ''}`);
     }
 
-    const current = data.data as FortyGuardCurrentResponse;
-    if (!Number.isFinite(Number(current.temperature))) throw new Error('FortyGuard returned an invalid temperature.');
+    const current = data.data;
+    if (!Number.isFinite(Number(current.temperature))) {
+      throw new Error('FortyGuard completed successfully but returned an invalid temperature.');
+    }
+
+    const diagnostics: TemperatureDiagnostics = {
+      status: 'Completed',
+      resultReceived: true,
+      heatmapActivityId: current.heatmapActivityId,
+      environmentalActivityId: current.environmentalActivityId,
+      resultKeys: current.resultKeys,
+      statsKeys: current.statsKeys,
+      nCells: current.nCells,
+      featuresCount: current.featuresCount,
+    };
 
     const reading: TemperatureReading = {
       farmId,
@@ -47,9 +88,18 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
       temperature: Number(current.temperature),
       feelsLike: this.toNumber(current.feelsLike),
       humidity: this.toNumber(current.humidity),
+      heatIndex: this.toNumber(current.heatIndex),
+      wetBulbTemperature: this.toNumber(current.wetBulbTemperature),
+      precipitation: this.toNumber(current.precipitation),
+      cloudCover: this.toNumber(current.cloudCover),
+      aqi: this.toNumber(current.aqi),
+      solarIrradiance: current.solarIrradiance ?? null,
       recordedAt: current.recordedAt ?? new Date().toISOString(),
       source: 'api',
+      diagnostics,
     };
+
+    console.log('[FortyGuard] Completed result mapped to TemperatureReading:', reading);
 
     await this.saveTemperatureReading(reading);
     return reading;
@@ -76,6 +126,8 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
       temperature: Number(reading.temperature),
       feelsLike: this.toNumber(reading.apparent_temperature),
       humidity: this.toNumber(reading.humidity),
+      heatIndex: this.toNumber(reading.heat_index),
+      wetBulbTemperature: this.toNumber(reading.wet_bulb_temperature),
       recordedAt: reading.recorded_at,
       source: reading.source || 'api',
     }));
@@ -94,8 +146,17 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
         temperature: reading.temperature,
         apparent_temperature: reading.feelsLike,
         humidity: reading.humidity,
+        heat_index: reading.heatIndex,
+        wet_bulb_temperature: reading.wetBulbTemperature,
         source: reading.source ?? 'api',
         recorded_at: reading.recordedAt,
+        raw_data: {
+          diagnostics: reading.diagnostics ?? null,
+          precipitation: reading.precipitation ?? null,
+          cloudCover: reading.cloudCover ?? null,
+          aqi: reading.aqi ?? null,
+          solarIrradiance: reading.solarIrradiance ?? null,
+        },
       });
 
     if (error) throw error;
