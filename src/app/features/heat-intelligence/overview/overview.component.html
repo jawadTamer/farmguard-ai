@@ -1,86 +1,92 @@
 <div class="heat-intelligence-overview">
-  <!-- Loading State -->
   <div *ngIf="isLoading" class="loading-state">
     <mat-spinner diameter="48"></mat-spinner>
     <p>Loading heat intelligence data...</p>
   </div>
 
-  <!-- Content -->
   <div *ngIf="!isLoading" class="overview-content">
-    <!-- Header -->
     <div class="page-header">
       <h1>Heat Intelligence Overview</h1>
       <p>Monitor temperature, heat risk, and recommendations for your farms</p>
     </div>
 
-    <!-- Farm/Zone Selection -->
     <div class="selection-section">
       <div class="selection-row">
         <mat-form-field appearance="outline" class="farm-select">
           <mat-label>Select Farm</mat-label>
           <mat-select [(value)]="selectedFarmId" (selectionChange)="onFarmChange()">
-            <mat-option *ngFor="let farm of farms" [value]="farm.id">
-              {{ farm.name }}
-            </mat-option>
+            <mat-option *ngFor="let farm of farms" [value]="farm.id">{{ farm.name }}</mat-option>
           </mat-select>
         </mat-form-field>
-
         <mat-form-field appearance="outline" class="zone-select" *ngIf="zones.length > 0">
           <mat-label>Select Zone</mat-label>
           <mat-select [(value)]="selectedZoneId" (selectionChange)="onZoneChange()">
-            <mat-option *ngFor="let zone of zones" [value]="zone.id">
-              {{ zone.name }}
-            </mat-option>
+            <mat-option *ngFor="let zone of zones" [value]="zone.id">{{ zone.name }}</mat-option>
           </mat-select>
         </mat-form-field>
       </div>
     </div>
 
-    <!-- Stats Grid -->
-    <div class="stats-grid" *ngIf="currentTemperature && currentRisk">
-      <!-- Current Temperature -->
-      <mat-card class="stat-card temperature-card">
-        <div class="stat-icon">
-          <mat-icon>thermostat</mat-icon>
+    <mat-card class="details-card" [style.border-left]="apiResultVerified ? '4px solid #2e7d32' : '4px solid #d32f2f'">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>{{ apiResultVerified ? 'check_circle' : 'error' }}</mat-icon>
+          FortyGuard API Result
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <p *ngIf="apiResultVerified" style="color:#2e7d32;font-weight:600;margin:0 0 12px">
+          Result received and verified successfully.
+        </p>
+        <p *ngIf="!apiResultVerified && apiError" style="color:#d32f2f;margin:0 0 12px">
+          {{ apiError }}
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+          <div><strong>Temperature</strong><br>{{ currentTemperature?.temperature ?? '—' }} °C</div>
+          <div><strong>Heatmap</strong><br>{{ apiDiagnostics.heatmapCompleted ? 'Completed' : 'Not completed' }}</div>
+          <div><strong>Temperature extracted</strong><br>{{ apiDiagnostics.temperatureExtracted ? 'Yes' : 'No' }}</div>
+          <div><strong>Environmental</strong><br>{{ apiDiagnostics.environmentalCompleted ? 'Completed' : 'Not available' }}</div>
+          <div><strong>Heatmap activity</strong><br>{{ apiDiagnostics.heatmapActivityId || '—' }}</div>
+          <div><strong>Environmental activity</strong><br>{{ apiDiagnostics.environmentalActivityId || '—' }}</div>
+          <div><strong>Heatmap cells</strong><br>{{ apiDiagnostics.featuresCount }}</div>
+          <div><strong>Recorded</strong><br>{{ apiDiagnostics.recordedAt ? formatDate(apiDiagnostics.recordedAt) : '—' }}</div>
         </div>
+        <div *ngIf="apiDiagnostics.resultKeys.length > 0" style="margin-top:14px">
+          <strong>Result keys:</strong> {{ apiDiagnostics.resultKeys.join(', ') }}
+        </div>
+        <div *ngIf="apiDiagnostics.statsKeys.length > 0" style="margin-top:6px">
+          <strong>Stats keys:</strong> {{ apiDiagnostics.statsKeys.join(', ') }}
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <div class="stats-grid" *ngIf="currentTemperature && currentRisk">
+      <mat-card class="stat-card temperature-card">
+        <div class="stat-icon"><mat-icon>thermostat</mat-icon></div>
         <div class="stat-content">
           <span class="stat-label">Current Temperature</span>
           <strong class="stat-value">{{ currentTemperature.temperature }}°C</strong>
-          <small class="stat-sub">Feels like {{ currentTemperature.feelsLike }}°C</small>
+          <small class="stat-sub">Feels like {{ currentTemperature.feelsLike ?? '—' }}°C</small>
         </div>
       </mat-card>
-
-      <!-- Heat Risk -->
       <mat-card class="stat-card risk-card">
-        <div class="stat-icon">
-          <mat-icon>warning</mat-icon>
-        </div>
+        <div class="stat-icon"><mat-icon>warning</mat-icon></div>
         <div class="stat-content">
           <span class="stat-label">Heat Risk</span>
-          <strong class="stat-value" [style.color]="getRiskColor(currentRisk.riskLevel)">
-            {{ currentRisk.riskLevel | titlecase }}
-          </strong>
+          <strong class="stat-value" [style.color]="getRiskColor(currentRisk.riskLevel)">{{ currentRisk.riskLevel | titlecase }}</strong>
           <small class="stat-sub">Score: {{ currentRisk.riskScore }}/100</small>
         </div>
       </mat-card>
-
-      <!-- Humidity -->
       <mat-card class="stat-card humidity-card">
-        <div class="stat-icon">
-          <mat-icon>water_drop</mat-icon>
-        </div>
+        <div class="stat-icon"><mat-icon>water_drop</mat-icon></div>
         <div class="stat-content">
           <span class="stat-label">Humidity</span>
-          <strong class="stat-value">{{ currentTemperature.humidity }}%</strong>
+          <strong class="stat-value">{{ currentTemperature.humidity ?? '—' }}%</strong>
           <small class="stat-sub">Current level</small>
         </div>
       </mat-card>
-
-      <!-- Active Alerts -->
       <mat-card class="stat-card alerts-card">
-        <div class="stat-icon">
-          <mat-icon>notifications</mat-icon>
-        </div>
+        <div class="stat-icon"><mat-icon>notifications</mat-icon></div>
         <div class="stat-content">
           <span class="stat-label">Active Alerts</span>
           <strong class="stat-value">{{ alerts.length }}</strong>
@@ -89,74 +95,23 @@
       </mat-card>
     </div>
 
-    <!-- Risk Details -->
     <mat-card class="details-card" *ngIf="currentRisk">
-      <mat-card-header>
-        <mat-card-title>Risk Assessment</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        <p class="risk-reason">{{ currentRisk.reason }}</p>
-        <div class="risk-meta">
-          <small>Detected at: {{ formatDate(currentRisk.detectedAt) }}</small>
-        </div>
-      </mat-card-content>
+      <mat-card-header><mat-card-title>Risk Assessment</mat-card-title></mat-card-header>
+      <mat-card-content><p class="risk-reason">{{ currentRisk.reason }}</p><div class="risk-meta"><small>Detected at: {{ formatDate(currentRisk.detectedAt) }}</small></div></mat-card-content>
     </mat-card>
 
-    <!-- Recommendations -->
     <mat-card class="recommendations-card" *ngIf="recommendations.length > 0">
-      <mat-card-header>
-        <mat-card-title>Recommendations</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        <div class="recommendations-list">
-          <div *ngFor="let rec of recommendations" class="recommendation-item">
-            <div class="rec-header">
-              <mat-icon>lightbulb</mat-icon>
-              <strong>{{ rec.title }}</strong>
-              <span class="rec-priority" [style.background-color]="getPriorityColor(rec.priority)">
-                {{ rec.priority | titlecase }}
-              </span>
-            </div>
-            <p class="rec-description">{{ rec.description }}</p>
-            <ul class="rec-actions">
-              <li *ngFor="let action of rec.actionItems">{{ action }}</li>
-            </ul>
-          </div>
-        </div>
-      </mat-card-content>
+      <mat-card-header><mat-card-title>Recommendations</mat-card-title></mat-card-header>
+      <mat-card-content><div class="recommendations-list"><div *ngFor="let rec of recommendations" class="recommendation-item"><div class="rec-header"><mat-icon>lightbulb</mat-icon><strong>{{ rec.title }}</strong><span class="rec-priority" [style.background-color]="getPriorityColor(rec.priority)">{{ rec.priority | titlecase }}</span></div><p class="rec-description">{{ rec.description }}</p><ul class="rec-actions"><li *ngFor="let action of rec.actionItems">{{ action }}</li></ul></div></div></mat-card-content>
     </mat-card>
 
-    <!-- Alerts -->
     <mat-card class="alerts-card" *ngIf="alerts.length > 0">
-      <mat-card-header>
-        <mat-card-title>Active Alerts</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        <div class="alerts-list">
-          <div *ngFor="let alert of alerts" class="alert-item">
-            <div class="alert-header">
-              <mat-icon [style.color]="alert.severity === 'critical' ? '#b71c1c' : '#f57c00'">
-                error
-              </mat-icon>
-              <strong>{{ alert.title }}</strong>
-              <span class="alert-severity">{{ alert.severity | titlecase }}</span>
-            </div>
-            <p class="alert-message">{{ alert.message }}</p>
-            <small class="alert-time">{{ formatDate(alert.createdAt) }}</small>
-          </div>
-        </div>
-      </mat-card-content>
+      <mat-card-header><mat-card-title>Active Alerts</mat-card-title></mat-card-header>
+      <mat-card-content><div class="alerts-list"><div *ngFor="let alert of alerts" class="alert-item"><div class="alert-header"><mat-icon [style.color]="alert.severity === 'critical' ? '#b71c1c' : '#f57c00'">error</mat-icon><strong>{{ alert.title }}</strong><span class="alert-severity">{{ alert.severity | titlecase }}</span></div><p class="alert-message">{{ alert.message }}</p><small class="alert-time">{{ formatDate(alert.createdAt) }}</small></div></div></mat-card-content>
     </mat-card>
 
-    <!-- No Data State -->
     <mat-card class="no-data-card" *ngIf="!currentTemperature">
-      <mat-card-content>
-        <div class="no-data-content">
-          <mat-icon>info</mat-icon>
-          <h3>No Temperature Data Available</h3>
-          <p>Select a farm and zone to view heat intelligence data.</p>
-        </div>
-      </mat-card-content>
+      <mat-card-content><div class="no-data-content"><mat-icon>info</mat-icon><h3>No Temperature Data Available</h3><p>Select a farm and zone to view heat intelligence data.</p></div></mat-card-content>
     </mat-card>
   </div>
 </div>
