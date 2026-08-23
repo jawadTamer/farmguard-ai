@@ -7,6 +7,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { FarmService } from '../../../core/services/farm.service';
 import { ZoneService } from '../../../core/services/zone.service';
@@ -35,6 +36,7 @@ import L from 'leaflet';
     MatSelectModule,
     MatFormFieldModule,
     MatChipsModule,
+    MatTooltipModule,
   ],
   templateUrl: './heatmap.component.html',
   styleUrl: './heatmap.component.css',
@@ -142,44 +144,18 @@ export class HeatmapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private getSelectedCoordinates(): {
-  latitude: number;
-  longitude: number;
-} | null {
+    latitude: number;
+    longitude: number;
+  } | null {
 
-  // 1. Selected Zone
-  if (this.selectedZoneId) {
-    const zone = this.zones.find(
-      (item) => item.id === this.selectedZoneId,
-    );
-
-    const latitude = Number(zone?.latitude);
-    const longitude = Number(zone?.longitude);
-
-    if (
-      Number.isFinite(latitude) &&
-      Number.isFinite(longitude)
-    ) {
-      return {
-        latitude,
-        longitude,
-      };
-    }
-  }
-
-  // 2. Selected Farm
-  if (this.selectedFarmId) {
-    const farm = this.farms.find(
-      (item) => item.id === this.selectedFarmId,
-    );
-
-    if (farm) {
-      const latitude = Number(
-        (farm as any).latitude,
+    // 1. Selected Zone
+    if (this.selectedZoneId) {
+      const zone = this.zones.find(
+        (item) => item.id === this.selectedZoneId,
       );
 
-      const longitude = Number(
-        (farm as any).longitude,
-      );
+      const latitude = Number(zone?.latitude);
+      const longitude = Number(zone?.longitude);
 
       if (
         Number.isFinite(latitude) &&
@@ -191,63 +167,91 @@ export class HeatmapComponent implements OnInit, AfterViewInit, OnDestroy {
         };
       }
     }
+
+    // 2. Selected Farm
+    if (this.selectedFarmId) {
+      const farm = this.farms.find(
+        (item) => item.id === this.selectedFarmId,
+      );
+
+      if (farm) {
+        const latitude = Number(
+          (farm as any).latitude,
+        );
+
+        const longitude = Number(
+          (farm as any).longitude,
+        );
+
+        if (
+          Number.isFinite(latitude) &&
+          Number.isFinite(longitude)
+        ) {
+          return {
+            latitude,
+            longitude,
+          };
+        }
+      }
+    }
+
+    // 3. First Zone with valid coordinates
+    const firstZone = this.zones.find((zone) => {
+      const latitude = Number(zone.latitude);
+      const longitude = Number(zone.longitude);
+
+      return (
+        Number.isFinite(latitude) &&
+        Number.isFinite(longitude)
+      );
+    });
+
+    if (firstZone && firstZone.latitude !== undefined && firstZone.longitude !== undefined) {
+      const latitude = Number(firstZone.latitude);
+      const longitude = Number(firstZone.longitude);
+
+      if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+        return {
+          latitude,
+          longitude,
+        };
+      }
+    }
+
+    // 4. First Farm with valid coordinates
+    const firstFarm = this.farms.find((farm) => {
+      const latitude = Number(
+        (farm as any).latitude,
+      );
+
+      const longitude = Number(
+        (farm as any).longitude,
+      );
+
+      return (
+        Number.isFinite(latitude) &&
+        Number.isFinite(longitude)
+      );
+    });
+
+    if (firstFarm) {
+      const latitude = Number(
+        (firstFarm as any).latitude,
+      );
+
+      const longitude = Number(
+        (firstFarm as any).longitude,
+      );
+
+      return {
+        latitude,
+        longitude,
+      };
+    }
+
+    // No valid coordinates found
+    return null;
   }
-
-  // 3. First Zone with valid coordinates
-  const firstZone = this.zones.find((zone) => {
-    const latitude = Number(zone.latitude);
-    const longitude = Number(zone.longitude);
-
-    return (
-      Number.isFinite(latitude) &&
-      Number.isFinite(longitude)
-    );
-  });
-
-  if (firstZone) {
-    const latitude = Number(firstZone.latitude);
-    const longitude = Number(firstZone.longitude);
-
-    return {
-      latitude,
-      longitude,
-    };
-  }
-
-  // 4. First Farm with valid coordinates
-  const firstFarm = this.farms.find((farm) => {
-    const latitude = Number(
-      (farm as any).latitude,
-    );
-
-    const longitude = Number(
-      (farm as any).longitude,
-    );
-
-    return (
-      Number.isFinite(latitude) &&
-      Number.isFinite(longitude)
-    );
-  });
-
-  if (firstFarm) {
-    const latitude = Number(
-      (firstFarm as any).latitude,
-    );
-
-    const longitude = Number(
-      (firstFarm as any).longitude,
-    );
-
-    return {
-      latitude,
-      longitude,
-    };
-  }
-
-  // No valid coordinates found
-  return null;
-}
 
   private async loadZones(): Promise<void> {
     if (!this.selectedFarmId) return;
@@ -287,59 +291,61 @@ export class HeatmapComponent implements OnInit, AfterViewInit, OnDestroy {
       ? this.zones.filter((zone) => zone.id === this.selectedZoneId)
       : this.zones;
 
-const map = this.map;
+    const map = this.map;
 
-if (!map) {
-  console.warn('[Heatmap] Cannot add zone markers: map is not initialized');
-  return;
-}
+    if (!map) {
+      console.warn('[Heatmap] Cannot add zone markers: map is not initialized');
+      return;
+    }
 
-zonesToDisplay.forEach((zone) => {
-  const latitude = Number(zone.latitude);
-  const longitude = Number(zone.longitude);
+    zonesToDisplay.forEach((zone) => {
+      const latitude = Number(zone.latitude);
+      const longitude = Number(zone.longitude);
 
-  // Skip zones with invalid coordinates
-  if (
-    !Number.isFinite(latitude) ||
-    !Number.isFinite(longitude)
-  ) {
-    return;
-  }
+      // Skip zones with invalid coordinates
+      if (
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude)
+      ) {
+        return;
+      }
 
-  const risk = this.zoneRisks[zone.id];
+      const risk = this.zoneRisks[zone.id];
 
-  const riskLevel =
-    risk?.riskLevel ?? 'low';
+      const riskLevel =
+        risk?.riskLevel ?? 'low';
 
-  const color =
-    this.getRiskColor(riskLevel);
+      const color =
+        this.getRiskColor(riskLevel);
 
-  const radius =
-    this.getRiskRadius(riskLevel);
+      const radius =
+        this.getRiskRadius(riskLevel);
 
-  const marker = L.circleMarker(
-    [latitude, longitude],
-    {
-      radius,
-      fillColor: color,
-      color,
-      weight: 2,
-      opacity: 0.8,
-      fillOpacity: 0.5,
-    },
-  );
+      const marker = L.circleMarker(
+        [latitude, longitude],
+        {
+          radius,
+          fillColor: color,
+          color,
+          weight: 2,
+          opacity: 0.8,
+          fillOpacity: 0.5,
+        },
+      );
 
-  marker.bindPopup(
-    this.createPopupContent(
-      zone,
-      risk,
-    ),
-  );
+      marker.bindPopup(
+        this.createPopupContent(
+          zone,
+          risk,
+        ),
+      );
 
-  marker.addTo(map);
+      if (this.map) {
+        marker.addTo(this.map);
+      }
 
-  this.markers.push(marker);
-});
+      this.markers.push(marker);
+    });
 
     if (this.markers.length > 0) {
       this.map.fitBounds(L.featureGroup(this.markers).getBounds().pad(0.1));
@@ -366,6 +372,57 @@ zonesToDisplay.forEach((zone) => {
       high: this.risks.filter((r) => r.riskLevel === 'high').length,
       critical: this.risks.filter((r) => r.riskLevel === 'critical').length,
     };
+  }
+
+  openFullscreen(imageUrl: string): void {
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Fullscreen Image</title>
+          <style>
+            body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #000; }
+            img { max-width: 100%; max-height: 100vh; object-fit: contain; }
+          </style>
+        </head>
+        <body>
+          <img src="${imageUrl}" alt="Fullscreen view" />
+        </body>
+        </html>
+      `);
+      newWindow.document.close();
+    }
+  }
+
+  getSegmentClass(segmentKey: string): string {
+    const key = segmentKey.toLowerCase();
+    if (key.includes('tree')) return 'tree';
+    if (key.includes('building')) return 'building';
+    if (key.includes('road') || key.includes('route')) return 'road';
+    if (key.includes('earth') || key.includes('ground')) return 'earth';
+    if (key.includes('other')) return 'others';
+    return 'others';
+  }
+
+  getSegmentIcon(segmentKey: string): string {
+    const key = segmentKey.toLowerCase();
+    if (key.includes('tree')) return 'park';
+    if (key.includes('building')) return 'apartment';
+    if (key.includes('road') || key.includes('route')) return 'route';
+    if (key.includes('earth') || key.includes('ground')) return 'terrain';
+    if (key.includes('other')) return 'category';
+    return 'category';
+  }
+
+  formatSegmentName(segmentKey: string): string {
+    return segmentKey
+      .replace(/_/g, ' ')
+      .replace(/([A-Z])/g, ' $1')
+      .trim()
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
   ngOnDestroy(): void {

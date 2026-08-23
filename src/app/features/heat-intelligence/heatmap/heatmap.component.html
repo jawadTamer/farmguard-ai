@@ -67,29 +67,71 @@
         <div *ngIf="satelliteError" class="satellite-error">{{ satelliteError }}</div>
 
         <div *ngIf="satellite && !isSatelliteLoading" class="satellite-result">
-          <h2>Satellite Segmentation</h2>
-          <p *ngIf="satellite.imageYear">Imagery year: {{ satellite.imageYear }}</p>
+          <div class="satellite-header">
+            <div>
+              <h2>Satellite Segmentation</h2>
+              <p *ngIf="satellite.imageYear" class="satellite-meta">
+                <mat-icon>calendar_today</mat-icon>
+                Imagery year: {{ satellite.imageYear }}
+              </p>
+            </div>
+            <div *ngIf="satellite.processingTimeSeconds" class="processing-time">
+              <mat-icon>schedule</mat-icon>
+              {{ satellite.processingTimeSeconds }}s processing time
+            </div>
+          </div>
 
           <div class="satellite-images">
             <div *ngIf="satellite.originalImage" class="satellite-image-panel">
-              <h3>Original Satellite Image</h3>
-              <img [src]="satellite.originalImage" alt="Original satellite image" />
+              <div class="image-header">
+                <h3>Original Satellite Image</h3>
+                <button mat-icon-button class="fullscreen-btn" mat-tooltip="View fullscreen" (click)="openFullscreen(satellite.originalImage)">
+                  <mat-icon>fullscreen</mat-icon>
+                </button>
+              </div>
+              <div class="image-container">
+                <img [src]="satellite.originalImage" alt="Original satellite image" />
+              </div>
             </div>
 
             <div *ngIf="satellite.segmentedImage" class="satellite-image-panel">
-              <h3>Segmentation Result</h3>
-              <img [src]="satellite.segmentedImage" alt="Satellite segmentation result" />
+              <div class="image-header">
+                <h3>Segmentation Result</h3>
+                <button mat-icon-button class="fullscreen-btn" mat-tooltip="View fullscreen" (click)="openFullscreen(satellite.segmentedImage)">
+                  <mat-icon>fullscreen</mat-icon>
+                </button>
+              </div>
+              <div class="image-container">
+                <img [src]="satellite.segmentedImage" alt="Satellite segmentation result" />
+              </div>
             </div>
           </div>
 
           <div *ngIf="!satellite.originalImage && !satellite.segmentedImage" class="satellite-error">
-            FortyGuard completed the analysis, but no image content was returned for this location.
+            <mat-icon>image_not_supported</mat-icon>
+            <p>FortyGuard completed the analysis, but no image content was returned for this location.</p>
           </div>
 
           <div *ngIf="satellite.segments && (satellite.segments | keyvalue).length" class="segments-list">
-            <h3>Detected Coverage</h3>
-            <div class="segment-item" *ngFor="let segment of satellite.segments | keyvalue">
-              <span>{{ segment.key }}</span><strong>{{ segment.value }}%</strong>
+            <div class="segments-header">
+              <h3>Detected Coverage</h3>
+              <div class="segments-count">{{ (satellite.segments | keyvalue).length }} categories detected</div>
+            </div>
+            <div class="segments-grid">
+              <div class="segment-item" *ngFor="let segment of satellite.segments | keyvalue" [ngClass]="'segment-' + getSegmentClass(segment.key)">
+                <div class="segment-info">
+                  <div class="segment-icon">
+                    <mat-icon>{{ getSegmentIcon(segment.key) }}</mat-icon>
+                  </div>
+                  <div class="segment-details">
+                    <span class="segment-name">{{ formatSegmentName(segment.key) }}</span>
+                    <span class="segment-value">{{ segment.value }}%</span>
+                  </div>
+                </div>
+                <div class="segment-bar">
+                  <div class="segment-progress" [style.width.%]="segment.value"></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
