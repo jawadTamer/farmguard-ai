@@ -111,7 +111,13 @@ export class TemperatureComponent implements OnInit {
   }
 
   getSafeValue(value: number | undefined | null): string {
-    return value === undefined || value === null || !Number.isFinite(value) ? '—' : value.toString();
+    return value === undefined || value === null || !Number.isFinite(value) ? '—' : this.formatOneDecimal(value);
+  }
+
+  formatOneDecimal(value: number | undefined | null): string {
+    if (value === undefined || value === null || !Number.isFinite(value)) return '—';
+    // Keep the first digit after the decimal instead of rounding up.
+    return (Math.trunc(Number(value) * 10) / 10).toFixed(1);
   }
 
   getSourceLabel(source: string | undefined): string {
