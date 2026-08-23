@@ -20,6 +20,14 @@ interface FortyGuardCurrentResponse {
   featuresCount?: number;
   resultKeys?: string[];
   statsKeys?: string[];
+  environmentalError?: unknown;
+  pipeline?: {
+    heatmapSubmitted: boolean;
+    heatmapCompleted: boolean;
+    temperatureExtracted: boolean;
+    environmentalSubmitted: boolean;
+    environmentalCompleted: boolean;
+  };
 }
 
 interface FortyGuardResponse {
@@ -30,7 +38,6 @@ interface FortyGuardResponse {
   message?: string;
   status?: number;
   endpoint?: string;
-  diagnostics?: TemperatureDiagnostics;
 }
 
 export class FortyGuardTemperatureProvider implements TemperatureProvider {
@@ -56,7 +63,7 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
 
     if (error) {
       console.error('[FortyGuard] Edge Function invocation failed:', error);
-      throw new Error(`FortyGuard Edge Function error: ${error.message || 'Unknown error'}`);
+      throw new Error(await this.formatFunctionError(error));
     }
 
     console.log('[FortyGuard] Proxy response:', data);
@@ -99,7 +106,15 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
       diagnostics,
     };
 
-    console.log('[FortyGuard] Completed result mapped to TemperatureReading:', reading);
+    console.log('[FortyGuard] RESULT VERIFIED', {
+      success: data.success,
+      temperature: reading.temperature,
+      humidity: reading.humidity,
+      heatIndex: reading.heatIndex,
+      activityId: reading.diagnostics?.heatmapActivityId,
+      environmentalActivityId: reading.diagnostics?.environmentalActivityId,
+      pipeline: current.pipeline,
+    });
 
     await this.saveTemperatureReading(reading);
     return reading;
@@ -178,9 +193,27 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
       },
     });
 
-    if (error) throw new Error(`FortyGuard Edge Function error: ${error.message}`);
+    if (error) throw new Error(await this.formatFunctionError(error));
     if (!data?.success || !data?.data) throw new Error(data?.message ?? data?.error ?? 'Invalid environmental response.');
     return data.data;
+  }
+
+  private async formatFunctionError(error: any): Promise<string> {
+    let detail = '';
+
+    try {
+      const response = error?.context as Response | undefined;
+      if (response) {
+        const body = await response.clone().json().catch(() => null);
+        if (body) {
+          detail = ` | ${JSON.stringify(body)}`;
+        }
+      }
+    } catch {
+      // Keep the normal Supabase error message when the response body is unavailable.
+    }
+
+    return `FortyGuard Edge Function error: ${error?.message || 'Unknown error'}${detail}`;
   }
 
   private async getCoordinates(farmId: string, zoneId?: string): Promise<{ latitude: number; longitude: number } | null> {
