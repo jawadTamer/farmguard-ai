@@ -1,513 +1,135 @@
 <div class="dashboard-container">
-
-  <!-- ========================================= -->
-  <!-- Header -->
-  <!-- ========================================= -->
-
   <div class="dashboard-header">
-
     <div>
-      <div class="eyebrow">
-        FARM INTELLIGENCE
-      </div>
-
-      <h1>
-        Good morning, {{ userName }} 🌱
-      </h1>
-
-      <p>
-        Monitor your farms, crops and temperature risks from one place.
-      </p>
+      <div class="eyebrow">FARM INTELLIGENCE</div>
+      <h1>Good morning, {{ userName }} 🌱</h1>
+      <p>Monitor your farms, crops and temperature risks from one place.</p>
     </div>
-
     <div class="header-actions">
-
-      <button
-        mat-stroked-button
-        class="date-button">
-
-        <mat-icon>calendar_today</mat-icon>
-
-        {{ currentDate | date:'MMM d, y' }}
-
-      </button>
-
-      <button
-        mat-flat-button
-        color="primary"
-        routerLink="/farms/create">
-
-        <mat-icon>add</mat-icon>
-
-        Add Farm
-
-      </button>
-
+      <button mat-stroked-button class="date-button"><mat-icon>calendar_today</mat-icon>{{ currentDate | date:'MMM d, y' }}</button>
+      <button mat-flat-button color="primary" routerLink="/farms/create"><mat-icon>add</mat-icon>Add Farm</button>
     </div>
-
   </div>
-
-
-  <!-- ========================================= -->
-  <!-- Current Temperature Banner -->
-  <!-- ========================================= -->
 
   <mat-card class="temperature-banner">
-
     <div class="temperature-main">
-
-      <div class="temperature-icon">
-        <mat-icon>thermostat</mat-icon>
-      </div>
-
+      <div class="temperature-icon"><mat-icon>thermostat</mat-icon></div>
       <div>
-
-        <span class="section-label">
-          CURRENT TEMPERATURE
-        </span>
-
-        <div class="temperature-value">
-          {{ currentTemperature | number:'1.1-1' }}<span>°C</span>
-        </div>
-
-        <div class="temperature-feels">
-          Feels like {{ feelsLike | number:'1.1-1' }}°C
-        </div>
-
+        <span class="section-label">CURRENT TEMPERATURE</span>
+        <div class="temperature-value">{{ formatTemperature(currentTemperature) }}<span>°C</span></div>
+        <div class="temperature-feels">Feels like {{ formatTemperature(feelsLike) }}°C</div>
       </div>
-
     </div>
-
-
     <div class="temperature-status">
-
       <div class="status-indicator"></div>
-
-      <div>
-
-        <strong>
-          {{ temperatureStatus }}
-        </strong>
-
-        <p>
-          {{ temperatureDescription }}
-        </p>
-
-      </div>
-
+      <div><strong>{{ temperatureStatus }}</strong><p>{{ temperatureDescription }}</p></div>
     </div>
-
-
-    <button
-      mat-stroked-button
-      routerLink="/heat-intelligence">
-
-      View Intelligence
-
-      <mat-icon>arrow_forward</mat-icon>
-
-    </button>
-
+    <button mat-stroked-button routerLink="/heat-intelligence">View Intelligence <mat-icon>arrow_forward</mat-icon></button>
   </mat-card>
-
-
-  <!-- ========================================= -->
-  <!-- Statistics -->
-  <!-- ========================================= -->
 
   <div class="stats-grid">
-
     @for (stat of stats; track stat.title) {
-
       <mat-card class="stat-card">
-
         <div class="stat-top">
-
-          <div
-            class="stat-icon"
-            [class]="getStatusClass(stat.status)">
-
-            <mat-icon>
-              {{ stat.icon }}
-            </mat-icon>
-
-          </div>
-
-          @if (stat.status === 'danger') {
-
-            <span class="stat-badge danger">
-              Attention
-            </span>
-
-          }
-
+          <div class="stat-icon" [class]="getStatusClass(stat.status)"><mat-icon>{{ stat.icon }}</mat-icon></div>
+          @if (stat.status === 'danger') { <span class="stat-badge danger">Attention</span> }
         </div>
-
-
-        <div class="stat-value">
-          {{ stat.value }}
-        </div>
-
-        <div class="stat-title">
-          {{ stat.title }}
-        </div>
-
-        <div class="stat-subtitle">
-          {{ stat.subtitle }}
-        </div>
-
+        <div class="stat-value">{{ stat.value }}</div>
+        <div class="stat-title">{{ stat.title }}</div>
+        <div class="stat-subtitle">{{ stat.subtitle }}</div>
       </mat-card>
-
     }
-
   </div>
-
-
-  <!-- ========================================= -->
-  <!-- Main Grid -->
-  <!-- ========================================= -->
 
   <div class="main-grid">
-
-
-    <!-- ======================================= -->
-    <!-- Temperature Trend -->
-    <!-- ======================================= -->
-
     <mat-card class="dashboard-card temperature-chart-card">
-
       <div class="card-header">
-
         <div>
-
-          <span class="section-label">
-            TEMPERATURE
-          </span>
-
-          <h2>
-            Today's temperature trend
-          </h2>
-
+          <span class="section-label">TEMPERATURE</span>
+          <h2>Today's temperature trend</h2>
+          <p class="chart-status" [class.error]="trendError">{{ trendStatus }}</p>
         </div>
-
-        <button
-          mat-icon-button
-          [matMenuTriggerFor]="chartMenu">
-
-          <mat-icon>
-            more_vert
-          </mat-icon>
-
+        <button mat-icon-button (click)="refreshDashboard()" [disabled]="trendLoading || temperatureLoading" aria-label="Refresh dashboard trend">
+          <mat-icon [class.spinning]="trendLoading || temperatureLoading">refresh</mat-icon>
         </button>
-
-        <mat-menu #chartMenu="matMenu">
-
-          <button mat-menu-item>
-            Today
-          </button>
-
-          <button mat-menu-item>
-            Last 7 days
-          </button>
-
-          <button mat-menu-item>
-            Last 30 days
-          </button>
-
-        </mat-menu>
-
       </div>
 
-
-      <div class="chart-area">
-
-        <div class="chart-y-axis">
-
-          <span>45°</span>
-          <span>40°</span>
-          <span>35°</span>
-          <span>30°</span>
-          <span>25°</span>
-
+      @if (trendLoading) {
+        <div class="chart-state"><mat-icon class="spinning">sync</mat-icon><span>Loading today’s completed readings…</span></div>
+      } @else if (trendError) {
+        <div class="chart-state error"><mat-icon>error_outline</mat-icon><span>{{ trendError }}</span></div>
+      } @else if (!temperaturePoints.length) {
+        <div class="chart-state"><mat-icon>show_chart</mat-icon><span>No completed readings for today yet.</span></div>
+      } @else {
+        <div class="chart-summary">
+          <div><span>Latest</span><strong>{{ formatTemperature(temperaturePoints[temperaturePoints.length - 1].temperature) }}°C</strong></div>
+          <div><span>High</span><strong>{{ formatTemperature(getMaxTemperature()) }}°C</strong></div>
+          <div><span>Low</span><strong>{{ formatTemperature(getMinTemperature()) }}°C</strong></div>
         </div>
-
-
-        <div class="chart-content">
-
-          <div class="chart-grid">
-
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-
+        <div class="chart-area">
+          <div class="chart-y-axis">
+            @for (axis of getTrendAxisValues(); track axis) { <span>{{ axis }}°</span> }
           </div>
-
-
-          <div class="temperature-bars">
-
-            @for (
-              point of temperaturePoints;
-              track point.time
-            ) {
-
-              <div class="temperature-column">
-
-                <div
-                  class="temperature-bar"
-                  [style.height.%]="
-                    ((point.temperature - 20) / 25) * 100
-                  ">
-
-                  <span>
-                    {{ point.temperature | number:'1.1-1' }}°
-                  </span>
-
+          <div class="chart-content">
+            <div class="chart-grid">
+              @for (axis of getTrendAxisValues(); track axis) { <span></span> }
+            </div>
+            <div class="temperature-bars">
+              @for (point of temperaturePoints; track point.timestamp) {
+                <div class="temperature-column">
+                  <div class="temperature-bar" [style.height.%]="getTrendBarHeight(point.temperature)" [attr.title]="point.time + ' · ' + formatTemperature(point.temperature) + '°C'">
+                    <span>{{ formatTemperature(point.temperature) }}°</span>
+                  </div>
+                  <small>{{ point.time }}</small>
                 </div>
-
-                <small>
-                  {{ point.time }}
-                </small>
-
-              </div>
-
-            }
-
+              }
+            </div>
           </div>
-
         </div>
-
-      </div>
-
+      }
     </mat-card>
-
-
-    <!-- ======================================= -->
-    <!-- Heat Risk -->
-    <!-- ======================================= -->
 
     <mat-card class="dashboard-card risk-card">
-
       <div class="card-header">
-
-        <div>
-
-          <span class="section-label">
-            RISK MONITORING
-          </span>
-
-          <h2>
-            Areas at risk
-          </h2>
-
-        </div>
-
-        <button
-          mat-button
-          routerLink="/heat-intelligence/heatmap">
-
-          View map
-
-          <mat-icon>
-            arrow_forward
-          </mat-icon>
-
-        </button>
-
+        <div><span class="section-label">RISK MONITORING</span><h2>Areas at risk</h2></div>
+        <button mat-button routerLink="/heat-intelligence/heatmap">View map <mat-icon>arrow_forward</mat-icon></button>
       </div>
-
-
       <div class="risk-list">
-
         @for (area of riskAreas; track area.name) {
-
           <div class="risk-item">
-
-            <div class="risk-icon">
-
-              <mat-icon>
-                location_on
-              </mat-icon>
-
-            </div>
-
-
-            <div class="risk-info">
-
-              <strong>
-                {{ area.name }}
-              </strong>
-
-              <span>
-                {{ area.type }}
-              </span>
-
-            </div>
-
-
-            <div class="risk-temperature">
-
-              <strong>
-                {{ area.temperature | number:'1.1-1' }}°C
-              </strong>
-
-              <span
-                class="risk-level"
-                [class]="getRiskClass(area.level)">
-
-                {{ area.level }}
-
-              </span>
-
-            </div>
-
+            <div class="risk-icon"><mat-icon>location_on</mat-icon></div>
+            <div class="risk-info"><strong>{{ area.name }}</strong><span>{{ area.type }}</span></div>
+            <div class="risk-temperature"><strong>{{ formatTemperature(area.temperature) }}°C</strong><span class="risk-level" [class]="getRiskClass(area.level)">{{ area.level }}</span></div>
           </div>
-
         }
-
       </div>
-
     </mat-card>
-
   </div>
-
-
-  <!-- ========================================= -->
-  <!-- AI Recommendations -->
-  <!-- ========================================= -->
 
   <mat-card class="dashboard-card recommendations-card">
-
     <div class="card-header">
-
-      <div>
-
-        <span class="section-label">
-          AI-POWERED INTELLIGENCE
-        </span>
-
-        <h2>
-          Today's recommendations
-        </h2>
-
-      </div>
-
-      <button
-        mat-stroked-button
-        routerLink="/recommendations">
-
-        View all
-
-        <mat-icon>
-          arrow_forward
-        </mat-icon>
-
-      </button>
-
+      <div><span class="section-label">AI-POWERED INTELLIGENCE</span><h2>Today's recommendations</h2></div>
+      <button mat-stroked-button routerLink="/recommendations">View all <mat-icon>arrow_forward</mat-icon></button>
     </div>
-
-
     <div class="recommendations-grid">
-
-      @for (
-        recommendation of recommendations;
-        track recommendation.title
-      ) {
-
+      @for (recommendation of recommendations; track recommendation.title) {
         <div class="recommendation-item">
-
-          <div class="recommendation-icon">
-
-            <mat-icon>
-              {{ recommendation.icon }}
-            </mat-icon>
-
-          </div>
-
-
+          <div class="recommendation-icon"><mat-icon>{{ recommendation.icon }}</mat-icon></div>
           <div class="recommendation-content">
-
-            <div class="recommendation-title">
-
-              <strong>
-                {{ recommendation.title }}
-              </strong>
-
-              <span>
-                {{ recommendation.priority }}
-              </span>
-
-            </div>
-
-            <p>
-              {{ recommendation.description }}
-            </p>
-
+            <div class="recommendation-title"><strong>{{ recommendation.title }}</strong><span>{{ recommendation.priority }}</span></div>
+            <p>{{ recommendation.description }}</p>
           </div>
-
         </div>
-
       }
-
     </div>
-
   </mat-card>
 
-
-  <!-- ========================================= -->
-  <!-- Quick Actions -->
-  <!-- ========================================= -->
-
   <div class="quick-actions-section">
-
-    <div class="section-heading">
-
-      <div>
-
-        <span class="section-label">
-          QUICK ACTIONS
-        </span>
-
-        <h2>
-          Manage your farm
-        </h2>
-
-      </div>
-
-    </div>
-
-
+    <div class="section-heading"><div><span class="section-label">QUICK ACTIONS</span><h2>Manage your farm</h2></div></div>
     <div class="quick-actions-grid">
-
-      @for (
-        action of quickActions;
-        track action.label
-      ) {
-
-        <button
-          mat-stroked-button
-          class="quick-action"
-          [routerLink]="action.route">
-
-          <mat-icon>
-            {{ action.icon }}
-          </mat-icon>
-
-          <span>
-            {{ action.label }}
-          </span>
-
-          <mat-icon class="arrow">
-            arrow_forward
-          </mat-icon>
-
-        </button>
-
+      @for (action of quickActions; track action.label) {
+        <button mat-stroked-button class="quick-action" [routerLink]="action.route"><mat-icon>{{ action.icon }}</mat-icon><span>{{ action.label }}</span><mat-icon class="arrow">arrow_forward</mat-icon></button>
       }
-
     </div>
-
   </div>
-
 </div>
