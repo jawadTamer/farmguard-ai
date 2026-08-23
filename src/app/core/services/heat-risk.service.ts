@@ -49,7 +49,7 @@ export class HeatRiskService {
     try {
       const { error } = await this.supabaseService.client.from('risk_assessments').insert({
         farm_id: risk.farmId, zone_id: risk.zoneId ?? null, crop_id: risk.cropId ?? null,
-        risk_type: 'heat', risk_level: risk.riskLevel, risk_score: Math.round(risk.riskScore),
+        risk_type: 'heat', risk_level: risk.riskLevel, risk_score: Math.round(risk.riskScore ?? 0),
         temperature: risk.temperature, reason: risk.reason, calculated_at: risk.detectedAt
       });
       if (error) throw error;
