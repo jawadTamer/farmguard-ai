@@ -1,284 +1,55 @@
-.temperature-page {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  gap: 16px;
-}
-
-.loading-state p {
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.page-header h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
-  font-weight: 700;
-  color: #1f2937;
-}
-
-.page-header p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.selection-section {
-  margin-bottom: 24px;
-}
-
-.selection-row {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.farm-select,
-.zone-select {
-  flex: 1;
-  min-width: 250px;
-}
-
-.current-temp-card {
-  margin-bottom: 24px;
-}
-
-.current-temp-card mat-card-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.refresh-button {
-  margin-left: auto;
-}
-
-.refresh-button mat-icon.spinning {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.temp-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 32px;
-}
-
-.temp-loading span {
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.temp-error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 32px;
-  text-align: center;
-}
-
-.temp-error mat-icon.error-icon {
-  font-size: 48px;
-  width: 48px;
-  height: 48px;
-  color: #ef4444;
-}
-
-.temp-error h3 {
-  margin: 0;
-  color: #374151;
-  font-size: 18px;
-}
-
-.temp-error p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.temp-no-data {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 32px;
-  text-align: center;
-}
-
-.temp-no-data mat-icon {
-  font-size: 48px;
-  width: 48px;
-  height: 48px;
-  color: #9ca3af;
-}
-
-.temp-no-data h3 {
-  margin: 0;
-  color: #374151;
-  font-size: 18px;
-}
-
-.temp-no-data p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.temp-display {
-  display: flex;
-  gap: 32px;
-  align-items: center;
-}
-
-.temp-main {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.temp-value {
-  font-size: 64px;
-  font-weight: 700;
-  color: #1f2937;
-}
-
-.temp-label {
-  font-size: 16px;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.temp-details {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.temp-detail {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  background: #f9fafb;
-  border-radius: 6px;
-}
-
-.detail-label {
-  font-size: 14px;
-  color: #6b7280;
-}
-
-.detail-value {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.no-data-card {
-  text-align: center;
-}
-
-.no-data-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 32px;
-}
-
-.no-data-content mat-icon {
-  font-size: 48px;
-  width: 48px;
-  height: 48px;
-  color: #9ca3af;
-}
-
-.no-data-content h3 {
-  margin: 0;
-  color: #374151;
-  font-size: 18px;
-}
-
-.no-data-content p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.history-card {
-  margin-bottom: 24px;
-}
-
-.history-table {
-  width: 100%;
-}
-
-.source-badge {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.source-fortyguard {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.source-mock {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.source-unknown {
-  background: #e5e7eb;
-  color: #374151;
-}
-
-@media (max-width: 768px) {
-  .temperature-page {
-    padding: 16px;
-  }
-
-  .temp-display {
-    flex-direction: column;
-    gap: 24px;
-  }
-
-  .temp-value {
-    font-size: 48px;
-  }
-
-  .selection-row {
-    flex-direction: column;
-  }
-
-  .farm-select,
-  .zone-select {
-    width: 100%;
-  }
-}
+.temperature-page { max-width: 1400px; margin: 0 auto; padding: 24px; }
+.loading-state { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:400px; gap:16px; }
+.loading-state p { color:#6b7280; font-size:14px; }
+.page-header { margin-bottom:24px; }
+.page-header h1 { margin:0 0 8px; font-size:28px; font-weight:700; color:#1f2937; }
+.page-header p { margin:0; color:#6b7280; font-size:14px; }
+.selection-section { margin-bottom:24px; }
+.selection-row { display:flex; gap:16px; flex-wrap:wrap; }
+.farm-select,.zone-select { flex:1; min-width:250px; }
+.pipeline-card { margin-bottom:24px; border:1px solid #dbeafe; }
+.pipeline-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; }
+.pipeline-kicker { font-size:11px; font-weight:800; letter-spacing:1px; color:#2563eb; }
+.pipeline-head h2 { margin:4px 0 0; font-size:20px; color:#1f2937; }
+.result-badge { display:inline-flex; align-items:center; gap:6px; padding:8px 12px; border-radius:999px; background:#dcfce7; color:#166534; font-size:12px; font-weight:800; }
+.result-badge.pending { background:#fef3c7; color:#92400e; }
+.pipeline-steps { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
+.step { display:inline-flex; align-items:center; gap:6px; padding:8px 10px; border-radius:8px; background:#f3f4f6; color:#6b7280; font-size:12px; font-weight:700; }
+.step.done { background:#ecfdf5; color:#166534; }
+.step mat-icon { font-size:16px; width:16px; height:16px; }
+.arrow { color:#9ca3af; font-weight:700; }
+.diagnostics-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.diagnostics-grid > div { padding:10px 12px; border-radius:8px; background:#f8fafc; min-width:0; }
+.diagnostics-grid span { display:block; color:#64748b; font-size:11px; margin-bottom:4px; }
+.diagnostics-grid strong { display:block; color:#0f172a; font-size:12px; overflow-wrap:anywhere; }
+.current-temp-card { margin-bottom:24px; }
+.current-temp-card mat-card-title { display:flex; justify-content:space-between; align-items:center; }
+.refresh-button { margin-left:auto; }
+.refresh-button mat-icon.spinning { animation:spin 1s linear infinite; }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+.temp-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:32px; text-align:center; }
+.temp-loading span { color:#6b7280; font-size:14px; }
+.temp-error { display:flex; flex-direction:column; align-items:center; gap:12px; padding:32px; text-align:center; }
+.temp-error mat-icon.error-icon { font-size:48px; width:48px; height:48px; color:#ef4444; }
+.temp-error h3 { margin:0; color:#374151; font-size:18px; }
+.temp-error p { margin:0; color:#6b7280; font-size:14px; max-width:850px; overflow-wrap:anywhere; }
+.temp-no-data { display:flex; flex-direction:column; align-items:center; gap:12px; padding:32px; text-align:center; }
+.temp-no-data mat-icon { font-size:48px; width:48px; height:48px; color:#9ca3af; }
+.temp-no-data h3 { margin:0; color:#374151; font-size:18px; }
+.temp-no-data p { margin:0; color:#6b7280; font-size:14px; }
+.temp-display { display:flex; gap:32px; align-items:center; }
+.temp-main { display:flex; flex-direction:column; align-items:center; gap:8px; min-width:220px; }
+.temp-value { font-size:64px; font-weight:700; color:#1f2937; }
+.temp-label { font-size:16px; color:#6b7280; text-transform:uppercase; letter-spacing:.5px; }
+.temp-details { flex:1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.temp-detail { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 12px; background:#f9fafb; border-radius:6px; }
+.detail-label { font-size:14px; color:#6b7280; }
+.detail-value { font-size:16px; font-weight:600; color:#1f2937; text-align:right; }
+.history-card { margin-bottom:24px; }
+.history-table { width:100%; }
+.source-badge { padding:4px 8px; border-radius:4px; font-size:12px; font-weight:600; text-transform:uppercase; }
+.source-fortyguard { background:#dcfce7; color:#166534; }
+.source-mock { background:#fef3c7; color:#92400e; }
+.source-unknown { background:#e5e7eb; color:#374151; }
+@media (max-width:900px) { .diagnostics-grid { grid-template-columns:repeat(2,1fr); } .temp-display { flex-direction:column; } .temp-details { width:100%; } }
+@media (max-width:768px) { .temperature-page{padding:16px} .temp-value{font-size:48px} .selection-row{flex-direction:column} .farm-select,.zone-select{width:100%} .temp-details,.diagnostics-grid{grid-template-columns:1fr} .pipeline-head{align-items:flex-start; flex-direction:column} }
