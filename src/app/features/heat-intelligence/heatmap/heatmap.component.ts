@@ -11,6 +11,11 @@ import { MatChipsModule } from '@angular/material/chips';
 import { FarmService } from '../../../core/services/farm.service';
 import { ZoneService } from '../../../core/services/zone.service';
 import { HeatRiskService } from '../../../core/services/heat-risk.service';
+import {
+  FortyGuardSatelliteProvider,
+  SatelliteSegmentationResult,
+} from '../../../core/providers/fortyguard-satellite.provider';
+import { SupabaseService } from '../../../core/services/supabase.service';
 
 import { Farm } from '../../../core/models/farm.model';
 import { FarmZone } from '../../../core/models/farm-zone.model';
@@ -29,31 +34,37 @@ import L from 'leaflet';
     MatProgressSpinnerModule,
     MatSelectModule,
     MatFormFieldModule,
-    MatChipsModule
+    MatChipsModule,
   ],
   templateUrl: './heatmap.component.html',
-  styleUrl: './heatmap.component.css'
+  styleUrl: './heatmap.component.css',
 })
 export class HeatmapComponent implements OnInit, AfterViewInit, OnDestroy {
   isLoading = true;
+  isSatelliteLoading = false;
+  satelliteError: string | null = null;
+  satellite: SatelliteSegmentationResult | null = null;
+
   farms: Farm[] = [];
   zones: FarmZone[] = [];
-
   selectedFarmId?: string;
   selectedZoneId?: string;
-
   risks: HeatRisk[] = [];
   zoneRisks: { [zoneId: string]: HeatRisk } = {};
 
   map?: L.Map;
   markers: L.CircleMarker[] = [];
   private viewInitialized = false;
+  private readonly satelliteProvider: FortyGuardSatelliteProvider;
 
   constructor(
     private farmService: FarmService,
     private zoneService: ZoneService,
-    private heatRiskService: HeatRiskService
-  ) {}
+    private heatRiskService: HeatRiskService,
+    supabaseService: SupabaseService,
+  ) {
+    this.satelliteProvider = new FortyGuardSatelliteProvider(supabaseService);
+  }
 
   async ngOnInit(): Promise<void> {
     await this.loadData();
@@ -61,12 +72,7 @@ export class HeatmapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.viewInitialized = true;
-
-    // The map element is inside *ngIf="!isLoading", so it does not exist
-    // during the first ngAfterViewInit call while data is still loading.
-    if (!this.isLoading) {
-      this.scheduleMapInitialization();
-    }
+    if (!this.isLoading) this.scheduleMapInitialization();
   }
 
   private scheduleMapInitialization(): void {
@@ -80,7 +86,6 @@ export class HeatmapComponent implements OnInit, AfterViewInit, OnDestroy {
   private async loadData(): Promise<void> {
     try {
       this.farms = await this.farmService.getFarms();
-
       if (this.farms.length > 0) {
         this.selectedFarmId = this.farms[0].id;
         await this.loadZones();
@@ -90,153 +95,157 @@ export class HeatmapComponent implements OnInit, AfterViewInit, OnDestroy {
       console.error('Failed to load data:', error);
     } finally {
       this.isLoading = false;
-
-      // Wait until Angular renders the !isLoading branch containing #heatmap-map.
-      if (this.viewInitialized) {
-        this.scheduleMapInitialization();
-      }
+      if (this.viewInitialized) this.scheduleMapInitialization();
     }
   }
 
   async onFarmChange(): Promise<void> {
-    if (this.selectedFarmId) {
-      await this.loadZones();
-      this.selectedZoneId = undefined;
-      await this.loadRisks();
-      this.updateMap();
-    }
-  }
-
-  async onZoneChange(): Promise<void> {
+    if (!this.selectedFarmId) return;
+    await this.loadZones();
+    this.selectedZoneId = undefined;
+    this.satellite = null;
+    this.satelliteError = null;
     await this.loadRisks();
     this.updateMap();
   }
 
-  private async loadZones(): Promise<void> {
-    if (this.selectedFarmId) {
-      this.zones = await this.zoneService.getZonesByFarm(this.selectedFarmId);
-      if (this.zones.length > 0) {
-        this.selectedZoneId = this.zones[0].id;
-      }
+  async onZoneChange(): Promise<void> {
+    this.satellite = null;
+    this.satelliteError = null;
+    await this.loadRisks();
+    this.updateMap();
+  }
+
+  async loadSatelliteSegmentation(): Promise<void> {
+    const coordinates = this.getSelectedCoordinates();
+    if (!coordinates) {
+      this.satelliteError = 'No latitude/longitude is configured for the selected farm or zone.';
+      return;
+    }
+
+    this.isSatelliteLoading = true;
+    this.satelliteError = null;
+
+    try {
+      this.satellite = await this.satelliteProvider.getSegmentation(
+        coordinates.latitude,
+        coordinates.longitude,
+      );
+    } catch (error) {
+      console.error('[Heatmap] Failed to load satellite segmentation:', error);
+      this.satelliteError = error instanceof Error
+        ? error.message
+        : 'Failed to load satellite segmentation.';
+    } finally {
+      this.isSatelliteLoading = false;
     }
   }
 
-  private async loadRisks(): Promise<void> {
-    const farmId = this.selectedFarmId;
-    const zoneId = this.selectedZoneId;
-
-    if (!farmId) return;
-
-    this.risks = await this.heatRiskService.getRisks(farmId, zoneId);
-
-    this.zoneRisks = {};
-    this.risks.forEach(risk => {
-      if (risk.zoneId) {
-        this.zoneRisks[risk.zoneId] = risk;
+  private getSelectedCoordinates(): { latitude: number; longitude: number } | null {
+    if (this.selectedZoneId) {
+      const zone = this.zones.find((item) => item.id === this.selectedZoneId);
+      if (zone?.latitude != null && zone?.longitude != null) {
+        return { latitude: zone.latitude, longitude: zone.longitude };
       }
+    }
+
+    const farm = this.farms.find((item) => item.id === this.selectedFarmId);
+    if (farm && (farm as any).latitude != null && (farm as any).longitude != null) {
+      return {
+        latitude: Number((farm as any).latitude),
+        longitude: Number((farm as any).longitude),
+      };
+    }
+
+    const firstZone = this.zones.find(
+      (zone) => zone.latitude != null && zone.longitude != null,
+    );
+
+    return firstZone
+      ? { latitude: firstZone.latitude, longitude: firstZone.longitude }
+      : null;
+  }
+
+  private async loadZones(): Promise<void> {
+    if (!this.selectedFarmId) return;
+    this.zones = await this.zoneService.getZonesByFarm(this.selectedFarmId);
+  }
+
+  private async loadRisks(): Promise<void> {
+    if (!this.selectedFarmId) return;
+    this.risks = await this.heatRiskService.getRisks(
+      this.selectedFarmId,
+      this.selectedZoneId,
+    );
+    this.zoneRisks = {};
+    this.risks.forEach((risk) => {
+      if (risk.zoneId) this.zoneRisks[risk.zoneId] = risk;
     });
   }
 
   private initializeMap(): void {
     const container = document.getElementById('heatmap-map');
+    if (!container || this.map) return;
 
-    if (!container || this.map) {
-      return;
-    }
-
-    this.map = L.map(container).setView([30.0, 31.0], 10);
-
+    this.map = L.map(container).setView([30, 31], 10);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
+      attribution: '© OpenStreetMap contributors',
     }).addTo(this.map);
-
     this.updateMap();
-
     setTimeout(() => this.map?.invalidateSize(), 0);
   }
 
   private updateMap(): void {
     if (!this.map) return;
-
-    this.markers.forEach(marker => this.map!.removeLayer(marker));
+    this.markers.forEach((marker) => this.map?.removeLayer(marker));
     this.markers = [];
 
     const zonesToDisplay = this.selectedZoneId
-      ? this.zones.filter(z => z.id === this.selectedZoneId)
+      ? this.zones.filter((zone) => zone.id === this.selectedZoneId)
       : this.zones;
 
-    if (zonesToDisplay.length === 0) return;
-
-    zonesToDisplay.forEach(zone => {
+    zonesToDisplay.forEach((zone) => {
       if (zone.latitude == null || zone.longitude == null) return;
-
       const risk = this.zoneRisks[zone.id];
       const riskLevel = risk?.riskLevel || 'low';
       const color = this.getRiskColor(riskLevel);
-      const radius = this.getRiskRadius(riskLevel);
-
       const marker = L.circleMarker([zone.latitude, zone.longitude], {
-        radius,
+        radius: this.getRiskRadius(riskLevel),
         fillColor: color,
         color,
         weight: 2,
         opacity: 0.8,
-        fillOpacity: 0.5
+        fillOpacity: 0.5,
       });
-
       marker.bindPopup(this.createPopupContent(zone, risk));
-      marker.addTo(this.map!);
+      marker.addTo(this.map);
       this.markers.push(marker);
     });
 
     if (this.markers.length > 0) {
-      const group = L.featureGroup(this.markers);
-      this.map.fitBounds(group.getBounds().pad(0.1));
+      this.map.fitBounds(L.featureGroup(this.markers).getBounds().pad(0.1));
     }
   }
 
   private createPopupContent(zone: FarmZone, risk?: HeatRisk): string {
-    const riskLevel = risk?.riskLevel || 'low';
-    const riskScore = risk?.riskScore || 0;
     const temperature = risk?.temperature ?? null;
-
-    return `
-      <div class="popup-content">
-        <h3>${zone.name}</h3>
-        <p><strong>Risk Level:</strong> <span style="color: ${this.getRiskColor(riskLevel)}">${riskLevel.toUpperCase()}</span></p>
-        <p><strong>Risk Score:</strong> ${riskScore}/100</p>
-        <p><strong>Temperature:</strong> ${temperature === null ? 'Not available' : `${temperature}°C`}</p>
-        ${risk?.reason ? `<p><strong>Reason:</strong> ${risk.reason}</p>` : ''}
-      </div>
-    `;
+    return `<div class="popup-content"><h3>${zone.name}</h3><p><strong>Risk Level:</strong> ${String(risk?.riskLevel || 'low').toUpperCase()}</p><p><strong>Risk Score:</strong> ${risk?.riskScore || 0}/100</p><p><strong>Temperature:</strong> ${temperature === null ? 'Not available' : `${temperature}°C`}</p></div>`;
   }
 
   private getRiskColor(riskLevel: string): string {
-    const colors = {
-      low: '#2e7d32',
-      moderate: '#f57c00',
-      high: '#d32f2f',
-      critical: '#b71c1c'
-    };
-    return colors[riskLevel as keyof typeof colors] || '#757575';
+    return ({ low: '#2e7d32', moderate: '#f57c00', high: '#d32f2f', critical: '#b71c1c' } as Record<string, string>)[riskLevel] || '#757575';
   }
 
   private getRiskRadius(riskLevel: string): number {
-    const radii = {
-      low: 15,
-      moderate: 25,
-      high: 35,
-      critical: 50
-    };
-    return radii[riskLevel as keyof typeof radii] || 15;
+    return ({ low: 15, moderate: 25, high: 35, critical: 50 } as Record<string, number>)[riskLevel] || 15;
   }
 
   getRiskStats(): { low: number; moderate: number; high: number; critical: number } {
     return {
-      low: this.risks.filter(r => r.riskLevel === 'low').length,
-      moderate: this.risks.filter(r => r.riskLevel === 'moderate').length,
-      high: this.risks.filter(r => r.riskLevel === 'high').length,
-      critical: this.risks.filter(r => r.riskLevel === 'critical').length
+      low: this.risks.filter((r) => r.riskLevel === 'low').length,
+      moderate: this.risks.filter((r) => r.riskLevel === 'moderate').length,
+      high: this.risks.filter((r) => r.riskLevel === 'high').length,
+      critical: this.risks.filter((r) => r.riskLevel === 'critical').length,
     };
   }
 
