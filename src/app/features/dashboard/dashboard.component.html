@@ -67,11 +67,11 @@
         </span>
 
         <div class="temperature-value">
-          {{ currentTemperature }}<span>°C</span>
+          {{ currentTemperature | number:'1.1-1' }}<span>°C</span>
         </div>
 
         <div class="temperature-feels">
-          Feels like {{ feelsLike }}°C
+          Feels like {{ feelsLike | number:'1.1-1' }}°C
         </div>
 
       </div>
@@ -261,7 +261,7 @@
                   ">
 
                   <span>
-                    {{ point.temperature }}°
+                    {{ point.temperature | number:'1.1-1' }}°
                   </span>
 
                 </div>
@@ -349,7 +349,7 @@
             <div class="risk-temperature">
 
               <strong>
-                {{ area.temperature }}°C
+                {{ area.temperature | number:'1.1-1' }}°C
               </strong>
 
               <span

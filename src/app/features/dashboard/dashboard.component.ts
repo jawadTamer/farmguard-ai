@@ -131,8 +131,8 @@ export class DashboardComponent implements OnInit {
 
   private updateTemperatureStat(): void {
     if (this.currentTemperature === null) { this.stats[0].value = '--'; this.stats[0].subtitle = 'No data available'; return; }
-    this.stats[0].value = `${this.currentTemperature}°C`;
-    this.stats[0].subtitle = this.feelsLike === null ? 'Feels like unavailable' : `Feels like ${this.feelsLike}°C`;
+    this.stats[0].value = `${this.currentTemperature.toFixed(1)}°C`;
+    this.stats[0].subtitle = this.feelsLike === null ? 'Feels like unavailable' : `Feels like ${this.feelsLike.toFixed(1)}°C`;
     this.stats[0].status = this.currentTemperature >= 38 ? 'danger' : this.currentTemperature >= 34 ? 'warning' : 'normal';
   }
 
