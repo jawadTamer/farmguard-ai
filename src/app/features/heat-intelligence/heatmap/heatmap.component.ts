@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -34,7 +34,7 @@ import L from 'leaflet';
   templateUrl: './heatmap.component.html',
   styleUrl: './heatmap.component.css'
 })
-export class HeatmapComponent implements OnInit, AfterViewInit {
+export class HeatmapComponent implements OnInit, AfterViewInit, OnDestroy {
   isLoading = true;
   farms: Farm[] = [];
   zones: FarmZone[] = [];
@@ -47,6 +47,7 @@ export class HeatmapComponent implements OnInit, AfterViewInit {
 
   map?: L.Map;
   markers: L.CircleMarker[] = [];
+  private viewInitialized = false;
 
   constructor(
     private farmService: FarmService,
@@ -59,7 +60,21 @@ export class HeatmapComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    this.initializeMap();
+    this.viewInitialized = true;
+
+    // The map element is inside *ngIf="!isLoading", so it does not exist
+    // during the first ngAfterViewInit call while data is still loading.
+    if (!this.isLoading) {
+      this.scheduleMapInitialization();
+    }
+  }
+
+  private scheduleMapInitialization(): void {
+    setTimeout(() => {
+      if (!this.map && this.viewInitialized && !this.isLoading) {
+        this.initializeMap();
+      }
+    });
   }
 
   private async loadData(): Promise<void> {
@@ -75,6 +90,11 @@ export class HeatmapComponent implements OnInit, AfterViewInit {
       console.error('Failed to load data:', error);
     } finally {
       this.isLoading = false;
+
+      // Wait until Angular renders the !isLoading branch containing #heatmap-map.
+      if (this.viewInitialized) {
+        this.scheduleMapInitialization();
+      }
     }
   }
 
@@ -108,8 +128,7 @@ export class HeatmapComponent implements OnInit, AfterViewInit {
     if (!farmId) return;
 
     this.risks = await this.heatRiskService.getRisks(farmId, zoneId);
-    
-    // Build zone risk mapping
+
     this.zoneRisks = {};
     this.risks.forEach(risk => {
       if (risk.zoneId) {
@@ -119,36 +138,37 @@ export class HeatmapComponent implements OnInit, AfterViewInit {
   }
 
   private initializeMap(): void {
-    // Default center (will be updated when data loads)
-    this.map = L.map('heatmap-map').setView([30.0, 31.0], 10);
+    const container = document.getElementById('heatmap-map');
+
+    if (!container || this.map) {
+      return;
+    }
+
+    this.map = L.map(container).setView([30.0, 31.0], 10);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(this.map);
 
-    // Load initial data
-    if (this.farms.length > 0) {
-      this.updateMap();
-    }
+    this.updateMap();
+
+    setTimeout(() => this.map?.invalidateSize(), 0);
   }
 
   private updateMap(): void {
     if (!this.map) return;
 
-    // Clear existing markers
     this.markers.forEach(marker => this.map!.removeLayer(marker));
     this.markers = [];
 
-    // Get zones to display
-    const zonesToDisplay = this.selectedZoneId 
+    const zonesToDisplay = this.selectedZoneId
       ? this.zones.filter(z => z.id === this.selectedZoneId)
       : this.zones;
 
     if (zonesToDisplay.length === 0) return;
 
-    // Add markers for each zone
     zonesToDisplay.forEach(zone => {
-      if (!zone.latitude || !zone.longitude) return;
+      if (zone.latitude == null || zone.longitude == null) return;
 
       const risk = this.zoneRisks[zone.id];
       const riskLevel = risk?.riskLevel || 'low';
@@ -156,26 +176,20 @@ export class HeatmapComponent implements OnInit, AfterViewInit {
       const radius = this.getRiskRadius(riskLevel);
 
       const marker = L.circleMarker([zone.latitude, zone.longitude], {
-        radius: radius,
+        radius,
         fillColor: color,
-        color: color,
+        color,
         weight: 2,
         opacity: 0.8,
         fillOpacity: 0.5
       });
 
-      // Add popup with zone info
-      const popupContent = this.createPopupContent(zone, risk);
-      marker.bindPopup(popupContent);
-
-      if (this.map) {
-        marker.addTo(this.map);
-        this.markers.push(marker);
-      }
+      marker.bindPopup(this.createPopupContent(zone, risk));
+      marker.addTo(this.map!);
+      this.markers.push(marker);
     });
 
-    // Fit map to show all markers
-    if (this.markers.length > 0 && this.map) {
+    if (this.markers.length > 0) {
       const group = L.featureGroup(this.markers);
       this.map.fitBounds(group.getBounds().pad(0.1));
     }
@@ -184,14 +198,14 @@ export class HeatmapComponent implements OnInit, AfterViewInit {
   private createPopupContent(zone: FarmZone, risk?: HeatRisk): string {
     const riskLevel = risk?.riskLevel || 'low';
     const riskScore = risk?.riskScore || 0;
-    const temperature = risk?.temperature || 0;
+    const temperature = risk?.temperature ?? null;
 
     return `
       <div class="popup-content">
         <h3>${zone.name}</h3>
         <p><strong>Risk Level:</strong> <span style="color: ${this.getRiskColor(riskLevel)}">${riskLevel.toUpperCase()}</span></p>
         <p><strong>Risk Score:</strong> ${riskScore}/100</p>
-        <p><strong>Temperature:</strong> ${temperature}°C</p>
+        <p><strong>Temperature:</strong> ${temperature === null ? 'Not available' : `${temperature}°C`}</p>
         ${risk?.reason ? `<p><strong>Reason:</strong> ${risk.reason}</p>` : ''}
       </div>
     `;
@@ -227,8 +241,7 @@ export class HeatmapComponent implements OnInit, AfterViewInit {
   }
 
   ngOnDestroy(): void {
-    if (this.map) {
-      this.map.remove();
-    }
+    this.map?.remove();
+    this.map = undefined;
   }
 }
