@@ -41,26 +41,143 @@ interface FortyGuardResponse<T = FortyGuardCurrentResponse> {
   endpoint?: string;
 }
 
-interface FortyGuardTrendResponse {
-  activityId?: string;
-  date?: string;
-  metric?: string;
-  points?: Array<{
-    timestamp?: string | null;
-    temperature?: number | null;
-    apparentTemperature?: number | null;
-    heatIndex?: number | null;
-    humidity?: number | null;
-  }>;
-}
-
 export class FortyGuardTemperatureProvider implements TemperatureProvider {
   readonly providerName = 'FortyGuardTemperatureProvider';
+
+  private static readonly CACHE_TTL_MS = 10 * 60 * 1000;
+  private static readonly REFRESH_AFTER_MS = 5 * 60 * 1000;
+  private static readonly refreshInFlight = new Map<string, Promise<TemperatureReading | null>>();
 
   constructor(private readonly supabaseService: SupabaseService) {}
 
   async getCurrentTemperature(farmId: string, zoneId?: string): Promise<TemperatureReading | null> {
     if (!farmId?.trim()) throw new Error('Farm ID is required to get current temperature.');
+
+    const cache = await this.getLatestCachedReading(farmId, zoneId);
+    if (cache) {
+      const age = Date.now() - new Date(cache.recordedAt).getTime();
+
+      // Return cached data immediately. A stale reading should never block the dashboard.
+      if (age >= FortyGuardTemperatureProvider.REFRESH_AFTER_MS) {
+        void this.refreshInBackground(farmId, zoneId);
+      }
+
+      return cache;
+    }
+
+    // First load with no cache still needs a real FortyGuard request.
+    return this.refreshFromFortyGuard(farmId, zoneId);
+  }
+
+  /** Force a FortyGuard refresh without making the caller wait for a cached result. */
+  async refreshCurrentTemperature(farmId: string, zoneId?: string): Promise<TemperatureReading | null> {
+    return this.refreshFromFortyGuard(farmId, zoneId);
+  }
+
+  async getTodayTemperatureTrend(farmId: string, zoneId?: string, currentTemperature?: number): Promise<TemperatureTrendPoint[]> {
+    if (!farmId?.trim()) throw new Error('Farm ID is required to get the temperature trend.');
+
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+    let query = this.supabaseService.client
+      .from('temperature_readings')
+      .select('recorded_at, temperature, apparent_temperature, heat_index, humidity')
+      .eq('farm_id', farmId)
+      .gte('recorded_at', start.toISOString())
+      .lt('recorded_at', end.toISOString())
+      .not('temperature', 'is', null)
+      .gt('temperature', 0)
+      .order('recorded_at', { ascending: true });
+
+    if (zoneId) query = query.eq('zone_id', zoneId);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const points = (data ?? [])
+      .filter((reading) => this.isFiniteNumber(reading.temperature))
+      .map((reading) => ({
+        timestamp: reading.recorded_at,
+        temperature: Number(reading.temperature),
+        apparentTemperature: this.toNumber(reading.apparent_temperature),
+        heatIndex: this.toNumber(reading.heat_index),
+        humidity: this.toNumber(reading.humidity),
+      }));
+
+    // If the current card has a newer value than the stored series, append it locally.
+    if (this.isFiniteNumber(currentTemperature)) {
+      const now = new Date().toISOString();
+      const latest = points[points.length - 1];
+      if (!latest || Math.abs(new Date(latest.timestamp).getTime() - Date.now()) > 60_000 || Number(latest.temperature) !== Number(currentTemperature)) {
+        points.push({ timestamp: now, temperature: Number(currentTemperature) });
+      }
+    }
+
+    // Keep the chart lightweight while preserving the shape of the day's series.
+    if (points.length > 12) {
+      const step = (points.length - 1) / 11;
+      return Array.from({ length: 12 }, (_, index) => points[Math.round(index * step)]);
+    }
+
+    return points;
+  }
+
+  async getTemperatureHistory(farmId: string, zoneId?: string, days: number = 7): Promise<TemperatureReading[]> {
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    let query = this.supabaseService.client
+      .from('temperature_readings')
+      .select('*')
+      .eq('farm_id', farmId)
+      .gte('recorded_at', cutoffDate)
+      .order('recorded_at', { ascending: false });
+    if (zoneId) query = query.eq('zone_id', zoneId);
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []).map((reading) => ({
+      id: reading.id, farmId: reading.farm_id, zoneId: reading.zone_id,
+      temperature: Number(reading.temperature), feelsLike: this.toNumber(reading.apparent_temperature),
+      humidity: this.toNumber(reading.humidity), heatIndex: this.toNumber(reading.heat_index),
+      wetBulbTemperature: this.toNumber(reading.wet_bulb_temperature), recordedAt: reading.recorded_at,
+      source: reading.source || 'api',
+    }));
+  }
+
+  async getForecast(_farmId: string, _zoneId?: string): Promise<TemperatureForecast[]> { return []; }
+
+  async saveTemperatureReading(reading: TemperatureReading): Promise<void> {
+    const { error } = await this.supabaseService.client.from('temperature_readings').insert({
+      farm_id: reading.farmId, zone_id: reading.zoneId, temperature: reading.temperature,
+      apparent_temperature: reading.feelsLike, humidity: reading.humidity, heat_index: reading.heatIndex,
+      wet_bulb_temperature: reading.wetBulbTemperature, source: reading.source ?? 'api', recorded_at: reading.recordedAt,
+      raw_data: { diagnostics: reading.diagnostics ?? null, precipitation: reading.precipitation ?? null, cloudCover: reading.cloudCover ?? null, aqi: reading.aqi ?? null, solarIrradiance: reading.solarIrradiance ?? null },
+    });
+    if (error) throw error;
+  }
+
+  private async refreshInBackground(farmId: string, zoneId?: string): Promise<void> {
+    try {
+      await this.refreshFromFortyGuard(farmId, zoneId);
+    } catch (error) {
+      console.warn('[FortyGuard] Background refresh failed; cached value remains available.', error);
+    }
+  }
+
+  private async refreshFromFortyGuard(farmId: string, zoneId?: string): Promise<TemperatureReading | null> {
+    const key = `${farmId}:${zoneId ?? 'farm'}`;
+    const existing = FortyGuardTemperatureProvider.refreshInFlight.get(key);
+    if (existing) return existing;
+
+    const request = this.fetchAndSaveCurrentTemperature(farmId, zoneId).finally(() => {
+      FortyGuardTemperatureProvider.refreshInFlight.delete(key);
+    });
+
+    FortyGuardTemperatureProvider.refreshInFlight.set(key, request);
+    return request;
+  }
+
+  private async fetchAndSaveCurrentTemperature(farmId: string, zoneId?: string): Promise<TemperatureReading | null> {
     const coordinates = await this.getCoordinates(farmId, zoneId);
     if (!coordinates) throw new Error('No latitude/longitude is configured for this farm or zone.');
 
@@ -96,63 +213,40 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     return reading;
   }
 
-  async getTodayTemperatureTrend(farmId: string, zoneId?: string, currentTemperature?: number): Promise<TemperatureTrendPoint[]> {
-    if (!farmId?.trim()) throw new Error('Farm ID is required to get the temperature trend.');
-    const coordinates = await this.getCoordinates(farmId, zoneId);
-    if (!coordinates) throw new Error('No latitude/longitude is configured for this farm or zone.');
+  private async getLatestCachedReading(farmId: string, zoneId?: string): Promise<TemperatureReading | null> {
+    let query = this.supabaseService.client
+      .from('temperature_readings')
+      .select('*')
+      .eq('farm_id', farmId)
+      .not('temperature', 'is', null)
+      .gt('temperature', 0)
+      .order('recorded_at', { ascending: false })
+      .limit(1);
 
-    const temperature = this.isFiniteNumber(currentTemperature)
-      ? Number(currentTemperature)
-      : (await this.getCurrentTemperature(farmId, zoneId))?.temperature;
-    if (!this.isFiniteNumber(temperature)) throw new Error('A valid temperature is required to request the FortyGuard trend.');
-
-    const { data, error } = await this.supabaseService.client.functions.invoke<FortyGuardResponse<FortyGuardTrendResponse>>('fortyguard-proxy', {
-      body: {
-        action: 'temperature-trend',
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        temperature: Number(temperature),
-      },
-    });
-    if (error) throw new Error(await this.formatFunctionError(error));
-    if (!data?.success || !data.data) throw new Error(data?.message ?? data?.error ?? 'Invalid FortyGuard trend response.');
-
-    return (data.data.points ?? [])
-      .filter((point) => typeof point.timestamp === 'string' && this.isFiniteNumber(point.temperature))
-      .map((point) => ({
-        timestamp: point.timestamp!,
-        temperature: Number(point.temperature),
-        apparentTemperature: this.toNumber(point.apparentTemperature),
-        heatIndex: this.toNumber(point.heatIndex),
-        humidity: this.toNumber(point.humidity),
-      }));
-  }
-
-  async getTemperatureHistory(farmId: string, zoneId?: string, days: number = 7): Promise<TemperatureReading[]> {
-    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-    let query = this.supabaseService.client.from('temperature_readings').select('*').eq('farm_id', farmId).gte('recorded_at', cutoffDate).order('recorded_at', { ascending: false });
     if (zoneId) query = query.eq('zone_id', zoneId);
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data ?? []).map((reading) => ({
-      id: reading.id, farmId: reading.farm_id, zoneId: reading.zone_id,
-      temperature: Number(reading.temperature), feelsLike: this.toNumber(reading.apparent_temperature),
-      humidity: this.toNumber(reading.humidity), heatIndex: this.toNumber(reading.heat_index),
-      wetBulbTemperature: this.toNumber(reading.wet_bulb_temperature), recordedAt: reading.recorded_at,
-      source: reading.source || 'api',
-    }));
-  }
 
-  async getForecast(_farmId: string, _zoneId?: string): Promise<TemperatureForecast[]> { return []; }
-
-  async saveTemperatureReading(reading: TemperatureReading): Promise<void> {
-    const { error } = await this.supabaseService.client.from('temperature_readings').insert({
-      farm_id: reading.farmId, zone_id: reading.zoneId, temperature: reading.temperature,
-      apparent_temperature: reading.feelsLike, humidity: reading.humidity, heat_index: reading.heatIndex,
-      wet_bulb_temperature: reading.wetBulbTemperature, source: reading.source ?? 'api', recorded_at: reading.recordedAt,
-      raw_data: { diagnostics: reading.diagnostics ?? null, precipitation: reading.precipitation ?? null, cloudCover: reading.cloudCover ?? null, aqi: reading.aqi ?? null, solarIrradiance: reading.solarIrradiance ?? null },
-    });
+    const { data, error } = await query.maybeSingle();
     if (error) throw error;
+    if (!data) return null;
+
+    const age = Date.now() - new Date(data.recorded_at).getTime();
+    if (age > FortyGuardTemperatureProvider.CACHE_TTL_MS) {
+      // Still return stale data. The dashboard must not be blocked by FortyGuard.
+      console.info(`[FortyGuard] Using stale cached temperature (${Math.round(age / 60000)} min old).`);
+    }
+
+    return {
+      id: data.id,
+      farmId: data.farm_id,
+      zoneId: data.zone_id,
+      temperature: Number(data.temperature),
+      feelsLike: this.toNumber(data.apparent_temperature),
+      humidity: this.toNumber(data.humidity),
+      heatIndex: this.toNumber(data.heat_index),
+      wetBulbTemperature: this.toNumber(data.wet_bulb_temperature),
+      recordedAt: data.recorded_at,
+      source: data.source || 'api',
+    };
   }
 
   private async formatFunctionError(error: any): Promise<string> {
