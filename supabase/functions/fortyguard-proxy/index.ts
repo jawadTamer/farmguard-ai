@@ -45,21 +45,6 @@ function getUtcDateTime(): DateTime {
   };
 }
 
-function getUtcRange(hours = 12) {
-  const safeHours = Math.min(Math.max(Math.floor(hours), 2), 12);
-  const start = new Date(Date.now() - 60 * 60 * 1000);
-  start.setUTCMinutes(0, 0, 0);
-  const end = new Date(start.getTime() + (safeHours - 1) * 60 * 60 * 1000);
-
-  return {
-    safeHours,
-    startDate: start.toISOString().slice(0, 10),
-    startTime: start.toISOString().slice(11, 16),
-    endDate: end.toISOString().slice(0, 10),
-    endTime: end.toISOString().slice(11, 16),
-  };
-}
-
 function buildPolygon({ latitude, longitude }: Coordinates) {
   const delta = 0.005;
   return {
@@ -129,11 +114,10 @@ async function waitForActivity(activityId: string) {
       const status = String(data?.status ?? payload?.status ?? '').toLowerCase().trim();
       lastStatus = status || 'unknown';
 
-      console.log('[FortyGuard] STATUS', JSON.stringify({ activityId, attempt, status: lastStatus }));
-
       if (['completed', 'succeeded', 'success'].includes(status)) {
         return { result: data?.result ?? payload?.result ?? null, raw: payload };
       }
+
       if (['failed', 'error'].includes(status)) {
         throw new Error(data?.message ?? payload?.message ?? `FortyGuard activity failed with status ${status}.`);
       }
@@ -214,7 +198,7 @@ function extractMeanTemperature(result: any): number | null {
   return mean(values);
 }
 
-async function heatmap(coordinates: Coordinates, dateTime = getUtcDateTime(), filterType = 1, endTime?: string) {
+async function heatmap(coordinates: Coordinates, dateTime = getUtcDateTime()) {
   const submitted = await fg('/v1/heatmap', {
     method: 'POST',
     body: JSON.stringify({
@@ -222,7 +206,7 @@ async function heatmap(coordinates: Coordinates, dateTime = getUtcDateTime(), fi
       date_time: {
         start_date: dateTime.startDate,
         start_time: dateTime.startTime,
-        ...(filterType === 2 ? { end_time: endTime, filter_type: 2 } : { filter_type: 1 }),
+        filter_type: 1,
       },
       granularity: 100,
       analytic_type: 'tcm',
@@ -284,76 +268,61 @@ async function env(coordinates: Coordinates, temperature: number, dateTime: Date
   };
 }
 
-/*
- * IMPORTANT:
- *
- * The dashboard temperature trend must not call /v1/env_params with filter_type=2.
- * FortyGuard's heatmap endpoint natively supports a range of hours and is the
- * correct source for a temperature series. This also removes the extra env_params
- * activity that was causing the 500 seen by the frontend.
- */
+function getLastCompletedHours(hours = 12): DateTime[] {
+  const count = Math.min(Math.max(Math.floor(hours), 1), 12);
+  const current = new Date();
+  current.setUTCMinutes(0, 0, 0);
+  current.setUTCHours(current.getUTCHours() - 1);
+
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(current.getTime() - (count - 1 - index) * 60 * 60 * 1000);
+    return {
+      startDate: date.toISOString().slice(0, 10),
+      startTime: date.toISOString().slice(11, 16),
+    };
+  });
+}
+
 async function temperatureTrend(coordinates: Coordinates, hours = 12) {
-  const range = getUtcRange(hours);
+  const requestedHours = Math.min(Math.max(Math.floor(hours), 1), 12);
+  const targets = getLastCompletedHours(requestedHours);
 
-  const start = new Date(`${range.startDate}T${range.startTime}:00Z`);
-  const timestamps = Array.from({ length: range.safeHours }, (_, index) =>
-    new Date(start.getTime() + index * 60 * 60 * 1000).toISOString(),
+  // FortyGuard's documented range heatmap is aggregated into stats_data; it does
+  // not expose a guaranteed hourly temperature array. Therefore the reliable way
+  // to build an hourly temperature chart is one Single-Hour heatmap per timestamp.
+  // They are intentionally executed in parallel so the wall-clock time is close
+  // to one FortyGuard activity instead of twelve sequential activities.
+  const results = await Promise.allSettled(
+    targets.map(async target => {
+      const item = await heatmap(coordinates, target);
+      if (item.temperature === null) throw new Error(`No temperature returned for ${target.startDate} ${target.startTime}.`);
+      return {
+        timestamp: `${target.startDate}T${target.startTime}:00Z`,
+        temperature: item.temperature,
+        activityId: item.activityId,
+      };
+    }),
   );
 
-  const heatmapResult = await heatmap(
-    coordinates,
-    { startDate: range.startDate, startTime: range.startTime },
-    2,
-    range.endTime,
-  );
+  const points = results
+    .filter((result): result is PromiseFulfilledResult<{ timestamp: string; temperature: number; activityId: string }> => result.status === 'fulfilled')
+    .map(result => result.value)
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
-  const result = heatmapResult.result;
-  const stats = result?.stats_data ?? result?.statsData ?? {};
-  const features = Array.isArray(result?.map_data?.features) ? result.map_data.features : [];
-
-  /*
-   * FortyGuard may expose a time-aligned temperature array in map_data.
-   * Support the common array/object shapes without assuming missing values are 0.
-   */
-  const candidateArrays: unknown[][] = [];
-  for (const feature of features) {
-    const properties = feature?.properties ?? {};
-    for (const key of ['temperature', 'Temperature', 'temperatures', 'temperature_celsius', 'temperatureCelsius', 'values']) {
-      const value = properties[key];
-      if (Array.isArray(value)) candidateArrays.push(value);
-    }
-  }
-
-  for (const key of ['temperature', 'temperatures', 'temperature_values', 'temperatureValues']) {
-    if (Array.isArray(result?.[key])) candidateArrays.push(result[key]);
-    if (Array.isArray(stats?.[key])) candidateArrays.push(stats[key]);
-  }
-
-  let values: Array<number | null> = [];
-  if (candidateArrays.length) {
-    const best = candidateArrays.find(array => array.length >= range.safeHours) ?? candidateArrays[0];
-    values = best.slice(0, range.safeHours).map(num);
-  }
-
-  /*
-   * If the range response does not expose a time-aligned array, do not fabricate
-   * hourly temperatures. Return the range result and an explicit empty series so
-   * Angular can show a loading/no-data state instead of displaying fake values.
-   */
-  const points = timestamps.map((timestamp, index) => ({
-    timestamp,
-    temperature: values[index] ?? null,
-  }));
+  const failed = results
+    .map((result, index) => result.status === 'rejected' ? {
+      timestamp: `${targets[index].startDate}T${targets[index].startTime}:00Z`,
+      error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+    } : null)
+    .filter(Boolean);
 
   return {
-    activityId: heatmapResult.activityId,
-    resultReceived: !!result,
-    requestedHours: range.safeHours,
-    returnedHours: points.filter(point => point.temperature !== null).length,
-    dateRange: range,
-    metadata: result?.metadata ?? null,
+    resultReceived: points.length > 0,
+    requestedHours,
+    returnedHours: points.length,
     points,
-    rawTemperatureSeriesFound: candidateArrays.length > 0,
+    failed,
+    source: 'FortyGuard heatmap single-hour',
   };
 }
 
@@ -424,8 +393,14 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'environmental-parameters') {
       const temperature = Number(body?.temperature);
-      if (!Number.isFinite(temperature)) return jsonResponse({ success: false, error: 'temperature is required for environmental-parameters.' }, 400);
-      return jsonResponse({ success: true, action, data: await env(coordinates, temperature, getUtcDateTime()) });
+      if (!Number.isFinite(temperature)) {
+        return jsonResponse({ success: false, error: 'temperature is required for environmental-parameters.' }, 400);
+      }
+      return jsonResponse({
+        success: true,
+        action,
+        data: await env(coordinates, temperature, getUtcDateTime()),
+      });
     }
 
     if (action === 'temperature-trend') {
