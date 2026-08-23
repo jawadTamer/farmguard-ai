@@ -141,30 +141,113 @@ export class HeatmapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private getSelectedCoordinates(): { latitude: number; longitude: number } | null {
-    if (this.selectedZoneId) {
-      const zone = this.zones.find((item) => item.id === this.selectedZoneId);
-      if (zone?.latitude != null && zone?.longitude != null) {
-        return { latitude: zone.latitude, longitude: zone.longitude };
-      }
-    }
+  private getSelectedCoordinates(): {
+  latitude: number;
+  longitude: number;
+} | null {
 
-    const farm = this.farms.find((item) => item.id === this.selectedFarmId);
-    if (farm && (farm as any).latitude != null && (farm as any).longitude != null) {
-      return {
-        latitude: Number((farm as any).latitude),
-        longitude: Number((farm as any).longitude),
-      };
-    }
-
-    const firstZone = this.zones.find(
-      (zone) => zone.latitude != null && zone.longitude != null,
+  // 1. Selected Zone
+  if (this.selectedZoneId) {
+    const zone = this.zones.find(
+      (item) => item.id === this.selectedZoneId,
     );
 
-    return firstZone
-      ? { latitude: firstZone.latitude, longitude: firstZone.longitude }
-      : null;
+    const latitude = Number(zone?.latitude);
+    const longitude = Number(zone?.longitude);
+
+    if (
+      Number.isFinite(latitude) &&
+      Number.isFinite(longitude)
+    ) {
+      return {
+        latitude,
+        longitude,
+      };
+    }
   }
+
+  // 2. Selected Farm
+  if (this.selectedFarmId) {
+    const farm = this.farms.find(
+      (item) => item.id === this.selectedFarmId,
+    );
+
+    if (farm) {
+      const latitude = Number(
+        (farm as any).latitude,
+      );
+
+      const longitude = Number(
+        (farm as any).longitude,
+      );
+
+      if (
+        Number.isFinite(latitude) &&
+        Number.isFinite(longitude)
+      ) {
+        return {
+          latitude,
+          longitude,
+        };
+      }
+    }
+  }
+
+  // 3. First Zone with valid coordinates
+  const firstZone = this.zones.find((zone) => {
+    const latitude = Number(zone.latitude);
+    const longitude = Number(zone.longitude);
+
+    return (
+      Number.isFinite(latitude) &&
+      Number.isFinite(longitude)
+    );
+  });
+
+  if (firstZone) {
+    const latitude = Number(firstZone.latitude);
+    const longitude = Number(firstZone.longitude);
+
+    return {
+      latitude,
+      longitude,
+    };
+  }
+
+  // 4. First Farm with valid coordinates
+  const firstFarm = this.farms.find((farm) => {
+    const latitude = Number(
+      (farm as any).latitude,
+    );
+
+    const longitude = Number(
+      (farm as any).longitude,
+    );
+
+    return (
+      Number.isFinite(latitude) &&
+      Number.isFinite(longitude)
+    );
+  });
+
+  if (firstFarm) {
+    const latitude = Number(
+      (firstFarm as any).latitude,
+    );
+
+    const longitude = Number(
+      (firstFarm as any).longitude,
+    );
+
+    return {
+      latitude,
+      longitude,
+    };
+  }
+
+  // No valid coordinates found
+  return null;
+}
 
   private async loadZones(): Promise<void> {
     if (!this.selectedFarmId) return;
@@ -204,23 +287,59 @@ export class HeatmapComponent implements OnInit, AfterViewInit, OnDestroy {
       ? this.zones.filter((zone) => zone.id === this.selectedZoneId)
       : this.zones;
 
-    zonesToDisplay.forEach((zone) => {
-      if (zone.latitude == null || zone.longitude == null) return;
-      const risk = this.zoneRisks[zone.id];
-      const riskLevel = risk?.riskLevel || 'low';
-      const color = this.getRiskColor(riskLevel);
-      const marker = L.circleMarker([zone.latitude, zone.longitude], {
-        radius: this.getRiskRadius(riskLevel),
-        fillColor: color,
-        color,
-        weight: 2,
-        opacity: 0.8,
-        fillOpacity: 0.5,
-      });
-      marker.bindPopup(this.createPopupContent(zone, risk));
-      marker.addTo(this.map);
-      this.markers.push(marker);
-    });
+const map = this.map;
+
+if (!map) {
+  console.warn('[Heatmap] Cannot add zone markers: map is not initialized');
+  return;
+}
+
+zonesToDisplay.forEach((zone) => {
+  const latitude = Number(zone.latitude);
+  const longitude = Number(zone.longitude);
+
+  // Skip zones with invalid coordinates
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude)
+  ) {
+    return;
+  }
+
+  const risk = this.zoneRisks[zone.id];
+
+  const riskLevel =
+    risk?.riskLevel ?? 'low';
+
+  const color =
+    this.getRiskColor(riskLevel);
+
+  const radius =
+    this.getRiskRadius(riskLevel);
+
+  const marker = L.circleMarker(
+    [latitude, longitude],
+    {
+      radius,
+      fillColor: color,
+      color,
+      weight: 2,
+      opacity: 0.8,
+      fillOpacity: 0.5,
+    },
+  );
+
+  marker.bindPopup(
+    this.createPopupContent(
+      zone,
+      risk,
+    ),
+  );
+
+  marker.addTo(map);
+
+  this.markers.push(marker);
+});
 
     if (this.markers.length > 0) {
       this.map.fitBounds(L.featureGroup(this.markers).getBounds().pad(0.1));
