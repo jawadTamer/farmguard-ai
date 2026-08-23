@@ -12,9 +12,10 @@ import { FarmService } from '../../core/services/farm.service';
 import { HeatRiskService } from '../../core/services/heat-risk.service';
 import { AlertService } from '../../core/services/alert.service';
 import { Farm } from '../../core/models/farm.model';
+import { TemperatureReading } from '../../core/models/temperature.model';
 
 interface StatCard { title: string; value: string; subtitle: string; icon: string; status?: 'normal' | 'warning' | 'danger'; }
-interface TemperaturePoint { time: string; temperature: number; }
+interface TemperaturePoint { time: string; timestamp: string; temperature: number; }
 interface RiskItem { name: string; type: string; level: 'Low' | 'Moderate' | 'High'; temperature: number; }
 
 @Component({
@@ -35,7 +36,7 @@ export class DashboardComponent implements OnInit {
   temperatureDescription = 'Waiting for the FortyGuard analysis to complete.';
   trendLoading = false;
   trendError: string | null = null;
-  trendStatus = 'Waiting for FortyGuard daily data...';
+  trendStatus = 'Loading today’s saved temperature readings...';
 
   stats: StatCard[] = [
     { title: 'Current Temperature', value: '--', subtitle: 'Loading...', icon: 'thermostat', status: 'normal' },
@@ -84,7 +85,7 @@ export class DashboardComponent implements OnInit {
     try {
       const activeFarm = await this.getActiveFarm();
       const reading = await this.temperatureService.getCurrentTemperature(activeFarm.id);
-      if (!reading || !Number.isFinite(Number(reading.temperature))) throw new Error('No valid temperature was returned by FortyGuard.');
+      if (!reading || !Number.isFinite(Number(reading.temperature)) || Number(reading.temperature) <= 0) throw new Error('No valid temperature was returned by FortyGuard.');
       this.currentTemperature = Number(reading.temperature);
       this.feelsLike = Number.isFinite(Number(reading.feelsLike)) ? Number(reading.feelsLike) : this.currentTemperature;
       this.updateTemperatureStatus(this.currentTemperature);
@@ -102,24 +103,83 @@ export class DashboardComponent implements OnInit {
     this.trendLoading = true;
     this.trendError = null;
     this.temperaturePoints = [];
-    this.trendStatus = 'FortyGuard is processing today\'s environmental trend...';
+    this.trendStatus = 'Loading today’s saved temperature readings...';
     try {
       const activeFarm = await this.getActiveFarm();
-      const points = await this.temperatureService.getTodayTemperatureTrend(activeFarm.id, undefined, this.currentTemperature ?? undefined);
-      this.temperaturePoints = points.map((point) => ({ time: this.formatTrendTime(point.timestamp), temperature: Number(point.temperature) }));
-      this.trendStatus = this.temperaturePoints.length ? `${this.temperaturePoints.length} live data points received from FortyGuard.` : 'No trend points were available for this date.';
-      if (!this.temperaturePoints.length) this.trendError = 'FortyGuard returned no valid hourly temperature points.';
+      // The FortyGuard proxy currently exposes completed current/environmental results.
+      // The dashboard trend is therefore built from the readings already persisted after each
+      // successful FortyGuard result. Invalid zero values are ignored.
+      const history = await this.temperatureService.getTemperatureHistory(activeFarm.id, undefined, 1);
+      const valid = history
+        .filter((reading: TemperatureReading) => Number.isFinite(Number(reading.temperature)) && Number(reading.temperature) > 0)
+        .filter((reading: TemperatureReading) => this.isToday(reading.recordedAt))
+        .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime());
+
+      if (this.currentTemperature !== null) {
+        const latest = valid[valid.length - 1];
+        if (!latest || Math.abs(Number(latest.temperature) - this.currentTemperature) > 0.001) {
+          valid.push({ temperature: this.currentTemperature, recordedAt: new Date().toISOString(), source: 'api' });
+        }
+      }
+
+      // Keep the chart readable when several refreshes were made within a few minutes.
+      const sampled = this.downsampleReadings(valid, 8);
+      this.temperaturePoints = sampled.map((reading) => ({
+        timestamp: reading.recordedAt,
+        time: this.formatTrendTime(reading.recordedAt),
+        temperature: Number(reading.temperature),
+      }));
+
+      this.trendStatus = this.temperaturePoints.length
+        ? `${this.temperaturePoints.length} temperature readings from today.`
+        : 'No completed temperature readings are available for today.';
     } catch (error) {
       console.error('[Dashboard] Failed to load temperature trend:', error);
-      this.trendError = error instanceof Error ? error.message : 'Unable to load today\'s temperature trend.';
+      this.trendError = error instanceof Error ? error.message : 'Unable to load today’s temperature trend.';
       this.trendStatus = 'Trend unavailable.';
     } finally { this.trendLoading = false; }
+  }
+
+  private isToday(timestamp: string): boolean {
+    const date = new Date(timestamp);
+    const now = new Date();
+    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+  }
+
+  private downsampleReadings(readings: TemperatureReading[], maxPoints: number): TemperatureReading[] {
+    if (readings.length <= maxPoints) return readings;
+    const result: TemperatureReading[] = [];
+    const lastIndex = readings.length - 1;
+    for (let i = 0; i < maxPoints; i++) {
+      const index = Math.round((i * lastIndex) / (maxPoints - 1));
+      const reading = readings[index];
+      if (reading && !result.includes(reading)) result.push(reading);
+    }
+    return result;
   }
 
   private formatTrendTime(timestamp: string): string {
     const date = new Date(timestamp);
     if (Number.isNaN(date.getTime())) return timestamp;
     return new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).format(date);
+  }
+
+  formatTemperature(value: number | null | undefined): string {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
+    return (Math.trunc(Number(value) * 10) / 10).toFixed(1);
+  }
+
+  getTrendBarHeight(temperature: number): number {
+    const min = Math.max(20, this.getMinTemperature() - 2);
+    const max = Math.max(min + 10, this.getMaxTemperature() + 2);
+    return Math.max(8, Math.min(100, ((temperature - min) / (max - min)) * 100));
+  }
+
+  getTrendAxisValues(): number[] {
+    const min = Math.floor(Math.max(20, this.getMinTemperature() - 2) / 5) * 5;
+    const max = Math.ceil(Math.max(min + 10, this.getMaxTemperature() + 2) / 5) * 5;
+    const step = Math.max(5, (max - min) / 4);
+    return [max, max - step, max - step * 2, max - step * 3, min].map((v) => Math.round(v));
   }
 
   private updateTemperatureStatus(temperature: number): void {
@@ -131,8 +191,8 @@ export class DashboardComponent implements OnInit {
 
   private updateTemperatureStat(): void {
     if (this.currentTemperature === null) { this.stats[0].value = '--'; this.stats[0].subtitle = 'No data available'; return; }
-    this.stats[0].value = `${this.currentTemperature.toFixed(1)}°C`;
-    this.stats[0].subtitle = this.feelsLike === null ? 'Feels like unavailable' : `Feels like ${this.feelsLike.toFixed(1)}°C`;
+    this.stats[0].value = `${this.formatTemperature(this.currentTemperature)}°C`;
+    this.stats[0].subtitle = this.feelsLike === null ? 'Feels like unavailable' : `Feels like ${this.formatTemperature(this.feelsLike)}°C`;
     this.stats[0].status = this.currentTemperature >= 38 ? 'danger' : this.currentTemperature >= 34 ? 'warning' : 'normal';
   }
 
