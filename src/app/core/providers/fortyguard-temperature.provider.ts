@@ -19,13 +19,25 @@ interface FortyGuardCurrentResponse {
   environmentalActivityId?: string; nCells?: number; featuresCount?: number;
   resultKeys?: string[]; statsKeys?: string[]; environmentalError?: unknown;
 }
-interface TrendActivity { activityId: string; timestamp: string; startDate: string; startTime: string; }
+interface FortyGuardTrendPointResponse {
+  timestamp: string | null;
+  temperature: number | null;
+  apparentTemperature?: number | null;
+  heatIndex?: number | null;
+  humidity?: number | null;
+}
 interface FortyGuardTrendResponse {
-  phase?: string;
-  activities?: TrendActivity[];
-  points?: Array<{ timestamp: string; temperature: number | null; apparentTemperature?: number | null; heatIndex?: number | null; humidity?: number | null }>;
-  requestedHours?: number; returnedHours?: number; completed?: number; processing?: number; failed?: number; done?: boolean;
-  resultReceived?: boolean; source?: string;
+  stage?: 'heatmap' | 'environmental';
+  status?: string;
+  activityId?: string;
+  heatmapActivityId?: string;
+  environmentalActivityId?: string;
+  sourceTemperature?: number | null;
+  points?: FortyGuardTrendPointResponse[];
+  returnedHours?: number;
+  hours?: number;
+  done?: boolean;
+  message?: string | null;
 }
 interface FortyGuardResponse<T = FortyGuardCurrentResponse> {
   success: boolean; action?: string; data?: T; error?: string; message?: string; status?: number; endpoint?: string;
@@ -34,6 +46,8 @@ interface FortyGuardResponse<T = FortyGuardCurrentResponse> {
 export class FortyGuardTemperatureProvider implements TemperatureProvider {
   readonly providerName = 'FortyGuardTemperatureProvider';
   private static readonly REFRESH_AFTER_MS = 5 * 60 * 1000;
+  private static readonly TREND_POLL_INTERVAL_MS = 2000;
+  private static readonly TREND_TIMEOUT_MS = 3 * 60 * 1000;
   private static readonly refreshInFlight = new Map<string, Promise<TemperatureReading | null>>();
 
   constructor(private readonly supabaseService: SupabaseService) {}
@@ -50,23 +64,173 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
 
   async refreshCurrentTemperature(farmId: string, zoneId?: string): Promise<TemperatureReading | null> { return this.refreshFromFortyGuard(farmId, zoneId); }
 
-  /** Gets today's 12 hourly values from one FortyGuard env_params range activity. */
-  async getTodayTemperatureTrend(farmId: string, zoneId?: string, _currentTemperature?: number): Promise<TemperatureTrendPoint[]> {
-    if (!farmId?.trim()) throw new Error('Farm ID is required to get the temperature trend.');
-    const coordinates = await this.getCoordinates(farmId, zoneId);
-    if (!coordinates) throw new Error('No latitude/longitude is configured for this farm or zone.');
+  /**
+   * Gets today's temperature trend without keeping a Supabase Edge Function open.
+   *
+   * Flow:
+   * 1) submit heatmap
+   * 2) poll heatmap status with short requests
+   * 3) submit env_params after heatmap completes
+   * 4) poll env_params status with short requests
+   */
+  async getTodayTemperatureTrend(
+    farmId: string,
+    zoneId?: string,
+    _currentTemperature?: number,
+  ): Promise<TemperatureTrendPoint[]> {
+    if (!farmId?.trim()) {
+      throw new Error('Farm ID is required to get the temperature trend.');
+    }
 
-    const response = await this.invokeTrend({
-      action: 'temperature-trend',
+    const coordinates = await this.getCoordinates(farmId, zoneId);
+
+    if (!coordinates) {
+      throw new Error(
+        'No latitude/longitude is configured for this farm or zone.',
+      );
+    }
+
+    const hours = 12;
+
+    const submitted = await this.invokeTrend({
+      action: 'temperature-trend-submit',
       latitude: coordinates.latitude,
       longitude: coordinates.longitude,
-      hours: 12,
+      hours,
     });
 
-    const points = this.normalizeTrendPoints(response?.data?.points ?? []);
-    if (points.length) return points;
+    const heatmapActivityId = submitted.data?.activityId;
 
-    throw new Error('FortyGuard completed the temperature trend request but returned no valid hourly temperature values.');
+    if (!heatmapActivityId) {
+      throw new Error(
+        'FortyGuard did not return a heatmap activity ID for the temperature trend.',
+      );
+    }
+
+    const environmentalActivityId = await this.waitForEnvironmentalSubmission(
+      coordinates,
+      heatmapActivityId,
+      hours,
+    );
+
+    const completed = await this.waitForTrendResult(
+      environmentalActivityId,
+    );
+
+    const points = this.normalizeTrendPoints(
+      completed.data?.points ?? [],
+    );
+
+    if (points.length) {
+      return points.slice(0, hours);
+    }
+
+    throw new Error(
+      'FortyGuard completed the temperature trend request but returned no valid hourly temperature values.',
+    );
+  }
+
+  private async waitForEnvironmentalSubmission(
+    coordinates: { latitude: number; longitude: number },
+    heatmapActivityId: string,
+    hours: number,
+  ): Promise<string> {
+    const timeoutAt =
+      Date.now() +
+      FortyGuardTemperatureProvider.TREND_TIMEOUT_MS;
+
+    let lastStatus = 'submitted';
+
+    while (Date.now() < timeoutAt) {
+      const response = await this.invokeTrend({
+        action: 'temperature-trend-continue',
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        heatmapActivityId,
+        hours,
+      });
+
+      const data = response.data;
+      lastStatus = String(data?.status ?? lastStatus);
+
+      const environmentalActivityId = data?.activityId;
+
+      if (
+        data?.stage === 'environmental' &&
+        environmentalActivityId
+      ) {
+        return environmentalActivityId;
+      }
+
+      if (
+        this.isFailedActivityStatus(data?.status)
+      ) {
+        throw new Error(
+          data?.message ??
+            'FortyGuard heatmap activity failed while preparing the temperature trend.',
+        );
+      }
+
+      await this.sleep(
+        FortyGuardTemperatureProvider.TREND_POLL_INTERVAL_MS,
+      );
+    }
+
+    throw new Error(
+      `FortyGuard heatmap is still ${lastStatus}. The temperature trend request timed out in the browser, but no Supabase worker was kept running.`,
+    );
+  }
+
+  private async waitForTrendResult(
+    environmentalActivityId: string,
+  ): Promise<FortyGuardResponse<FortyGuardTrendResponse>> {
+    const timeoutAt =
+      Date.now() +
+      FortyGuardTemperatureProvider.TREND_TIMEOUT_MS;
+
+    let lastStatus = 'submitted';
+
+    while (Date.now() < timeoutAt) {
+      const response = await this.invokeTrend({
+        action: 'temperature-trend-result',
+        environmentalActivityId,
+      });
+
+      const data = response.data;
+      lastStatus = String(data?.status ?? lastStatus);
+
+      if (data?.done && data?.status === 'completed') {
+        return response;
+      }
+
+      if (
+        this.isFailedActivityStatus(data?.status)
+      ) {
+        throw new Error(
+          data?.message ??
+            'FortyGuard environmental activity failed while loading the temperature trend.',
+        );
+      }
+
+      await this.sleep(
+        FortyGuardTemperatureProvider.TREND_POLL_INTERVAL_MS,
+      );
+    }
+
+    throw new Error(
+      `FortyGuard environmental analysis is still ${lastStatus}. The temperature trend request timed out in the browser, but no Supabase worker was kept running.`,
+    );
+  }
+
+  private isFailedActivityStatus(status: unknown): boolean {
+    const value = String(status ?? '').toLowerCase().trim();
+
+    return [
+      'failed',
+      'error',
+      'cancelled',
+      'canceled',
+    ].includes(value);
   }
 
   async getTemperatureHistory(farmId: string, zoneId?: string, days = 7): Promise<TemperatureReading[]> {
@@ -90,7 +254,9 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     if (error) throw error;
   }
 
-  private async invokeTrend(body: Record<string, unknown>): Promise<FortyGuardResponse<FortyGuardTrendResponse>> {
+  private async invokeTrend(
+    body: Record<string, unknown>,
+  ): Promise<FortyGuardResponse<FortyGuardTrendResponse>> {
     const { data, error } = await this.supabaseService.client.functions.invoke<FortyGuardResponse<FortyGuardTrendResponse>>('fortyguard-proxy', { body });
     if (error) throw new Error(await this.formatFunctionError(error));
     if (!data?.success || !data.data) throw new Error(data?.message ?? data?.error ?? 'Invalid FortyGuard trend submission response.');
