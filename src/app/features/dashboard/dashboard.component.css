@@ -362,7 +362,7 @@
 .chart-area {
   display: flex;
 
-  height: 270px;
+  height: 300px;
 
   gap: 12px;
 }
@@ -389,6 +389,9 @@
   flex: 1;
 
   min-width: 0;
+
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .chart-grid {
@@ -419,14 +422,17 @@
 
   gap: 8px;
 
-  padding: 0 8px;
+  padding: 0 16px 0 8px;
+
+  min-width: max-content;
 }
 
 .temperature-column {
   height: 100%;
 
-  flex: 1;
+  flex: 0 0 auto;
 
+  min-width: 50px;
   max-width: 55px;
 
   display: flex;
