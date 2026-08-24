@@ -13,6 +13,7 @@ const REQUEST_TIMEOUT_MS = 25000;
 
 type Coordinates = { latitude: number; longitude: number };
 type DateTime = { startDate: string; startTime: string };
+type TrendActivity = { activityId: string; timestamp: string; startDate: string; startTime: string };
 
 class FortyGuardHttpError extends Error {
   constructor(public status: number, public endpoint: string, message: string, public safeBody: string) {
@@ -106,26 +107,36 @@ async function fg(path: string, init: RequestInit = {}) {
   }
 }
 
+async function getActivityStatus(activityId: string) {
+  try {
+    const payload = await fg(`/v1/status/${encodeURIComponent(activityId)}`, { method: 'GET' });
+    const data = payload?.data ?? payload ?? {};
+    return {
+      activityId,
+      status: String(data?.status ?? '').toLowerCase(),
+      result: data?.result ?? null,
+      message: data?.message ?? payload?.message ?? null,
+    };
+  } catch (error) {
+    // FortyGuard documents a brief 404 propagation window immediately after submission.
+    if (error instanceof FortyGuardHttpError && error.status === 404) {
+      return { activityId, status: 'pending', result: null, message: 'Activity not visible yet.' };
+    }
+    throw error;
+  }
+}
+
 async function waitForActivity(activityId: string) {
   let lastStatus = 'unknown';
-
   for (let attempt = 1; attempt <= MAX_POLLS; attempt++) {
-    const payload = await fg(`/v1/status/${activityId}`, { method: 'GET' });
-    const data = payload?.data ?? payload ?? {};
-    const status = String(data?.status ?? payload?.status ?? '').toLowerCase().trim();
-    lastStatus = status || 'unknown';
-
-    if (['completed', 'succeeded', 'success'].includes(status)) {
-      return data?.result ?? payload?.result ?? null;
+    const current = await getActivityStatus(activityId);
+    lastStatus = current.status || 'unknown';
+    if (['completed', 'succeeded', 'success'].includes(lastStatus)) return current.result;
+    if (['failed', 'error'].includes(lastStatus)) {
+      throw new Error(current.message ?? `FortyGuard activity failed with status ${lastStatus}.`);
     }
-
-    if (['failed', 'error'].includes(status)) {
-      throw new Error(data?.message ?? payload?.message ?? `FortyGuard activity failed with status ${status}.`);
-    }
-
     await new Promise(resolve => setTimeout(resolve, POLL_DELAY_MS));
   }
-
   throw new Error(`FortyGuard activity timed out. Last status: ${lastStatus}.`);
 }
 
@@ -163,10 +174,16 @@ function extractMeanTemperature(result: any): number | null {
     if (values.length) return values.reduce((a, b) => a + b, 0) / values.length;
   }
 
+  const features = Array.isArray(result?.map_data?.features) ? result.map_data.features : [];
+  const tileValues = features
+    .map((feature: any) => numberValue(feature?.properties?.average_temperature ?? feature?.properties?.temperature ?? feature?.properties?.value))
+    .filter((n: number | null): n is number => n !== null);
+  if (tileValues.length) return tileValues.reduce((a, b) => a + b, 0) / tileValues.length;
+
   return null;
 }
 
-async function heatmap(coordinates: Coordinates, dateTime: DateTime, endTime?: string) {
+async function submitHeatmap(coordinates: Coordinates, dateTime: DateTime) {
   const submitted = await fg('/v1/heatmap', {
     method: 'POST',
     body: JSON.stringify({
@@ -174,8 +191,7 @@ async function heatmap(coordinates: Coordinates, dateTime: DateTime, endTime?: s
       date_time: {
         start_date: dateTime.startDate,
         start_time: dateTime.startTime,
-        ...(endTime ? { end_time: endTime } : {}),
-        filter_type: endTime ? 2 : 1,
+        filter_type: 1,
       },
       granularity: 100,
       analytic_type: 'tcm',
@@ -184,7 +200,11 @@ async function heatmap(coordinates: Coordinates, dateTime: DateTime, endTime?: s
 
   const activityId = submitted?.data?.activity_id ?? submitted?.activity_id;
   if (!activityId) throw new Error('FortyGuard heatmap submission returned no activity_id.');
+  return activityId;
+}
 
+async function heatmap(coordinates: Coordinates, dateTime: DateTime) {
+  const activityId = await submitHeatmap(coordinates, dateTime);
   const result = await waitForActivity(activityId);
   return { result, activityId, temperature: extractMeanTemperature(result), dateTime };
 }
@@ -229,40 +249,72 @@ async function env(coordinates: Coordinates, temperature: number, start: DateTim
   };
 }
 
-function extractTrendFromEnvironment(result: any, fallback: DateTime[]): Array<{ timestamp: string; temperature: number }> {
-  const location = result?.locations?.[0] ?? {};
-  const timestamps: string[] = Array.isArray(result?.metadata?.timestamps) ? result.metadata.timestamps : [];
-  const rawTemperature = location?.temperature;
+async function submitTemperatureTrend(coordinates: Coordinates, hours = 12): Promise<TrendActivity[]> {
+  const targets = getLastHours(hours);
+  const activities: TrendActivity[] = [];
 
-  if (Array.isArray(rawTemperature)) {
-    return rawTemperature
-      .map((value, index) => {
-        const n = numberValue(value);
-        if (n === null) return null;
-        const timestamp = timestamps[index] ?? `${fallback[index]?.startDate}T${fallback[index]?.startTime}:00Z`;
-        return { timestamp, temperature: round1(n)! };
-      })
-      .filter((x): x is { timestamp: string; temperature: number } => x !== null);
+  // Submit only. Do NOT wait here. A Supabase Edge Function is not a good place
+  // to hold a request open while FortyGuard processes asynchronous jobs.
+  // Submissions are intentionally batched in groups of four to avoid a burst.
+  for (let i = 0; i < targets.length; i += 4) {
+    const batch = targets.slice(i, i + 4);
+    const submitted = await Promise.all(batch.map(async target => ({
+      activityId: await submitHeatmap(coordinates, target),
+      timestamp: `${target.startDate}T${target.startTime}:00Z`,
+      startDate: target.startDate,
+      startTime: target.startTime,
+    })));
+    activities.push(...submitted);
   }
 
-  const single = numberValue(rawTemperature);
-  if (single !== null && fallback.length === 1) {
-    return [{ timestamp: `${fallback[0].startDate}T${fallback[0].startTime}:00Z`, temperature: round1(single)! }];
+  return activities;
+}
+
+async function temperatureTrendStatus(activities: TrendActivity[]) {
+  const statuses = await Promise.all(activities.map(activity => getActivityStatus(activity.activityId)));
+  const points: Array<{ timestamp: string; temperature: number }> = [];
+
+  for (const activity of activities) {
+    const status = statuses.find(item => item.activityId === activity.activityId);
+    if (!status) continue;
+
+    if (['completed', 'succeeded', 'success'].includes(status.status)) {
+      const temperature = extractMeanTemperature(status.result);
+      if (temperature !== null) {
+        points.push({ timestamp: activity.timestamp, temperature: round1(temperature)! });
+      }
+    }
+
+    if (['failed', 'error'].includes(status.status)) {
+      console.warn(`[FortyGuard] trend activity failed: ${activity.activityId} ${status.message ?? ''}`);
+    }
   }
 
-  return [];
+  points.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  const completed = statuses.filter(s => ['completed', 'succeeded', 'success'].includes(s.status)).length;
+  const processing = statuses.filter(s => !['completed', 'succeeded', 'success', 'failed', 'error'].includes(s.status)).length;
+  const failed = statuses.filter(s => ['failed', 'error'].includes(s.status)).length;
+
+  return {
+    resultReceived: points.length > 0,
+    requestedHours: activities.length,
+    returnedHours: points.length,
+    completed,
+    processing,
+    failed,
+    done: completed + failed >= activities.length,
+    points,
+  };
 }
 
 async function currentTemperature(coordinates: Coordinates) {
   const dateTime = getPreviousCompletedHour();
   const heat = await heatmap(coordinates, dateTime);
-
   const temperature = heat.temperature;
   if (temperature === null) throw new Error('FortyGuard heatmap completed but no temperature mean was returned.');
 
   let environmental: Awaited<ReturnType<typeof env>> | null = null;
   let environmentalError: string | null = null;
-
   try {
     environmental = await env(coordinates, temperature, dateTime);
   } catch (error) {
@@ -270,7 +322,6 @@ async function currentTemperature(coordinates: Coordinates) {
   }
 
   const locationTemperature = numberValue(environmental?.temperature) ?? temperature;
-
   return {
     resultReceived: !!heat.result,
     temperature: round1(locationTemperature),
@@ -291,35 +342,6 @@ async function currentTemperature(coordinates: Coordinates) {
   };
 }
 
-async function temperatureTrend(coordinates: Coordinates, hours = 12) {
-  const targets = getLastHours(hours);
-  const start = targets[0];
-  const end = targets[targets.length - 1];
-
-  // ONE heatmap activity for the complete 12-hour range instead of 12 activities.
-  // This is the critical fix for WORKER_RESOURCE_LIMIT / 546.
-  const heat = await heatmap(coordinates, start, end.startTime);
-
-  // Use the heatmap mean as the required context temperature for env_params.
-  // env_params supports filter_type=2 and returns time-aligned timestamps/arrays.
-  if (heat.temperature === null) {
-    throw new Error('FortyGuard range heatmap completed but no temperature mean was returned.');
-  }
-
-  const environmental = await env(coordinates, heat.temperature, start, end.startTime);
-  const points = extractTrendFromEnvironment(environmental.result, targets);
-
-  return {
-    resultReceived: points.length > 0,
-    requestedHours: targets.length,
-    returnedHours: points.length,
-    points,
-    source: 'FortyGuard env_params range',
-    activityId: environmental.activityId,
-    metadata: environmental.metadata,
-  };
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
@@ -329,13 +351,7 @@ Deno.serve(async (req: Request) => {
     const action = body?.action;
 
     if (action === 'health') {
-      return jsonResponse({
-        success: true,
-        data: {
-          fortyGuardApiKeyConfigured: !!Deno.env.get('FORTYGUARD_API_KEY'),
-          timestamp: new Date().toISOString(),
-        },
-      });
+      return jsonResponse({ success: true, data: { fortyGuardApiKeyConfigured: !!Deno.env.get('FORTYGUARD_API_KEY'), timestamp: new Date().toISOString() } });
     }
 
     const latitude = Number(body?.latitude);
@@ -352,41 +368,29 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'environmental-parameters') {
       const temperature = Number(body?.temperature);
-      if (!Number.isFinite(temperature)) {
-        return jsonResponse({ success: false, error: 'temperature is required for environmental-parameters.' }, 400);
-      }
+      if (!Number.isFinite(temperature)) return jsonResponse({ success: false, error: 'temperature is required for environmental-parameters.' }, 400);
       const dateTime = getPreviousCompletedHour();
       return jsonResponse({ success: true, action, data: await env(coordinates, temperature, dateTime) });
     }
 
     if (action === 'temperature-trend') {
       const requestedHours = Number(body?.hours ?? 12);
-      const trend = await temperatureTrend(coordinates, Number.isFinite(requestedHours) ? requestedHours : 12);
-      return jsonResponse({ success: true, action, data: trend });
+      const activities = await submitTemperatureTrend(coordinates, Number.isFinite(requestedHours) ? requestedHours : 12);
+      return jsonResponse({ success: true, action, data: { phase: 'submitted', activities, requestedHours: activities.length } });
     }
 
-    return jsonResponse({
-      success: false,
-      error: 'Unknown action. Use current-temperature, environmental-parameters, temperature-trend, or health.',
-    }, 400);
+    if (action === 'temperature-trend-status') {
+      const activities = Array.isArray(body?.activities) ? body.activities : [];
+      if (!activities.length) return jsonResponse({ success: false, error: 'activities is required.' }, 400);
+      return jsonResponse({ success: true, action, data: await temperatureTrendStatus(activities.slice(0, 12)) });
+    }
+
+    return jsonResponse({ success: false, error: 'Unknown action. Use current-temperature, environmental-parameters, temperature-trend, temperature-trend-status, or health.' }, 400);
   } catch (error) {
     console.error('[FortyGuard] proxy error', error);
-
     if (error instanceof FortyGuardHttpError) {
-      return jsonResponse({
-        success: false,
-        error: 'FortyGuard API error',
-        message: error.message,
-        endpoint: error.endpoint,
-        status: error.status,
-        body: error.safeBody,
-      }, 502);
+      return jsonResponse({ success: false, error: 'FortyGuard API error', message: error.message, endpoint: error.endpoint, status: error.status, body: error.safeBody }, 502);
     }
-
-    return jsonResponse({
-      success: false,
-      error: 'Edge Function internal error',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    }, 500);
+    return jsonResponse({ success: false, error: 'Edge Function internal error', message: error instanceof Error ? error.message : 'Unknown error' }, 500);
   }
 });
