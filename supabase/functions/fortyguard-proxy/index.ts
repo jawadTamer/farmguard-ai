@@ -7,17 +7,21 @@ const corsHeaders = {
 };
 
 const BASE_URL = 'https://api.fortyguard.com';
-const HEATMAP_MAX_POLLS = 150;
-const ENV_MAX_POLLS = 60;
-// Faster completion detection. The API processing time is unchanged, but we
-// avoid adding up to a full second of idle time after an activity completes.
-const POLL_DELAY_MS = 500;
+const HEATMAP_MAX_POLLS = 60;
+const ENV_MAX_POLLS = 40;
+// 500 ms created unnecessary wakeups and status traffic. Keep the worker light
+// while FortyGuard processes asynchronously.
+const POLL_DELAY_MS = 1500;
 const REQUEST_TIMEOUT_MS = 15000;
 
 // The trend endpoint is requested repeatedly by the dashboard. A short-lived
 // cache avoids paying for the same completed FortyGuard activity twice.
 const HEATMAP_CACHE_TTL_MS = 5 * 60 * 1000;
-const heatmapCache = new Map<string, { expiresAt: number; value: { result: any; activityId: string; temperature: number | null; dateTime: DateTime; pollingStatus: string; pollingAttempts: number } }>();
+type HeatmapValue = { result: any; activityId: string; temperature: number | null; dateTime: DateTime; pollingStatus: string; pollingAttempts: number };
+const heatmapCache = new Map<string, { expiresAt: number; value: HeatmapValue }>();
+// Multiple dashboard cards can request FortyGuard at the same time. Share one
+// in-flight Heatmap instead of creating duplicate expensive activities.
+const heatmapInFlight = new Map<string, Promise<HeatmapValue>>();
 
 type Coordinates = { latitude: number; longitude: number };
 type DateTime = { startDate: string; startTime: string };
@@ -225,7 +229,7 @@ async function submitHeatmap(coordinates: Coordinates, dateTime: DateTime) {
   return activityId;
 }
 
-async function heatmap(coordinates: Coordinates, dateTime: DateTime) {
+async function heatmap(coordinates: Coordinates, dateTime: DateTime): Promise<HeatmapValue> {
   const key = [
     coordinates.latitude.toFixed(5),
     coordinates.longitude.toFixed(5),
@@ -234,25 +238,34 @@ async function heatmap(coordinates: Coordinates, dateTime: DateTime) {
   ].join('|');
 
   const cached = heatmapCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.value;
-  }
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
   if (cached) heatmapCache.delete(key);
 
-  const activityId = await submitHeatmap(coordinates, dateTime);
-  const completed = await waitForActivity(activityId, 'Heatmap', HEATMAP_MAX_POLLS);
-  const result = completed.result;
-  const value = {
-    result,
-    activityId,
-    temperature: extractMeanTemperature(result),
-    dateTime,
-    pollingStatus: completed.status,
-    pollingAttempts: completed.attempts,
-  };
+  const running = heatmapInFlight.get(key);
+  if (running) return await running;
 
-  heatmapCache.set(key, { expiresAt: Date.now() + HEATMAP_CACHE_TTL_MS, value });
-  return value;
+  const job = (async (): Promise<HeatmapValue> => {
+    const activityId = await submitHeatmap(coordinates, dateTime);
+    const completed = await waitForActivity(activityId, 'Heatmap', HEATMAP_MAX_POLLS);
+    const result = completed.result;
+    const value: HeatmapValue = {
+      result,
+      activityId,
+      temperature: extractMeanTemperature(result),
+      dateTime,
+      pollingStatus: completed.status,
+      pollingAttempts: completed.attempts,
+    };
+    heatmapCache.set(key, { expiresAt: Date.now() + HEATMAP_CACHE_TTL_MS, value });
+    return value;
+  })();
+
+  heatmapInFlight.set(key, job);
+  try {
+    return await job;
+  } finally {
+    heatmapInFlight.delete(key);
+  }
 }
 
 async function env(coordinates: Coordinates, temperature: number, start: DateTime, end?: DateTime, analysis?: string[]) {
@@ -301,7 +314,11 @@ async function directTemperatureTrend(coordinates: Coordinates, hours = 12) {
   const count = Math.min(Math.max(Math.floor(hours), 1), 12);
   const end = getPreviousCompletedHour();
   const start = addHours(end, -(count - 1));
-  const heat = await heatmap(coordinates, start);
+
+  // Do not launch a second historical Heatmap for the chart. Reuse the latest
+  // completed-hour heatmap as the temperature input, then request all trend
+  // hours in one env_params activity.
+  const heat = await heatmap(coordinates, end);
   if (heat.temperature === null) throw new Error('Cannot generate temperature trend because the heatmap completed without a valid temperature.');
   const environmental = await env(coordinates, heat.temperature, start, end, ['apparent_temperature_celsius']);
   const points = toTrendPoints(environmental);
