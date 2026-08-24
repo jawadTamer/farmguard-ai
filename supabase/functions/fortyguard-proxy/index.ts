@@ -9,8 +9,15 @@ const corsHeaders = {
 const BASE_URL = 'https://api.fortyguard.com';
 const HEATMAP_MAX_POLLS = 150;
 const ENV_MAX_POLLS = 60;
-const POLL_DELAY_MS = 1000;
-const REQUEST_TIMEOUT_MS = 30000;
+// Faster completion detection. The API processing time is unchanged, but we
+// avoid adding up to a full second of idle time after an activity completes.
+const POLL_DELAY_MS = 500;
+const REQUEST_TIMEOUT_MS = 15000;
+
+// The trend endpoint is requested repeatedly by the dashboard. A short-lived
+// cache avoids paying for the same completed FortyGuard activity twice.
+const HEATMAP_CACHE_TTL_MS = 5 * 60 * 1000;
+const heatmapCache = new Map<string, { expiresAt: number; value: { result: any; activityId: string; temperature: number | null; dateTime: DateTime; pollingStatus: string; pollingAttempts: number } }>();
 
 type Coordinates = { latitude: number; longitude: number };
 type DateTime = { startDate: string; startTime: string };
@@ -50,7 +57,7 @@ function getLastHours(hours = 12): DateTime[] {
 }
 
 function buildPolygon({ latitude, longitude }: Coordinates) {
-  const delta = 0.005;
+  const delta = 0.002; // ~400 m AOI: much less area for the heatmap model to process
   return {
     type: 'FeatureCollection',
     features: [{
@@ -207,7 +214,8 @@ async function submitHeatmap(coordinates: Coordinates, dateTime: DateTime) {
         start_time: dateTime.startTime,
         filter_type: 1,
       },
-      granularity: 100,
+      // 60 is the lowest supported spatial resolution and is sufficient for a single-location temperature source.
+      granularity: 60,
       analytic_type: 'tcm',
     }),
   });
@@ -218,10 +226,33 @@ async function submitHeatmap(coordinates: Coordinates, dateTime: DateTime) {
 }
 
 async function heatmap(coordinates: Coordinates, dateTime: DateTime) {
+  const key = [
+    coordinates.latitude.toFixed(5),
+    coordinates.longitude.toFixed(5),
+    dateTime.startDate,
+    dateTime.startTime,
+  ].join('|');
+
+  const cached = heatmapCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+  if (cached) heatmapCache.delete(key);
+
   const activityId = await submitHeatmap(coordinates, dateTime);
   const completed = await waitForActivity(activityId, 'Heatmap', HEATMAP_MAX_POLLS);
   const result = completed.result;
-  return { result, activityId, temperature: extractMeanTemperature(result), dateTime, pollingStatus: completed.status, pollingAttempts: completed.attempts };
+  const value = {
+    result,
+    activityId,
+    temperature: extractMeanTemperature(result),
+    dateTime,
+    pollingStatus: completed.status,
+    pollingAttempts: completed.attempts,
+  };
+
+  heatmapCache.set(key, { expiresAt: Date.now() + HEATMAP_CACHE_TTL_MS, value });
+  return value;
 }
 
 async function env(coordinates: Coordinates, temperature: number, start: DateTime, end?: DateTime, analysis?: string[]) {
