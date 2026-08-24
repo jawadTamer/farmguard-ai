@@ -7,8 +7,8 @@ const corsHeaders = {
 };
 
 const BASE_URL = 'https://api.fortyguard.com';
-const MAX_POLLS = 180;
-const POLL_DELAY_MS = 2000;
+const MAX_POLLS = 45;
+const POLL_DELAY_MS = 1000;
 const REQUEST_TIMEOUT_MS = 30000;
 
 type Coordinates = { latitude: number; longitude: number };
@@ -271,7 +271,7 @@ async function directTemperatureTrend(coordinates: Coordinates, hours = 12) {
   const start = addHours(end, -(count - 1));
   const heat = await heatmap(coordinates, start);
   if (heat.temperature === null) throw new Error('Cannot generate temperature trend because the heatmap completed without a valid temperature.');
-  const environmental = await env(coordinates, heat.temperature, start, end, ['apparent_temperature_celsius','heat_index_celsius','wet_bulb_temperature_celsius']);
+  const environmental = await env(coordinates, heat.temperature, start, end, ['apparent_temperature_celsius']);
   const points = toTrendPoints(environmental);
   return { resultReceived: environmental.resultReceived, requestedHours: count, returnedHours: points.filter(p => p.temperature !== null).length,
     completed: environmental.resultReceived ? 1 : 0, processing: 0, failed: 0, done: true, points,
