@@ -19,10 +19,13 @@ interface FortyGuardCurrentResponse {
   environmentalActivityId?: string; nCells?: number; featuresCount?: number;
   resultKeys?: string[]; statsKeys?: string[]; environmentalError?: unknown;
 }
+interface TrendActivity { activityId: string; timestamp: string; startDate: string; startTime: string; }
 interface FortyGuardTrendResponse {
+  phase?: string;
+  activities?: TrendActivity[];
   points?: Array<{ timestamp: string; temperature: number | null; apparentTemperature?: number | null; heatIndex?: number | null; humidity?: number | null }>;
-  requestedHours?: number; returnedHours?: number; source?: string;
-  resultReceived?: boolean; rawTemperatureSeriesFound?: boolean;
+  requestedHours?: number; returnedHours?: number; completed?: number; processing?: number; failed?: number; done?: boolean;
+  resultReceived?: boolean; source?: string;
 }
 interface FortyGuardResponse<T = FortyGuardCurrentResponse> {
   success: boolean; action?: string; data?: T; error?: string; message?: string; status?: number; endpoint?: string;
@@ -47,34 +50,48 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
 
   async refreshCurrentTemperature(farmId: string, zoneId?: string): Promise<TemperatureReading | null> { return this.refreshFromFortyGuard(farmId, zoneId); }
 
-  /** Gets up to 12 hourly temperature values from the FortyGuard heatmap range. */
+  /** Gets up to 12 hourly temperature values from separate asynchronous FortyGuard tcm activities. */
   async getTodayTemperatureTrend(farmId: string, zoneId?: string, _currentTemperature?: number): Promise<TemperatureTrendPoint[]> {
     if (!farmId?.trim()) throw new Error('Farm ID is required to get the temperature trend.');
     const coordinates = await this.getCoordinates(farmId, zoneId);
     if (!coordinates) throw new Error('No latitude/longitude is configured for this farm or zone.');
 
-    const { data, error } = await this.supabaseService.client.functions.invoke<FortyGuardResponse<FortyGuardTrendResponse>>('fortyguard-proxy', {
-      body: { action: 'temperature-trend', latitude: coordinates.latitude, longitude: coordinates.longitude, hours: 12 },
+    // Step 1: submit all hourly activities. The Edge Function returns immediately
+    // with activity IDs instead of waiting for FortyGuard to finish processing.
+    const submitted = await this.invokeTrend({
+      action: 'temperature-trend',
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      hours: 12,
     });
 
-    if (error) throw new Error(await this.formatFunctionError(error));
-    if (!data?.success || !data.data) throw new Error(data?.message ?? data?.error ?? 'Invalid FortyGuard temperature trend response.');
+    const activities = submitted?.data?.activities ?? [];
+    if (!activities.length) throw new Error('FortyGuard accepted the trend request but returned no activity IDs.');
 
-    const points = (data.data.points ?? [])
-      .filter(p => this.isFiniteNumber(p.temperature))
-      .map(p => ({
-        timestamp: p.timestamp,
-        temperature: this.roundTemperature(Number(p.temperature)),
-        apparentTemperature: this.toNumber(p.apparentTemperature),
-        heatIndex: this.toNumber(p.heatIndex),
-        humidity: this.toNumber(p.humidity),
-      }))
-      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    // Step 2: poll status from the browser. Each status request is short and the
+    // Edge Function checks all activity IDs concurrently, avoiding a long-running
+    // Supabase worker and the 546/WORKER_RESOURCE_LIMIT problem.
+    const deadline = Date.now() + 120_000;
+    let latest: FortyGuardTrendResponse | null = null;
 
-    if (!points.length) {
-      throw new Error('FortyGuard completed the 12-hour trend request but returned no hourly temperature series.');
+    while (Date.now() < deadline) {
+      latest = await this.invokeTrendStatus(activities);
+      const points = this.normalizeTrendPoints(latest?.data?.points ?? []);
+
+      if (points.length >= Math.min(activities.length, 12) || latest?.data?.done) {
+        if (points.length) return points;
+        if (latest?.data?.done) break;
+      }
+
+      await this.sleep(3000);
     }
-    return points;
+
+    // Return partial data if some activities completed. This is preferable to
+    // throwing away successful hourly readings when one upstream job is slow.
+    const partial = this.normalizeTrendPoints(latest?.data?.points ?? []);
+    if (partial.length) return partial;
+
+    throw new Error('FortyGuard trend activities are still processing. No hourly temperature result is available yet.');
   }
 
   async getTemperatureHistory(farmId: string, zoneId?: string, days = 7): Promise<TemperatureReading[]> {
@@ -97,6 +114,32 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     });
     if (error) throw error;
   }
+
+  private async invokeTrend(body: Record<string, unknown>): Promise<FortyGuardResponse<FortyGuardTrendResponse>> {
+    const { data, error } = await this.supabaseService.client.functions.invoke<FortyGuardResponse<FortyGuardTrendResponse>>('fortyguard-proxy', { body });
+    if (error) throw new Error(await this.formatFunctionError(error));
+    if (!data?.success || !data.data) throw new Error(data?.message ?? data?.error ?? 'Invalid FortyGuard trend submission response.');
+    return data;
+  }
+
+  private async invokeTrendStatus(activities: TrendActivity[]): Promise<FortyGuardResponse<FortyGuardTrendResponse>> {
+    return this.invokeTrend({ action: 'temperature-trend-status', activities });
+  }
+
+  private normalizeTrendPoints(points: Array<{ timestamp: string; temperature: number | null; apparentTemperature?: number | null; heatIndex?: number | null; humidity?: number | null }>): TemperatureTrendPoint[] {
+    return points
+      .filter(p => this.isFiniteNumber(p.temperature))
+      .map(p => ({
+        timestamp: p.timestamp,
+        temperature: this.roundTemperature(Number(p.temperature)),
+        apparentTemperature: this.toNumber(p.apparentTemperature),
+        heatIndex: this.toNumber(p.heatIndex),
+        humidity: this.toNumber(p.humidity),
+      }))
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  }
+
+  private sleep(ms: number): Promise<void> { return new Promise(resolve => setTimeout(resolve, ms)); }
 
   private async refreshInBackground(farmId: string, zoneId?: string) { try { await this.refreshFromFortyGuard(farmId, zoneId); } catch (e) { console.warn('[FortyGuard] Background refresh failed; cached value remains available.', e); } }
   private async refreshFromFortyGuard(farmId: string, zoneId?: string): Promise<TemperatureReading | null> {
