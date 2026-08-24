@@ -7,7 +7,8 @@ const corsHeaders = {
 };
 
 const BASE_URL = 'https://api.fortyguard.com';
-const MAX_POLLS = 45;
+const HEATMAP_MAX_POLLS = 150;
+const ENV_MAX_POLLS = 60;
 const POLL_DELAY_MS = 1000;
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -128,16 +129,16 @@ async function getActivityStatus(activityId: string) {
 
 type ActivityStatusResult = { activityId: string; status: string; result: any; raw: any; attempts: number; };
 
-async function waitForActivity(activityId: string, activityType = 'FortyGuard activity'): Promise<ActivityStatusResult> {
+async function waitForActivity(activityId: string, activityType = 'FortyGuard activity', maxPolls = ENV_MAX_POLLS): Promise<ActivityStatusResult> {
   let lastStatus = 'unknown', lastPayload: any = null, consecutive404s = 0;
-  for (let attempt = 1; attempt <= MAX_POLLS; attempt++) {
+  for (let attempt = 1; attempt <= maxPolls; attempt++) {
     try {
       const payload = await fg(`/v1/status/${encodeURIComponent(activityId)}`, { method: 'GET' });
       lastPayload = payload;
       const data = payload?.data ?? payload ?? {};
       const status = String(data?.status ?? payload?.status ?? '').trim().toLowerCase();
       lastStatus = status || 'unknown';
-      console.log('[FortyGuard] STATUS', JSON.stringify({ activityType, activityId, attempt, maxAttempts: MAX_POLLS, status: lastStatus }));
+      console.log('[FortyGuard] STATUS', JSON.stringify({ activityType, activityId, attempt, maxAttempts: maxPolls, status: lastStatus }));
       consecutive404s = 0;
       if (['completed','complete','succeeded','success'].includes(lastStatus)) return { activityId, status: lastStatus, result: data?.result ?? payload?.result ?? null, raw: payload, attempts: attempt };
       if (['failed','failure','error','cancelled','canceled'].includes(lastStatus)) throw new Error(data?.message ?? payload?.message ?? `${activityType} failed with status ${lastStatus}.`);
@@ -149,7 +150,7 @@ async function waitForActivity(activityId: string, activityType = 'FortyGuard ac
     }
     await new Promise(resolve => setTimeout(resolve, POLL_DELAY_MS));
   }
-  const elapsedSeconds = Math.round((MAX_POLLS * POLL_DELAY_MS) / 1000);
+  const elapsedSeconds = Math.round((maxPolls * POLL_DELAY_MS) / 1000);
   throw new Error(`${activityType} timed out. Activity ID: ${activityId}. Last status: ${lastStatus}. Waited approximately ${elapsedSeconds} seconds. Last response: ${JSON.stringify(lastPayload ?? {}).slice(0,1500)}`);
 }
 
@@ -218,7 +219,7 @@ async function submitHeatmap(coordinates: Coordinates, dateTime: DateTime) {
 
 async function heatmap(coordinates: Coordinates, dateTime: DateTime) {
   const activityId = await submitHeatmap(coordinates, dateTime);
-  const completed = await waitForActivity(activityId, 'Heatmap');
+  const completed = await waitForActivity(activityId, 'Heatmap', HEATMAP_MAX_POLLS);
   const result = completed.result;
   return { result, activityId, temperature: extractMeanTemperature(result), dateTime, pollingStatus: completed.status, pollingAttempts: completed.attempts };
 }
@@ -234,7 +235,7 @@ async function env(coordinates: Coordinates, temperature: number, start: DateTim
   })});
   const activityId = submitted?.data?.activity_id ?? submitted?.activity_id;
   if (!activityId) throw new Error('FortyGuard environmental submission returned no activity_id.');
-  const completed = await waitForActivity(activityId, isRange ? 'Environmental parameters range' : 'Environmental parameters');
+  const completed = await waitForActivity(activityId, isRange ? 'Environmental parameters range' : 'Environmental parameters', ENV_MAX_POLLS);
   const result = completed.result, location = result?.locations?.[0] ?? {}, parameters = location?.parameters ?? {};
   return { activityId, result, resultReceived: !!result, pollingStatus: completed.status, pollingAttempts: completed.attempts,
     temperature: numberValue(location.temperature) ?? temperature,
