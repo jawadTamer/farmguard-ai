@@ -20,7 +20,7 @@ interface FortyGuardCurrentResponse {
   resultKeys?: string[]; statsKeys?: string[]; environmentalError?: unknown;
 }
 interface FortyGuardTrendPointResponse {
-  timestamp: string | null;
+  timestamp: string ;
   temperature: number | null;
   apparentTemperature?: number | null;
   heatIndex?: number | null;
