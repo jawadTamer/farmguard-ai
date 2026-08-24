@@ -72,7 +72,7 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     // Edge Function checks all activity IDs concurrently, avoiding a long-running
     // Supabase worker and the 546/WORKER_RESOURCE_LIMIT problem.
     const deadline = Date.now() + 120_000;
-    let latest: FortyGuardTrendResponse | null = null;
+    let latest: FortyGuardResponse<FortyGuardTrendResponse> | null = null;
 
     while (Date.now() < deadline) {
       latest = await this.invokeTrendStatus(activities);

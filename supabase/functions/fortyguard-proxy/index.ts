@@ -178,7 +178,7 @@ function extractMeanTemperature(result: any): number | null {
   const tileValues = features
     .map((feature: any) => numberValue(feature?.properties?.average_temperature ?? feature?.properties?.temperature ?? feature?.properties?.value))
     .filter((n: number | null): n is number => n !== null);
-  if (tileValues.length) return tileValues.reduce((a, b) => a + b, 0) / tileValues.length;
+  if (tileValues.length) return tileValues.reduce((a: number, b: number) => a + b, 0) / tileValues.length;
 
   return null;
 }
