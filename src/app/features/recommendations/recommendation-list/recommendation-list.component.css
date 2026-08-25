@@ -1,0 +1,35 @@
+:host { display:block; }
+.advisor-page { max-width: 1180px; margin: 0 auto; padding: 8px 0 32px; color:#173f2a; }
+.advisor-header { display:flex; justify-content:space-between; gap:28px; align-items:flex-end; margin-bottom:18px; }
+.eyebrow { font-size:11px; letter-spacing:2px; font-weight:800; color:#198754; }
+h1 { margin:6px 0; font-size:32px; }
+.advisor-header p { margin:0; color:#6d7c74; max-width:680px; }
+.farm-picker { min-width:220px; }
+.farm-picker label { display:block; font-size:12px; font-weight:700; margin-bottom:7px; }
+.farm-picker select { width:100%; padding:11px 13px; border:1px solid #dce7df; border-radius:12px; background:white; color:#173f2a; }
+.context-strip { display:flex; align-items:center; gap:12px; padding:14px 16px; background:#edf8f1; border:1px solid #d6eddf; border-radius:14px; margin-bottom:14px; }
+.context-icon { width:34px; height:34px; display:grid; place-items:center; border-radius:10px; background:#d8f0e0; color:#078443; font-weight:900; }
+.context-strip div { display:flex; flex-direction:column; gap:2px; flex:1; }
+.context-strip div span { color:#708078; font-size:12px; }
+.context-status { color:#087b40; font-size:12px; font-weight:700; }
+.suggestions { display:flex; gap:9px; flex-wrap:wrap; margin-bottom:14px; }
+.suggestions button { border:1px solid #dce7df; background:white; color:#2c5b42; padding:9px 13px; border-radius:999px; cursor:pointer; transition:.2s; }
+.suggestions button:hover { background:#edf8f1; border-color:#bfe1ca; }
+.chat-card { background:white; border:1px solid #e0e9e3; border-radius:20px; box-shadow:0 8px 30px rgba(22,64,42,.06); overflow:hidden; }
+.chat-messages { min-height:420px; max-height:560px; overflow:auto; padding:24px; display:flex; flex-direction:column; gap:18px; background:linear-gradient(#fff,#fbfdfb); }
+.message { display:flex; gap:10px; max-width:88%; }
+.user-message { align-self:flex-end; flex-direction:row-reverse; }
+.avatar { flex:0 0 34px; width:34px; height:34px; display:grid; place-items:center; border-radius:11px; background:#e7f5ec; color:#087b40; font-size:11px; font-weight:800; }
+.user-message .avatar { background:#173f2a; color:white; }
+.bubble { padding:13px 15px; border-radius:15px; background:#f1f7f3; color:#274a36; line-height:1.55; white-space:pre-wrap; }
+.user-message .bubble { background:#173f2a; color:white; border-bottom-right-radius:4px; }
+.assistant-message .bubble { border-bottom-left-radius:4px; }
+.message-text { font-size:14px; }
+.urgency { display:inline-block; margin-top:10px; padding:4px 8px; border-radius:999px; font-size:10px; text-transform:uppercase; font-weight:800; }
+.urgency-low { background:#dff5e7; color:#14743c; }.urgency-moderate { background:#fff2cf; color:#946300; }.urgency-high { background:#ffe5d4; color:#a64d00; }.urgency-critical { background:#ffe0e0; color:#a61b1b; }
+.actions { margin-top:12px; padding-top:10px; border-top:1px solid rgba(0,0,0,.08); }.actions strong { font-size:12px; }.actions ul { margin:7px 0 0; padding-left:18px; }.actions li { margin:4px 0; }
+.typing { display:flex; align-items:center; gap:5px; }.typing span { width:6px; height:6px; border-radius:50%; background:#579b73; animation:bounce 1s infinite; }.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}.typing em { margin-left:5px; font-size:12px; color:#718078; font-style:normal; }
+.error-box { margin:0 20px 12px; padding:10px 12px; border-radius:10px; background:#fff0f0; color:#a33a3a; font-size:12px; }
+.composer { display:flex; gap:10px; padding:16px; border-top:1px solid #e5ece7; }.composer textarea { flex:1; resize:none; border:1px solid #dce7df; border-radius:13px; padding:12px; font:inherit; outline:none; }.composer textarea:focus { border-color:#65b985; box-shadow:0 0 0 3px rgba(101,185,133,.12); }.composer button { border:0; border-radius:13px; padding:0 18px; background:#173f2a; color:white; font-weight:800; cursor:pointer; }.composer button:disabled { opacity:.5; cursor:not-allowed; }.disclaimer { padding:0 18px 16px; margin:0; color:#89948e; font-size:11px; }
+@keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-4px)} }
+@media (max-width: 700px){ .advisor-header{align-items:stretch; flex-direction:column}.farm-picker{min-width:0}.message{max-width:95%}.composer{flex-direction:column}.composer button{height:44px}.chat-messages{padding:16px;} }
