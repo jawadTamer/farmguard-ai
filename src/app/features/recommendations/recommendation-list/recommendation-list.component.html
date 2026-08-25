@@ -1,1 +1,50 @@
-<p>recommendation-list works!</p>
+<section class="advisor-page">
+  <header class="advisor-header">
+    <div>
+      <span class="eyebrow">AI ADVISOR</span>
+      <h1>FarmGuard AI Advisor</h1>
+      <p>Ask about your farm and get practical advice based on its weather, crops, livestock, and risk predictions.</p>
+    </div>
+    <div class="farm-picker">
+      <label for="farm">Farm</label>
+      <select id="farm" [(ngModel)]="selectedFarmId" (ngModelChange)="onFarmChange()" [disabled]="loadingFarms || loading">
+        <option value="" disabled>Select a farm</option>
+        @for (farm of farms; track farm.id) { <option [value]="farm.id">{{ farm.name }}</option> }
+      </select>
+    </div>
+  </header>
+
+  @if (selectedFarm) {
+    <div class="context-strip"><span class="context-icon">✦</span><div><strong>{{ selectedFarm.name }}</strong><span>{{ selectedFarm.location || 'Farm location available' }}</span></div><span class="context-status">Farm context connected</span></div>
+  }
+
+  <div class="suggestions">
+    <button type="button" (click)="useSuggestion('What is the current heat risk on my farm and what should I do now?')">Current heat risk</button>
+    <button type="button" (click)="useSuggestion('Which crop or animal on my farm needs attention first?')">What needs attention?</button>
+    <button type="button" (click)="useSuggestion('What actions should I take today to protect my crops and livestock from heat?')">Today's actions</button>
+  </div>
+
+  <main class="chat-card">
+    <div class="chat-messages">
+      @for (item of messages; track $index) {
+        <article class="message" [class.user-message]="item.role === 'user'" [class.assistant-message]="item.role === 'assistant'">
+          <div class="avatar">{{ item.role === 'assistant' ? '✦' : 'You' }}</div>
+          <div class="bubble">
+            <div class="message-text">{{ item.content }}</div>
+            @if (item.urgency && item.role === 'assistant') { <span class="urgency" [class]="'urgency-' + item.urgency">{{ item.urgency }} priority</span> }
+            @if (item.actions?.length) { <div class="actions"><strong>Recommended actions</strong><ul>@for (action of item.actions; track $index) { <li>{{ action }}</li> }</ul></div> }
+          </div>
+        </article>
+      }
+      @if (loading) { <article class="message assistant-message"><div class="avatar">✦</div><div class="bubble typing"><span></span><span></span><span></span><em>Analyzing your farm...</em></div></article> }
+    </div>
+
+    @if (error) { <div class="error-box">{{ error }}</div> }
+
+    <form class="composer" (ngSubmit)="send()">
+      <textarea name="message" [(ngModel)]="message" rows="2" [disabled]="loading || !selectedFarmId" placeholder="Ask your farm advisor anything..."></textarea>
+      <button type="submit" [disabled]="loading || !message.trim() || !selectedFarmId">{{ loading ? 'Analyzing...' : 'Ask Advisor' }} <span>→</span></button>
+    </form>
+    <p class="disclaimer">FarmGuard AI uses your farm data and model predictions as decision support. It does not replace professional veterinary or agricultural advice.</p>
+  </main>
+</section>
