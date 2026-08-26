@@ -1277,7 +1277,7 @@ Deno.serve(
 
             message:
               error instanceof Error
-                ? error.message
+                ? error.message 
                 : 'Unknown error',
           },
           500,
