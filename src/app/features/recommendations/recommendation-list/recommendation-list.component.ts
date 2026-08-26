@@ -46,8 +46,6 @@ export class RecommendationListComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     try {
-      // Make sure the Supabase session has been restored before the first
-      // Edge Function call. The function requires a real user JWT.
       await this.authService.initialize();
 
       if (!(await this.authService.hasValidSession())) {
@@ -66,13 +64,13 @@ export class RecommendationListComponent implements OnInit {
   }
 
   /**
-   * Return a current Supabase access token. If the existing session is
-   * expired, explicitly refresh it before calling the Edge Function.
+   * Return the current Supabase access token and refresh it when it is
+   * expired/near expiry. This method never logs the user out by itself.
    */
   private async getAccessToken(): Promise<string> {
     const client = this.supabase.client;
 
-    let { data, error } = await client.auth.getSession();
+    const { data, error } = await client.auth.getSession();
 
     if (error) {
       throw new Error(`Could not read authentication session: ${error.message}`);
@@ -91,7 +89,6 @@ export class RecommendationListComponent implements OnInit {
       const refreshed = await client.auth.refreshSession();
 
       if (refreshed.error || !refreshed.data.session) {
-        await client.auth.signOut({ scope: 'local' });
         throw new Error('Your login session expired. Please sign in again.');
       }
 
@@ -99,6 +96,19 @@ export class RecommendationListComponent implements OnInit {
     }
 
     return session.access_token;
+  }
+
+  private async invokeAdvisor(accessToken: string, text: string) {
+    return await this.supabase.client.functions.invoke('ai-advisor', {
+      body: {
+        farmId: this.selectedFarmId,
+        message: text,
+        conversationId: this.conversationId,
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
   }
 
   async send(): Promise<void> {
@@ -111,25 +121,28 @@ export class RecommendationListComponent implements OnInit {
     this.loading = true;
 
     try {
-      // Do not rely on a stale/initial auth state. Resolve the current JWT
-      // immediately before every protected Edge Function request.
-      const accessToken = await this.getAccessToken();
+      let accessToken = await this.getAccessToken();
+      let result = await this.invokeAdvisor(accessToken, text);
 
-      const { data, error } = await this.supabase.client.functions.invoke(
-        'ai-advisor',
-        {
-          body: {
-            farmId: this.selectedFarmId,
-            message: text,
-            conversationId: this.conversationId,
-          },
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        },
-      );
+      // A protected Edge Function can reject an otherwise valid-but-stale
+      // access token. Refresh once and retry. Do NOT log the user out merely
+      // because the Edge Function returned 401; that 401 may be a function
+      // gateway/configuration problem rather than an invalid login session.
+      if (result.error?.status === 401 || result.error?.context?.status === 401) {
+        const refreshed = await this.supabase.client.auth.refreshSession();
 
-      if (error) throw error;
+        if (refreshed.error || !refreshed.data.session) {
+          await this.router.navigate(['/login']);
+          return;
+        }
+
+        accessToken = refreshed.data.session.access_token;
+        result = await this.invokeAdvisor(accessToken, text);
+      }
+
+      if (result.error) throw result.error;
+
+      const data = result.data;
 
       if (!data?.success || !data?.answer) {
         throw new Error(data?.error ?? 'AI Advisor returned an invalid response.');
@@ -145,12 +158,9 @@ export class RecommendationListComponent implements OnInit {
     } catch (error: any) {
       console.error('[AI Advisor] Request failed:', error);
 
-      if (error?.status === 401 || error?.context?.status === 401) {
-        await this.supabase.client.auth.signOut({ scope: 'local' });
-        await this.router.navigate(['/login']);
-        return;
-      }
-
+      // IMPORTANT: Do not call signOut() here. A 401 from the Edge Function
+      // must not destroy the user's local Supabase session. Only the normal
+      // authentication flow should decide when a user is actually logged out.
       this.error = error?.message ?? 'AI Advisor request failed.';
       this.messages.push({
         role: 'assistant',
