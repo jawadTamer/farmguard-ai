@@ -1,6 +1,6 @@
 import { withSupabase } from 'npm:@supabase/server@^1';
 
-const MODEL = 'gemini-2.5-flash';
+const MODEL = 'gemini-3.6-flash';
 
 const GEMINI_URL =
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
@@ -94,7 +94,6 @@ For livestock:
 - recommend veterinary assistance for serious illness or emergency symptoms
 
 Do not diagnose diseases.
-
 Do not guarantee outcomes.
 
 If important information is missing:
@@ -102,7 +101,6 @@ If important information is missing:
 - ask a focused follow-up question when appropriate
 
 Answer in the farmer's language.
-
 Be concise, clear, and practical.
 
 Return ONLY valid JSON.
@@ -182,7 +180,8 @@ function normalizeActions(
         typeof item === 'string',
     )
     .map(
-      (item) => item.trim(),
+      (item) =>
+        item.trim(),
     )
     .filter(Boolean)
     .slice(0, 5);
@@ -214,7 +213,8 @@ function normalizeGeminiAnswer(
 function hasRiskModelData(
   riskAssessments: any[],
 ): boolean {
-  return Array.isArray(riskAssessments) &&
+  return (
+    Array.isArray(riskAssessments) &&
     riskAssessments.some(
       (risk) =>
         risk &&
@@ -222,7 +222,145 @@ function hasRiskModelData(
           risk.risk_level !== null ||
           risk.risk_score !== null
         ),
+    )
+  );
+}
+
+/**
+ * Resolve the authenticated Supabase user.
+ *
+ * Priority:
+ *
+ * 1. ctx.userClaims.sub
+ *    Provided by @supabase/server when middleware
+ *    successfully resolved the user.
+ *
+ * 2. Authorization Bearer token + supabase.auth.getUser()
+ *    This verifies the JWT with Supabase instead of
+ *    blindly decoding it.
+ *
+ * This is the important fix for:
+ *
+ * "Authenticated user not found"
+ */
+async function getAuthenticatedUserId(
+  req: Request,
+  ctx: any,
+): Promise<string | null> {
+
+  /*
+   * First use the claims injected by withSupabase.
+   */
+  const claimsUserId =
+    cleanString(
+      ctx?.userClaims?.sub,
     );
+
+  if (claimsUserId) {
+    return claimsUserId;
+  }
+
+  /*
+   * Fallback to the Authorization header.
+   */
+  const authorization =
+    req.headers.get(
+      'Authorization',
+    ) ??
+    req.headers.get(
+      'authorization',
+    );
+
+  if (!authorization) {
+    console.error(
+      '[ai-advisor] Missing Authorization header',
+    );
+
+    return null;
+  }
+
+  if (
+    !authorization
+      .toLowerCase()
+      .startsWith('bearer ')
+  ) {
+    console.error(
+      '[ai-advisor] Invalid Authorization header format',
+    );
+
+    return null;
+  }
+
+  const accessToken =
+    authorization
+      .slice(7)
+      .trim();
+
+  if (!accessToken) {
+    console.error(
+      '[ai-advisor] Empty bearer token',
+    );
+
+    return null;
+  }
+
+  /*
+   * IMPORTANT:
+   *
+   * Do NOT decode the JWT manually and trust the payload.
+   *
+   * Supabase auth.getUser(token) validates the token.
+   */
+  const supabase =
+    ctx?.supabase;
+
+  if (
+    !supabase?.auth?.getUser
+  ) {
+    console.error(
+      '[ai-advisor] Supabase auth client unavailable',
+    );
+
+    return null;
+  }
+
+  try {
+    const result =
+      await supabase.auth.getUser(
+        accessToken,
+      );
+
+    if (result.error) {
+      console.error(
+        '[ai-advisor] JWT verification failed:',
+        result.error.message,
+      );
+
+      return null;
+    }
+
+    const userId =
+      cleanString(
+        result.data?.user?.id,
+      );
+
+    if (!userId) {
+      console.error(
+        '[ai-advisor] JWT verified but user id is missing',
+      );
+
+      return null;
+    }
+
+    return userId;
+  } catch (error) {
+    console.error(
+      '[ai-advisor] getUser failed:',
+      error,
+    );
+
+    return null;
+  }
 }
 
 async function callGemini(
@@ -337,13 +475,6 @@ async function callGemini(
         generated,
       );
     } catch {
-      /*
-       * Gemini was expected to return JSON.
-       *
-       * We still return a safe structure instead
-       * of breaking the whole request.
-       */
-
       return {
         answer: generated,
         urgency: 'low',
@@ -387,7 +518,10 @@ async function loadFarm(
         location,
         status
       `)
-      .eq('id', farmId)
+      .eq(
+        'id',
+        farmId,
+      )
       .single();
 
   if (query.error) {
@@ -420,8 +554,13 @@ async function loadZones(
         longitude,
         area
       `)
-      .eq('farm_id', farmId)
-      .limit(MAX_ZONES);
+      .eq(
+        'farm_id',
+        farmId,
+      )
+      .limit(
+        MAX_ZONES,
+      );
 
   if (query.error) {
     throw new Error(
@@ -451,8 +590,13 @@ async function loadCrops(
         growth_stage,
         planting_date
       `)
-      .in('zone_id', zoneIds)
-      .limit(MAX_CROPS);
+      .in(
+        'zone_id',
+        zoneIds,
+      )
+      .limit(
+        MAX_CROPS,
+      );
 
   if (query.error) {
     throw new Error(
@@ -482,8 +626,13 @@ async function loadLivestock(
         quantity,
         age_group
       `)
-      .in('zone_id', zoneIds)
-      .limit(MAX_LIVESTOCK);
+      .in(
+        'zone_id',
+        zoneIds,
+      )
+      .limit(
+        MAX_LIVESTOCK,
+      );
 
   if (query.error) {
     throw new Error(
@@ -498,30 +647,23 @@ async function loadWeather(
   supabase: any,
   farmId: string,
 ) {
-  const query =
-    await supabase
-      .from('temperature_readings')
-      .select(`
-        temperature,
-        humidity,
-        heat_index,
-        apparent_temperature,
-        wet_bulb_temperature,
-        recorded_at,
-        forecast_for,
-        source,
-        raw_data
-      `)
-      .eq('farm_id', farmId)
-      .order(
-        'recorded_at',
-        {
-          ascending: false,
-        },
-      )
-      .limit(
-        MAX_TEMPERATURE_READINGS,
-      );
+  const query = await supabase
+    .from('temperature_readings')
+    .select(`
+      temperature,
+      humidity,
+      heat_index,
+      apparent_temperature,
+      wet_bulb_temperature,
+      recorded_at,
+      forecast_for,
+      source
+    `)
+    .eq('farm_id', farmId)
+    .order('recorded_at', {
+      ascending: false,
+    })
+    .limit(MAX_TEMPERATURE_READINGS);
 
   if (query.error) {
     throw new Error(
@@ -557,7 +699,10 @@ async function loadRiskAssessments(
         confidence,
         metadata
       `)
-      .eq('farm_id', farmId)
+      .eq(
+        'farm_id',
+        farmId,
+      )
       .order(
         'calculated_at',
         {
@@ -594,7 +739,10 @@ async function loadRecommendations(
         priority,
         created_at
       `)
-      .eq('farm_id', farmId)
+      .eq(
+        'farm_id',
+        farmId,
+      )
       .order(
         'created_at',
         {
@@ -636,11 +784,6 @@ async function loadFarmContext(
         zone.id,
     );
 
-  /*
-   * These queries are independent,
-   * so execute them concurrently.
-   */
-
   const [
     crops,
     livestock,
@@ -676,19 +819,12 @@ async function loadFarmContext(
 
   return {
     farm,
-
     zones,
-
     crops,
-
     livestock,
-
     weather,
-
     riskAssessments,
-
     recommendations,
-
     currentTime:
       new Date().toISOString(),
   };
@@ -702,9 +838,10 @@ async function getOrCreateConversation(
   conversationId: string | null,
 ) {
   /*
-   * Existing conversation
+   * Existing conversation.
+   *
+   * Verify BOTH user_id and farm_id.
    */
-
   if (conversationId) {
     const existing =
       await supabase
@@ -736,9 +873,8 @@ async function getOrCreateConversation(
   }
 
   /*
-   * New conversation
+   * Create a new conversation.
    */
-
   const created =
     await supabase
       .from('advisor_conversations')
@@ -849,9 +985,7 @@ If a risk assessment exists:
 - use persistence information when useful
 
 DO NOT calculate another risk score.
-
 DO NOT change the model risk level.
-
 DO NOT create a risk assessment if one does not exist.
 
 If no relevant risk assessment exists, say that the risk model result is currently unavailable.
@@ -928,10 +1062,10 @@ Deno.serve(
       req: Request,
       ctx: any,
     ) => {
+
       /*
        * CORS
        */
-
       if (
         req.method ===
         'OPTIONS'
@@ -946,9 +1080,8 @@ Deno.serve(
       }
 
       /*
-       * Only POST
+       * Only POST.
        */
-
       if (
         req.method !==
         'POST'
@@ -966,10 +1099,10 @@ Deno.serve(
       }
 
       try {
+
         /*
          * GEMINI SECRET
          */
-
         const geminiApiKey =
           Deno.env.get(
             'GEMINI_API_KEY',
@@ -991,7 +1124,6 @@ Deno.serve(
         /*
          * REQUEST BODY
          */
-
         let body: any;
 
         try {
@@ -1030,7 +1162,6 @@ Deno.serve(
         /*
          * VALIDATION
          */
-
         if (!farmId) {
           return jsonResponse(
             {
@@ -1074,11 +1205,17 @@ Deno.serve(
         }
 
         /*
-         * AUTHENTICATED USER
+         * AUTHENTICATION
+         *
+         * FIX:
+         * Do not rely exclusively on
+         * ctx.userClaims?.sub.
          */
-
         const userId =
-          ctx.userClaims?.sub;
+          await getAuthenticatedUserId(
+            req,
+            ctx,
+          );
 
         if (!userId) {
           return jsonResponse(
@@ -1087,19 +1224,32 @@ Deno.serve(
                 false,
 
               error:
-                'Authenticated user not found',
+                'Authentication required',
+
+              message:
+                'No valid authenticated Supabase user was found. Please refresh the session and try again.',
             },
             401,
           );
         }
 
+        console.log(
+          '[ai-advisor] Authenticated user:',
+          userId,
+        );
+
         const supabase =
           ctx.supabase;
+
+        if (!supabase) {
+          throw new Error(
+            'Supabase client is unavailable',
+          );
+        }
 
         /*
          * FARM CONTEXT
          */
-
         const context =
           await loadFarmContext(
             supabase,
@@ -1109,7 +1259,6 @@ Deno.serve(
         /*
          * CONVERSATION
          */
-
         const finalConversationId =
           await getOrCreateConversation(
             supabase,
@@ -1120,9 +1269,9 @@ Deno.serve(
           );
 
         /*
-         * HISTORY
+         * HISTORY BEFORE
+         * inserting the new message.
          */
-
         const history =
           await loadHistory(
             supabase,
@@ -1133,7 +1282,8 @@ Deno.serve(
          * SAVE USER MESSAGE
          *
          * IMPORTANT:
-         * advisor_messages only contains:
+         *
+         * Current advisor_messages schema:
          *
          * id
          * conversation_id
@@ -1141,12 +1291,16 @@ Deno.serve(
          * content
          * created_at
          *
-         * So we ONLY insert these fields.
+         * Therefore we ONLY insert:
+         * conversation_id
+         * role
+         * content
          */
-
         const userMessage =
           await supabase
-            .from('advisor_messages')
+            .from(
+              'advisor_messages',
+            )
             .insert({
               conversation_id:
                 finalConversationId,
@@ -1169,7 +1323,6 @@ Deno.serve(
         /*
          * BUILD GEMINI PROMPT
          */
-
         const prompt =
           buildPrompt(
             context,
@@ -1180,7 +1333,6 @@ Deno.serve(
         /*
          * CALL GEMINI
          */
-
         const rawAnswer =
           await callGemini(
             geminiApiKey,
@@ -1190,31 +1342,41 @@ Deno.serve(
         /*
          * NORMALIZE GEMINI RESULT
          */
-
         const answer =
           normalizeGeminiAnswer(
             rawAnswer,
           );
 
         /*
-         * SERVER-CONTROLLED
-         * RISK MODEL FLAG
+         * Server-controlled risk model flag.
          *
          * Gemini cannot decide this.
          */
-
         const usedRiskModel =
           hasRiskModelData(
             context.riskAssessments,
           );
 
         /*
-         * SAVE ASSISTANT MESSAGE
+         * Prevent an empty assistant message.
          */
+        if (!answer.answer) {
+          throw new Error(
+            'Gemini returned an empty answer',
+          );
+        }
 
+        /*
+         * SAVE ASSISTANT MESSAGE
+         *
+         * Again, compatible with the
+         * current advisor_messages table.
+         */
         const assistantMessage =
           await supabase
-            .from('advisor_messages')
+            .from(
+              'advisor_messages',
+            )
             .insert({
               conversation_id:
                 finalConversationId,
@@ -1237,7 +1399,6 @@ Deno.serve(
         /*
          * FINAL RESPONSE
          */
-
         return jsonResponse({
           success:
             true,
@@ -1261,7 +1422,9 @@ Deno.serve(
               answer.needsMoreData,
           },
         });
+
       } catch (error) {
+
         console.error(
           '[ai-advisor]',
           error,
@@ -1277,7 +1440,7 @@ Deno.serve(
 
             message:
               error instanceof Error
-                ? error.message 
+                ? error.message
                 : 'Unknown error',
           },
           500,
