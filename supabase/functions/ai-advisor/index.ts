@@ -507,12 +507,10 @@ async function loadWeather(
         heat_index,
         apparent_temperature,
         wet_bulb_temperature,
-        precipitation,
-        cloud_cover,
-        aqi,
         recorded_at,
         forecast_for,
-        source
+        source,
+        raw_data
       `)
       .eq('farm_id', farmId)
       .order(
