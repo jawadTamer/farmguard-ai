@@ -155,22 +155,53 @@ export class RecommendationListComponent implements OnInit {
       let answerActions: string[] = [];
       let answerUrgency: 'low' | 'moderate' | 'high' | 'critical' | undefined;
 
+      console.log('Raw data.answer:', data.answer);
+      console.log('Type of data.answer:', typeof data.answer);
+
       if (typeof data.answer === 'string') {
         // Try to parse if it's a JSON string
         try {
           const parsedAnswer = JSON.parse(data.answer);
+          console.log('Parsed answer:', parsedAnswer);
           answerContent = parsedAnswer.answer || parsedAnswer.message || data.answer;
           answerActions = parsedAnswer.actions || [];
-          answerUrgency = parsedAnswer.urgency;
-        } catch {
+          // Handle both 'urgency' and 'priority' field names
+          answerUrgency = parsedAnswer.urgency || parsedAnswer.priority;
+          console.log('Extracted answerContent:', answerContent);
+        } catch (parseError) {
+          console.error('Failed to parse answer as JSON:', parseError);
           // If parsing fails, use as-is
           answerContent = data.answer;
         }
       } else if (typeof data.answer === 'object') {
         // It's already an object
-        answerContent = data.answer.answer || data.answer.message || JSON.stringify(data.answer);
+        console.log('Answer is already an object:', data.answer);
+        let rawAnswer = data.answer.answer || data.answer.message;
+        console.log('Raw answer from object:', rawAnswer);
+        console.log('Type of rawAnswer:', typeof rawAnswer);
+
+        // Check if the answer field itself is a stringified JSON
+        if (typeof rawAnswer === 'string' && rawAnswer.trim().startsWith('{')) {
+          console.log('rawAnswer is a stringified JSON, attempting to parse...');
+          try {
+            const doubleParsed = JSON.parse(rawAnswer);
+            console.log('Double-parsed object:', doubleParsed);
+            answerContent = doubleParsed.answer || doubleParsed.message || rawAnswer;
+            console.log('Extracted answerContent from double-parsed:', answerContent);
+          } catch (doubleParseError) {
+            console.error('Failed to double-parse:', doubleParseError);
+            answerContent = rawAnswer;
+          }
+        } else {
+          console.log('rawAnswer is not a stringified JSON, using as-is');
+          answerContent = rawAnswer || JSON.stringify(data.answer);
+        }
+
         answerActions = data.answer.actions || [];
-        answerUrgency = data.answer.urgency;
+        // Handle both 'urgency' and 'priority' field names
+        answerUrgency = data.answer.urgency || data.answer.priority;
+        console.log('Final answerContent:', answerContent);
+        console.log('Extracted answerUrgency:', answerUrgency);
       } else {
         answerContent = String(data.answer);
       }

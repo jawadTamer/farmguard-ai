@@ -4,7 +4,7 @@ declare const Deno: {
 };
 
 const ML_API_URL = 'http://51.121.62.104/predict';
-const REQUEST_TIMEOUT_MS = 15_000;
+const REQUEST_TIMEOUT_MS = 45_000;
 
 const VALID_GROWTH_STAGES = ['maturity', 'planted', 'reproductive', 'vegetative'] as const;
 
@@ -75,8 +75,8 @@ function validateRequest(body: unknown): { valid: boolean; error?: string } {
 
   // Validate required numeric fields
   const numericFields = [
-    'hour', 'day_of_year', 'month', 'temperature_c', 
-    'relative_humidity_percent', 'ghi_w_m2', 'dni_w_m2', 
+    'hour', 'day_of_year', 'month', 'temperature_c',
+    'relative_humidity_percent', 'ghi_w_m2', 'dni_w_m2',
     'dhi_w_m2', 'latitude', 'longitude', 'days_since_planting', 'heat_index_approx'
   ] as const;
 
@@ -88,9 +88,9 @@ function validateRequest(body: unknown): { valid: boolean; error?: string } {
 
   // Validate growth_stage
   if (!isValidGrowthStage(req.growth_stage)) {
-    return { 
-      valid: false, 
-      error: `growth_stage must be one of: ${VALID_GROWTH_STAGES.join(', ')}` 
+    return {
+      valid: false,
+      error: `growth_stage must be one of: ${VALID_GROWTH_STAGES.join(', ')}`
     };
   }
 
@@ -152,15 +152,15 @@ async function callMLApi(request: CropHeatRiskRequest): Promise<CropHeatRiskResp
     return data;
   } catch (error) {
     clearTimeout(timeout);
-    
+
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('ML API request timed out');
     }
-    
+
     if (error instanceof Error) {
       throw new Error(`ML API request failed: ${error.message}`);
     }
-    
+
     throw new Error('Unknown ML API error');
   }
 }
@@ -213,14 +213,14 @@ Deno.serve(async (req: Request) => {
 
   } catch (error) {
     console.error('[crop-heat-risk]', error);
-    
+
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
+
     return jsonResponse(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Heat-risk prediction service unavailable',
-        message: errorMessage 
+        message: errorMessage
       },
       503
     );
