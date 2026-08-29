@@ -16,10 +16,13 @@ import { ZoneService } from '../../../core/services/zone.service';
 import { FarmService } from '../../../core/services/farm.service';
 import { TemperatureService } from '../../../core/services/temperature.service';
 import { CropHeatRiskService } from '../../../core/services/crop-heat-risk.service';
+import { AlertService } from '../../../core/services/alert.service';
+import { RiskService } from '../../../core/services/risk.service';
 import { Crop } from '../../../core/models/crop.model';
 import { FarmZone } from '../../../core/models/farm-zone.model';
 import { Farm } from '../../../core/models/farm.model';
 import { CropHeatRiskResponse } from '../../../core/models/crop-heat-risk.model';
+import { TemperatureReading } from '../../../core/models/temperature.model';
 
 @Component({
   selector: 'app-crop-details',
@@ -55,6 +58,8 @@ export class CropDetailsComponent implements OnInit {
     private farmService: FarmService,
     private temperatureService: TemperatureService,
     private heatRiskService: CropHeatRiskService,
+    private alertService: AlertService,
+    private riskService: RiskService,
   ) { }
 
   ngOnInit(): void {
@@ -110,7 +115,7 @@ export class CropDetailsComponent implements OnInit {
 
     try {
       // Get current weather data
-      let currentWeather;
+      let currentWeather: TemperatureReading | undefined;
       try {
         currentWeather = await this.temperatureService.getCurrentTemperature(
           this.farm.id,
@@ -134,8 +139,38 @@ export class CropDetailsComponent implements OnInit {
         return;
       }
 
-      // Call prediction API
+      // Call prediction API via Supabase Edge Function
       this.heatRiskResponse = await firstValueFrom(this.heatRiskService.predict(request));
+
+      // Create alert and save risk assessment on successful prediction
+      if (this.heatRiskResponse && this.heatRiskResponse.predictions.length > 0) {
+        const temperature = currentWeather?.temperature ?? request.temperature_c;
+        const humidity = currentWeather?.humidity ?? request.relative_humidity_percent;
+
+        // Create alert based on ML prediction
+        await this.alertService.createCropHeatRiskAlert(
+          this.farm.id,
+          this.zone.id,
+          this.crop.id,
+          this.heatRiskResponse,
+          temperature,
+          humidity,
+          this.crop.growthStage,
+          this.zone.name,
+          this.crop.cropType
+        );
+
+        // Save risk assessment to database
+        await this.riskService.saveCropHeatRiskAssessment(
+          this.farm.id,
+          this.zone.id,
+          this.crop.id,
+          this.heatRiskResponse,
+          temperature,
+          humidity,
+          this.crop.growthStage
+        );
+      }
     } catch (error) {
       console.error('Failed to load heat risk prediction:', error);
       this.heatRiskError = 'Heat-risk prediction is currently unavailable.';

@@ -2,11 +2,12 @@ import { Injectable } from '@angular/core';
 import { FarmAlert, AlertSeverity } from '../models/alert.model';
 import { HeatRiskLevel } from '../models/heat-risk.model';
 import { SupabaseService } from './supabase.service';
+import { CropHeatRiskResponse } from '../models/crop-heat-risk.model';
 
 @Injectable({ providedIn: 'root' })
 export class AlertService {
   private alerts: FarmAlert[] = [];
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(private supabaseService: SupabaseService) { }
 
   async getAlerts(farmId?: string, zoneId?: string): Promise<FarmAlert[]> {
     try {
@@ -37,6 +38,100 @@ export class AlertService {
     await this.saveAlert(alert); this.alerts.push(alert); return alert;
   }
 
+  async createCropHeatRiskAlert(
+    farmId: string,
+    zoneId: string | undefined,
+    cropId: string,
+    mlResponse: CropHeatRiskResponse,
+    temperature: number,
+    humidity: number,
+    growthStage: string,
+    zoneName?: string,
+    cropType?: string
+  ): Promise<FarmAlert | null> {
+    if (!mlResponse.predictions || mlResponse.predictions.length === 0) {
+      return null;
+    }
+
+    const prediction = mlResponse.predictions[0];
+    const riskClass = prediction.heat_risk_class.toLowerCase() as HeatRiskLevel;
+    const confidence = prediction.probabilities[prediction.heat_risk_class];
+
+    // Only create alerts for Moderate, High, or Critical risk
+    if (riskClass === 'low') {
+      return null;
+    }
+
+    if (await this.hasRecentCropHeatAlert(farmId, zoneId, cropId)) {
+      return null;
+    }
+
+    const severity: AlertSeverity = riskClass === 'critical' ? 'critical' : 'warning';
+    const title = this.getAlertTitle(riskClass);
+    const message = this.getAlertMessage(riskClass, confidence, temperature, humidity, growthStage, zoneName, cropType);
+
+    const alert: FarmAlert = {
+      id: `alert-${Date.now()}`,
+      farmId,
+      zoneId,
+      type: 'heat-stress',
+      severity,
+      title,
+      message,
+      isRead: false,
+      createdAt: new Date().toISOString()
+    };
+
+    await this.saveAlert(alert);
+    this.alerts.push(alert);
+    return alert;
+  }
+
+  private getAlertTitle(riskClass: HeatRiskLevel): string {
+    switch (riskClass) {
+      case 'critical':
+        return 'Critical crop heat risk detected';
+      case 'high':
+        return 'High crop heat risk detected';
+      case 'moderate':
+        return 'Moderate crop heat risk detected';
+      default:
+        return 'Crop heat risk detected';
+    }
+  }
+
+  private getAlertMessage(
+    riskClass: HeatRiskLevel,
+    confidence: number,
+    temperature: number,
+    humidity: number,
+    growthStage: string,
+    zoneName?: string,
+    cropType?: string
+  ): string {
+    const confidencePercent = (confidence * 100).toFixed(1);
+    const location = zoneName ? `${zoneName}` : '';
+    const crop = cropType ? `${cropType}` : 'Crop';
+
+    let message = `${crop} in ${location} `;
+
+    switch (riskClass) {
+      case 'critical':
+        message += `is at CRITICAL heat risk (confidence: ${confidencePercent}%). Temperature: ${temperature}°C, Humidity: ${humidity}%, Growth Stage: ${growthStage}. Immediate action required to prevent crop damage.`;
+        break;
+      case 'high':
+        message += `is at HIGH heat risk (confidence: ${confidencePercent}%). Temperature: ${temperature}°C, Humidity: ${humidity}%, Growth Stage: ${growthStage}. Take preventive measures to protect your crop.`;
+        break;
+      case 'moderate':
+        message += `is at MODERATE heat risk (confidence: ${confidencePercent}%). Temperature: ${temperature}°C, Humidity: ${humidity}%, Growth Stage: ${growthStage}. Monitor conditions closely.`;
+        break;
+      default:
+        message += `heat risk assessment available. Temperature: ${temperature}°C, Humidity: ${humidity}%, Growth Stage: ${growthStage}.`;
+    }
+
+    return message;
+  }
+
   async saveAlert(alert: FarmAlert): Promise<void> {
     try {
       const { error } = await this.supabaseService.client.from('alerts').insert({
@@ -55,6 +150,16 @@ export class AlertService {
       const { data, error } = await query.limit(1).maybeSingle();
       return !error && !!data;
     } catch (error) { console.error('Failed to check for recent alert:', error); return false; }
+  }
+
+  async hasRecentCropHeatAlert(farmId: string, zoneId?: string, cropId?: string): Promise<boolean> {
+    try {
+      const sixHoursAgo = new Date(Date.now() - 6 * 3600000).toISOString();
+      let query = this.supabaseService.client.from('alerts').select('id').eq('farm_id', farmId).eq('type', 'heat-stress').gte('created_at', sixHoursAgo);
+      if (zoneId) query = query.eq('zone_id', zoneId);
+      const { data, error } = await query.limit(1).maybeSingle();
+      return !error && !!data;
+    } catch (error) { console.error('Failed to check for recent crop heat alert:', error); return false; }
   }
 
   async markAsRead(id: string): Promise<void> {
