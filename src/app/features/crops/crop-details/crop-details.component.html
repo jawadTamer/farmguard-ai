@@ -267,26 +267,103 @@
     </mat-card>
 
 
-    <!-- Future Intelligence -->
+    <!-- Heat Risk Section -->
 
-    <mat-card class="future-card">
+    <mat-card class="heat-risk-card">
 
-      <mat-icon>
-        auto_awesome
-      </mat-icon>
+      <div class="card-title">
+        <div class="title-icon">
+          <mat-icon>whatshot</mat-icon>
+        </div>
 
-      <div>
+        <div>
+          <h3>Heat Risk Assessment</h3>
+          <p>AI-powered heat stress analysis for this crop</p>
+        </div>
+      </div>
 
-        <h3>
-          FarmGuard Intelligence
-        </h3>
+      <!-- Loading State -->
+      <div *ngIf="isLoadingHeatRisk" class="heat-risk-loading">
+        <mat-spinner diameter="24"></mat-spinner>
+        <span>Analyzing heat risk...</span>
+      </div>
 
-        <p>
-          Temperature monitoring, crop health analysis,
-          heat risk assessment and AI recommendations
-          for this crop will appear here once
-          the intelligence modules are connected.
-        </p>
+      <!-- Error State -->
+      <div *ngIf="!isLoadingHeatRisk && heatRiskError" class="heat-risk-error">
+        <mat-icon>warning</mat-icon>
+        <span>{{ heatRiskError }}</span>
+      </div>
+
+      <!-- Missing Data State -->
+      <div *ngIf="!isLoadingHeatRisk && !heatRiskError && !heatRiskResponse && !crop?.plantingDate" class="heat-risk-missing">
+        <mat-icon>info</mat-icon>
+        <span>Planting date is required for heat risk assessment.</span>
+      </div>
+
+      <!-- Heat Risk Results -->
+      <div *ngIf="!isLoadingHeatRisk && !heatRiskError && heatRiskResponse" class="heat-risk-results">
+        
+        <!-- Risk Class Display -->
+        <div class="risk-class-display" [style.border-color]="getHeatRiskColor(getHeatRiskClass())">
+          <div class="risk-label">Current Risk Level</div>
+          <div class="risk-value" [style.color]="getHeatRiskColor(getHeatRiskClass())">
+            {{ getHeatRiskClass() }}
+          </div>
+          <div class="risk-confidence">
+            Confidence: {{ getHeatRiskConfidence() }}
+          </div>
+        </div>
+
+        <mat-divider></mat-divider>
+
+        <!-- Probability Breakdown -->
+        <div class="probability-breakdown">
+          <h4>Probability Breakdown</h4>
+          
+          <div class="probability-item">
+            <div class="prob-label">Low</div>
+            <div class="prob-bar">
+              <div class="prob-fill" 
+                   [style.width.%]="getHeatRiskProbabilityValue('Low')"
+                   [style.background-color]="'#4caf50'">
+              </div>
+            </div>
+            <div class="prob-value">{{ getHeatRiskProbability('Low') }}</div>
+          </div>
+
+          <div class="probability-item">
+            <div class="prob-label">Moderate</div>
+            <div class="prob-bar">
+              <div class="prob-fill" 
+                   [style.width.%]="getHeatRiskProbabilityValue('Moderate')"
+                   [style.background-color]="'#ff9800'">
+              </div>
+            </div>
+            <div class="prob-value">{{ getHeatRiskProbability('Moderate') }}</div>
+          </div>
+
+          <div class="probability-item">
+            <div class="prob-label">High</div>
+            <div class="prob-bar">
+              <div class="prob-fill" 
+                   [style.width.%]="getHeatRiskProbabilityValue('High')"
+                   [style.background-color]="'#f44336'">
+              </div>
+            </div>
+            <div class="prob-value">{{ getHeatRiskProbability('High') }}</div>
+          </div>
+
+          <div class="probability-item">
+            <div class="prob-label">Critical</div>
+            <div class="prob-bar">
+              <div class="prob-fill" 
+                   [style.width.%]="getHeatRiskProbabilityValue('Critical')"
+                   [style.background-color]="'#b71c1c'">
+              </div>
+            </div>
+            <div class="prob-value">{{ getHeatRiskProbability('Critical') }}</div>
+          </div>
+        </div>
 
       </div>
 

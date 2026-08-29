@@ -5,6 +5,9 @@ import {
   FormGroup,
   ReactiveFormsModule,
   Validators,
+  ValidatorFn,
+  AbstractControl,
+  ValidationErrors,
 } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
@@ -20,6 +23,20 @@ import { CropService } from '../../../core/services/crop.service';
 import { ZoneService } from '../../../core/services/zone.service';
 import { Crop } from '../../../core/models/crop.model';
 import { FarmZone } from '../../../core/models/farm-zone.model';
+
+const VALID_GROWTH_STAGES = ['maturity', 'planted', 'reproductive', 'vegetative'];
+
+function growthStageValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const value = control.value;
+    if (!value) {
+      return null;
+    }
+    return VALID_GROWTH_STAGES.includes(value)
+      ? null
+      : { invalidGrowthStage: true };
+  };
+}
 
 @Component({
   selector: 'app-crop-edit',
@@ -65,7 +82,7 @@ export class CropEditComponent implements OnInit {
         ],
       ],
       variety: ['', [Validators.maxLength(80)]],
-      growthStage: ['vegetative', [Validators.required]],
+      growthStage: ['vegetative', [Validators.required, growthStageValidator()]],
       plantingDate: [''],
     });
   }

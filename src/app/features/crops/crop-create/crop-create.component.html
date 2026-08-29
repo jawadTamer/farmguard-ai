@@ -78,13 +78,18 @@
         <mat-form-field appearance="outline">
           <mat-label>Growth Stage</mat-label>
           <mat-select formControlName="growthStage">
-            <mat-option value="germination">Germination</mat-option>
-            <mat-option value="vegetative">Vegetative</mat-option>
-            <mat-option value="flowering">Flowering</mat-option>
-            <mat-option value="fruiting">Fruiting</mat-option>
             <mat-option value="maturity">Maturity</mat-option>
+            <mat-option value="planted">Planted</mat-option>
+            <mat-option value="reproductive">Reproductive</mat-option>
+            <mat-option value="vegetative">Vegetative</mat-option>
           </mat-select>
           <mat-icon matSuffix>trending_up</mat-icon>
+          <mat-error *ngIf="growthStage?.hasError('required')">
+            Growth stage is required.
+          </mat-error>
+          <mat-error *ngIf="growthStage?.hasError('invalidGrowthStage')">
+            Invalid growth stage selected.
+          </mat-error>
         </mat-form-field>
 
         <mat-form-field appearance="outline">

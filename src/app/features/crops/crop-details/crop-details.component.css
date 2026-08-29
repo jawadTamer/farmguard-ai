@@ -198,6 +198,159 @@
   font-size: 13px;
 }
 
+/* Heat Risk Card */
+
+.heat-risk-card {
+  padding: 22px;
+  border-radius: 16px;
+}
+
+.heat-risk-card .card-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.heat-risk-card .title-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.heat-risk-card .title-icon mat-icon {
+  font-size: 22px;
+}
+
+.heat-risk-card h3 {
+  margin: 0 0 4px;
+  color: #1f2937;
+  font-size: 18px;
+}
+
+.heat-risk-card p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.heat-risk-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 30px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.heat-risk-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.heat-risk-missing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 10px;
+  background: #f0f9ff;
+  color: #0369a1;
+  font-size: 14px;
+}
+
+.heat-risk-results {
+  padding-top: 10px;
+}
+
+.risk-class-display {
+  border: 3px solid;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 20px;
+  background: #fafafa;
+}
+
+.risk-label {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.risk-value {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.risk-confidence {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.probability-breakdown {
+  padding-top: 10px;
+}
+
+.probability-breakdown h4 {
+  margin: 0 0 15px;
+  color: #374151;
+  font-size: 15px;
+}
+
+.probability-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.prob-label {
+  width: 80px;
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.prob-bar {
+  flex: 1;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.prob-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.prob-value {
+  width: 50px;
+  text-align: right;
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
 /* Loading */
 
 .loading {
