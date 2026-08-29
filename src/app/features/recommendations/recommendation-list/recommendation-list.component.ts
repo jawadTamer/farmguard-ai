@@ -190,7 +190,21 @@ export class RecommendationListComponent implements OnInit {
             console.log('Extracted answerContent from double-parsed:', answerContent);
           } catch (doubleParseError) {
             console.error('Failed to double-parse:', doubleParseError);
-            answerContent = rawAnswer;
+            // Try regex extraction as fallback for incomplete/truncated JSON
+            const answerMatch = rawAnswer.match(/"answer"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+            if (answerMatch && answerMatch[1]) {
+              answerContent = answerMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+              console.log('Extracted answer using regex:', answerContent);
+            } else {
+              // Last resort: extract everything after "answer": " until end
+              const fallbackMatch = rawAnswer.match(/"answer"\s*:\s*"(.+)/s);
+              if (fallbackMatch && fallbackMatch[1]) {
+                answerContent = fallbackMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+                console.log('Extracted answer using fallback regex:', answerContent);
+              } else {
+                answerContent = rawAnswer;
+              }
+            }
           }
         } else {
           console.log('rawAnswer is not a stringified JSON, using as-is');
