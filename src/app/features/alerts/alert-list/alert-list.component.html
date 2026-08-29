@@ -1,1 +1,100 @@
-<p>alert-list works!</p>
+<div class="alert-list-container">
+  <div class="alert-list-header">
+    <h1>Alerts</h1>
+    
+    @if (alerts.length > 0) {
+      <button mat-button (click)="markAllAsRead()" class="mark-all-read-btn">
+        <mat-icon>done_all</mat-icon>
+        Mark all as read
+      </button>
+    }
+  </div>
+
+  @if (isLoading) {
+    <div class="loading-container">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Loading alerts...</p>
+    </div>
+  } @else if (errorMessage) {
+    <div class="error-container">
+      <mat-icon>error_outline</mat-icon>
+      <p>{{ errorMessage }}</p>
+      <button mat-button (click)="loadAlerts()">Retry</button>
+    </div>
+  } @else if (alerts.length === 0) {
+    <div class="empty-container">
+      <mat-icon>notifications_none</mat-icon>
+      <p>No alerts at this time</p>
+      <small>Your farm is running smoothly!</small>
+    </div>
+  } @else {
+    <div class="alerts-grid">
+      @for (alert of alerts; track alert.id) {
+        <mat-card 
+          class="alert-card"
+          [class.unread]="!alert.isRead"
+          [class.critical]="alert.severity === 'critical'"
+          [class.warning]="alert.severity === 'warning'"
+          [class.info]="alert.severity === 'info'"
+        >
+          <mat-card-header>
+            <div mat-card-avatar class="alert-avatar">
+              <mat-icon>{{ getTypeIcon(alert.type) }}</mat-icon>
+            </div>
+            
+            <mat-card-title>
+              <div class="alert-title-row">
+                <span>{{ alert.title }}</span>
+                <mat-chip 
+                  [color]="getSeverityColor(alert.severity)"
+                  selected
+                  class="severity-chip"
+                >
+                  <mat-icon>{{ getSeverityIcon(alert.severity) }}</mat-icon>
+                  {{ alert.severity }}
+                </mat-chip>
+              </div>
+            </mat-card-title>
+            
+            <mat-card-subtitle>
+              {{ formatTime(alert.createdAt) }}
+            </mat-card-subtitle>
+          </mat-card-header>
+          
+          <mat-card-content>
+            <p>{{ alert.message }}</p>
+            
+            <div class="alert-meta">
+              @if (alert.type) {
+                <small class="alert-type">
+                  <mat-icon>{{ getTypeIcon(alert.type) }}</mat-icon>
+                  {{ alert.type }}
+                </small>
+              }
+              
+              @if (!alert.isRead) {
+                <span class="unread-badge"></span>
+              }
+            </div>
+          </mat-card-content>
+          
+          <mat-card-actions align="end">
+            @if (!alert.isRead) {
+              <button mat-button (click)="markAsRead(alert.id)">
+                <mat-icon>check</mat-icon>
+                Mark as read
+              </button>
+            }
+            
+            @if (alert.zoneId || alert.farmId) {
+              <button mat-button (click)="navigateToAlert(alert)">
+                <mat-icon>open_in_new</mat-icon>
+                View details
+              </button>
+            }
+          </mat-card-actions>
+        </mat-card>
+      }
+    </div>
+  }
+</div>

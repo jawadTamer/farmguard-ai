@@ -42,7 +42,7 @@ export class RecommendationListComponent implements OnInit {
     private readonly supabase: SupabaseService,
     private readonly authService: AuthService,
     private readonly router: Router,
-  ) {}
+  ) { }
 
   async ngOnInit(): Promise<void> {
     try {
@@ -149,11 +149,37 @@ export class RecommendationListComponent implements OnInit {
       }
 
       this.conversationId = data.conversationId ?? this.conversationId;
+
+      // Handle answer - it might be a stringified JSON or a direct object
+      let answerContent: string;
+      let answerActions: string[] = [];
+      let answerUrgency: 'low' | 'moderate' | 'high' | 'critical' | undefined;
+
+      if (typeof data.answer === 'string') {
+        // Try to parse if it's a JSON string
+        try {
+          const parsedAnswer = JSON.parse(data.answer);
+          answerContent = parsedAnswer.answer || parsedAnswer.message || data.answer;
+          answerActions = parsedAnswer.actions || [];
+          answerUrgency = parsedAnswer.urgency;
+        } catch {
+          // If parsing fails, use as-is
+          answerContent = data.answer;
+        }
+      } else if (typeof data.answer === 'object') {
+        // It's already an object
+        answerContent = data.answer.answer || data.answer.message || JSON.stringify(data.answer);
+        answerActions = data.answer.actions || [];
+        answerUrgency = data.answer.urgency;
+      } else {
+        answerContent = String(data.answer);
+      }
+
       this.messages.push({
         role: 'assistant',
-        content: data.answer.answer,
-        actions: data.answer.actions ?? [],
-        urgency: data.answer.urgency,
+        content: answerContent,
+        actions: answerActions,
+        urgency: answerUrgency,
       });
     } catch (error: any) {
       console.error('[AI Advisor] Request failed:', error);

@@ -12,6 +12,7 @@ import { Crop } from '../models/crop.model';
 import { FarmZone } from '../models/farm-zone.model';
 import { Farm } from '../models/farm.model';
 import { TemperatureReading } from '../models/temperature.model';
+import { AuthService } from '../auth/auth.service';
 
 interface EdgeFunctionResponse {
   success: boolean;
@@ -26,31 +27,59 @@ interface EdgeFunctionResponse {
 export class CropHeatRiskService {
   private readonly apiUrl = environment.cropHeatRiskApiUrl;
 
-  constructor(private readonly http: HttpClient) { }
+  constructor(
+    private readonly http: HttpClient,
+    private readonly authService: AuthService
+  ) { }
 
   predict(request: CropHeatRiskRequest): Observable<CropHeatRiskResponse> {
+    const session = this.authService.session();
+    const accessToken = session?.access_token ?? environment.supabaseKey;
+
     const headers = new HttpHeaders({
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${environment.supabaseKey}`,
+      'Authorization': `Bearer ${accessToken}`,
     });
+
+    console.log('Sending heat-risk prediction request to Edge Function:', this.apiUrl);
+    console.log('Request data:', { ...request, growth_stage: request.growth_stage });
 
     return this.http.post<EdgeFunctionResponse>(this.apiUrl, request, { headers }).pipe(
       map((response) => {
+        console.log('Edge Function response received:', response);
         if (!response.success || !response.data) {
           throw new Error(response.error || 'Heat-risk prediction failed');
         }
+        console.log('Extracted ML prediction:', response.data);
         return response.data;
       }),
       catchError((error: HttpErrorResponse) => {
         console.error('Crop heat risk prediction failed:', error);
+        console.error('HTTP Status:', error.status);
+        console.error('HTTP Status Text:', error.statusText);
+        console.error('Error body:', error.error);
 
         // Handle Edge Function error responses
         if (error.error?.error) {
           return throwError(() => new Error(error.error.error));
         }
 
+        // Handle specific HTTP status codes
+        if (error.status === 401) {
+          return throwError(() => new Error('Authentication failed. Please sign in again.'));
+        }
+        if (error.status === 403) {
+          return throwError(() => new Error('Access denied. Check your permissions.'));
+        }
+        if (error.status === 404) {
+          return throwError(() => new Error('Heat-risk prediction service not found.'));
+        }
+        if (error.status === 500) {
+          return throwError(() => new Error('Heat-risk prediction service error. Please try again later.'));
+        }
+
         return throwError(
-          () => new Error('Heat-risk prediction is currently unavailable.')
+          () => new Error(`Heat-risk prediction failed (${error.status || 'network error'}). Please try again later.`)
         );
       })
     );

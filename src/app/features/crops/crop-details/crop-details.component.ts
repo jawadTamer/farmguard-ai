@@ -106,7 +106,18 @@ export class CropDetailsComponent implements OnInit {
   }
 
   async loadHeatRiskPrediction(): Promise<void> {
-    if (!this.crop || !this.zone || !this.farm) {
+    if (!this.crop) {
+      this.heatRiskError = 'Crop data not available.';
+      return;
+    }
+
+    if (!this.zone) {
+      this.heatRiskError = 'Zone data not available. Heat risk assessment requires the crop to be assigned to a zone.';
+      return;
+    }
+
+    if (!this.farm) {
+      this.heatRiskError = 'Farm data not available. Heat risk assessment requires the zone to be assigned to a farm.';
       return;
     }
 
@@ -135,15 +146,21 @@ export class CropDetailsComponent implements OnInit {
       );
 
       if (!request) {
-        this.heatRiskError = 'Unable to calculate heat risk (missing required data).';
+        this.heatRiskError = 'Unable to calculate heat risk. Missing required data: planting date or invalid growth stage.';
         return;
       }
 
       // Call prediction API via Supabase Edge Function
       this.heatRiskResponse = await firstValueFrom(this.heatRiskService.predict(request));
 
-      // Create alert and save risk assessment on successful prediction
+      // Extract and log the risk class from ML response
       if (this.heatRiskResponse && this.heatRiskResponse.predictions.length > 0) {
+        const prediction = this.heatRiskResponse.predictions[0];
+        const riskClass = prediction.heat_risk_class;
+        const confidence = prediction.probabilities[riskClass];
+        console.log('ML Risk Class extracted:', riskClass);
+        console.log('ML Confidence:', confidence);
+
         const temperature = currentWeather?.temperature ?? request.temperature_c;
         const humidity = currentWeather?.humidity ?? request.relative_humidity_percent;
 
@@ -173,7 +190,7 @@ export class CropDetailsComponent implements OnInit {
       }
     } catch (error) {
       console.error('Failed to load heat risk prediction:', error);
-      this.heatRiskError = 'Heat-risk prediction is currently unavailable.';
+      this.heatRiskError = 'Heat-risk prediction is currently unavailable. Please try again later.';
     } finally {
       this.isLoadingHeatRisk = false;
     }

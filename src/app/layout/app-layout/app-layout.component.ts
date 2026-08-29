@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink } from '@angular/router';
 
@@ -11,6 +11,8 @@ import { MatDividerModule } from '@angular/material/divider';
 
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { AuthService } from '../../core/auth/auth.service';
+import { AlertService } from '../../core/services/alert.service';
+import { FarmAlert } from '../../core/models/alert.model';
 
 @Component({
   selector: 'app-app-layout',
@@ -34,8 +36,12 @@ import { AuthService } from '../../core/auth/auth.service';
   templateUrl: './app-layout.component.html',
   styleUrl: './app-layout.component.css',
 })
-export class AppLayoutComponent {
+export class AppLayoutComponent implements OnInit {
   private readonly authService = inject(AuthService);
+  private readonly alertService = inject(AlertService);
+
+  alerts: FarmAlert[] = [];
+  isLoading = true;
 
   get user() {
     const authUser = this.authService.user();
@@ -54,51 +60,45 @@ export class AppLayoutComponent {
     };
   }
 
-  notifications = [
-    {
-      id: 1,
-      title: 'High heat risk detected',
-      message: 'Tomato Field A reached 41°C.',
-      time: '5 min ago',
-      icon: 'warning',
-      type: 'danger',
-      read: false,
-    },
-    {
-      id: 2,
-      title: 'Irrigation recommended',
-      message: 'Cooler irrigation window starts at 6:30 PM.',
-      time: '20 min ago',
-      icon: 'water_drop',
-      type: 'info',
-      read: false,
-    },
-    {
-      id: 3,
-      title: 'Temperature updated',
-      message: 'Greenhouse B is currently at 37°C.',
-      time: '1 hour ago',
-      icon: 'thermostat',
-      type: 'warning',
-      read: true,
-    },
-  ];
-
   get unreadNotifications(): number {
-    return this.notifications.filter((notification) => !notification.read)
-      .length;
+    return this.alerts.filter((alert) => !alert.isRead).length;
   }
 
-  markNotificationAsRead(id: number): void {
-    const notification = this.notifications.find((item) => item.id === id);
+  get notifications() {
+    return this.alerts.map(alert => ({
+      id: alert.id,
+      title: alert.title,
+      message: alert.message,
+      time: this.formatTime(alert.createdAt),
+      icon: this.getIconForAlert(alert.type, alert.severity),
+      type: this.getTypeForAlert(alert.severity),
+      read: alert.isRead,
+    }));
+  }
 
-    if (notification) {
-      notification.read = true;
+  async ngOnInit(): Promise<void> {
+    await this.loadAlerts();
+  }
+
+  async loadAlerts(): Promise<void> {
+    this.isLoading = true;
+    try {
+      this.alerts = await this.alertService.getAlerts();
+    } catch (error) {
+      console.error('Failed to load alerts:', error);
+    } finally {
+      this.isLoading = false;
     }
   }
 
-  markAllAsRead(): void {
-    this.notifications.forEach((notification) => (notification.read = true));
+  async markNotificationAsRead(id: string): Promise<void> {
+    await this.alertService.markAsRead(id);
+    await this.loadAlerts();
+  }
+
+  async markAllAsRead(): Promise<void> {
+    await this.alertService.markAllAsRead();
+    await this.loadAlerts();
   }
 
   async logout(): Promise<void> {
@@ -117,5 +117,34 @@ export class AppLayoutComponent {
     }
 
     return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+
+  private formatTime(dateString: string): string {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
+  }
+
+  private getIconForAlert(type: string, severity: string): string {
+    if (type === 'heat-stress') return 'local_fire_department';
+    if (type === 'temperature') return 'thermostat';
+    if (severity === 'critical') return 'warning';
+    if (severity === 'warning') return 'error_outline';
+    return 'info';
+  }
+
+  private getTypeForAlert(severity: string): string {
+    if (severity === 'critical') return 'danger';
+    if (severity === 'warning') return 'warning';
+    return 'info';
   }
 }
