@@ -190,7 +190,34 @@ export class CropDetailsComponent implements OnInit {
       }
     } catch (error) {
       console.error('Failed to load heat risk prediction:', error);
-      this.heatRiskError = 'Heat-risk prediction is currently unavailable. Please try again later.';
+
+      // Map error codes to user-friendly messages
+      const errorMessage = error instanceof Error ? error.message : 'UNKNOWN';
+
+      switch (errorMessage) {
+        case 'ML_API_TIMEOUT':
+          this.heatRiskError = 'The heat-risk model is taking too long to respond. Please try again in a moment.';
+          break;
+        case 'ML_API_UNREACHABLE':
+          this.heatRiskError = 'The heat-risk model is currently unavailable. Please try again later.';
+          break;
+        case 'ML_API_HTTP_ERROR':
+          this.heatRiskError = 'The heat-risk model returned an error. Please try again later.';
+          break;
+        case 'ML_API_INVALID_RESPONSE':
+          this.heatRiskError = 'The heat-risk model returned an invalid result.';
+          break;
+        case 'CONFIGURATION_ERROR':
+          this.heatRiskError = 'Heat-risk prediction is temporarily unavailable.';
+          break;
+        case 'AUTHENTICATION_REQUIRED':
+          this.heatRiskError = 'Authentication required. Please sign in again.';
+          break;
+        case 'UNKNOWN':
+        default:
+          this.heatRiskError = 'Unable to calculate crop heat risk right now.';
+          break;
+      }
     } finally {
       this.isLoadingHeatRisk = false;
     }

@@ -34,7 +34,12 @@ export class CropHeatRiskService {
 
   predict(request: CropHeatRiskRequest): Observable<CropHeatRiskResponse> {
     const session = this.authService.session();
-    const accessToken = session?.access_token ?? environment.supabaseKey;
+    const accessToken = session?.access_token;
+
+    if (!accessToken) {
+      console.error('[CropHeatRiskService] No authenticated session found');
+      return throwError(() => new Error('AUTHENTICATION_REQUIRED'));
+    }
 
     const headers = new HttpHeaders({
       'Content-Type': 'application/json',
@@ -59,14 +64,34 @@ export class CropHeatRiskService {
         console.error('HTTP Status Text:', error.statusText);
         console.error('Error body:', error.error);
 
-        // Handle Edge Function error responses
-        if (error.error?.error) {
-          return throwError(() => new Error(error.error.error));
+        // Handle Edge Function error responses with specific error codes
+        const errorCode = error.error?.error;
+        const errorMessage = error.error?.message;
+
+        if (errorCode) {
+          console.error(`[CropHeatRiskService] Edge Function error code: ${errorCode}`);
+
+          switch (errorCode) {
+            case 'ML_API_TIMEOUT':
+              return throwError(() => new Error('ML_API_TIMEOUT'));
+            case 'ML_API_UNREACHABLE':
+              return throwError(() => new Error('ML_API_UNREACHABLE'));
+            case 'ML_API_HTTP_ERROR':
+              return throwError(() => new Error('ML_API_HTTP_ERROR'));
+            case 'ML_API_INVALID_RESPONSE':
+              return throwError(() => new Error('ML_API_INVALID_RESPONSE'));
+            case 'CONFIGURATION_ERROR':
+              return throwError(() => new Error('CONFIGURATION_ERROR'));
+            case 'AUTHENTICATION_REQUIRED':
+              return throwError(() => new Error('AUTHENTICATION_REQUIRED'));
+            default:
+              return throwError(() => new Error('UNKNOWN'));
+          }
         }
 
         // Handle specific HTTP status codes
         if (error.status === 401) {
-          return throwError(() => new Error('Authentication failed. Please sign in again.'));
+          return throwError(() => new Error('AUTHENTICATION_REQUIRED'));
         }
         if (error.status === 403) {
           return throwError(() => new Error('Access denied. Check your permissions.'));
@@ -75,12 +100,19 @@ export class CropHeatRiskService {
           return throwError(() => new Error('Heat-risk prediction service not found.'));
         }
         if (error.status === 500) {
-          return throwError(() => new Error('Heat-risk prediction service error. Please try again later.'));
+          return throwError(() => new Error('CONFIGURATION_ERROR'));
+        }
+        if (error.status === 502) {
+          return throwError(() => new Error('ML_API_HTTP_ERROR'));
+        }
+        if (error.status === 503) {
+          return throwError(() => new Error('ML_API_UNREACHABLE'));
+        }
+        if (error.status === 504) {
+          return throwError(() => new Error('ML_API_TIMEOUT'));
         }
 
-        return throwError(
-          () => new Error(`Heat-risk prediction failed (${error.status || 'network error'}). Please try again later.`)
-        );
+        return throwError(() => new Error('UNKNOWN'));
       })
     );
   }

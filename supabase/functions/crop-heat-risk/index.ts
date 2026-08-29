@@ -27,9 +27,11 @@ declare const Deno: {
 // Configuration
 // -----------------------------------------------------------------------------
 
-const ML_API_URL =
-  Deno.env.get('ML_API_URL') ??
-  'http://51.21.162.104/predict';
+const ML_API_URL = Deno.env.get('ML_API_URL');
+
+if (!ML_API_URL) {
+  console.error('[crop-heat-risk] ML_API_URL environment variable is not configured');
+}
 
 /**
  * Keep this short.
@@ -399,6 +401,13 @@ function validateMLResponse(
 async function callMLApi(
   request: CropHeatRiskRequest
 ): Promise<CropHeatRiskResponse> {
+  if (!ML_API_URL) {
+    throw new MLApiError(
+      'CONFIGURATION_ERROR',
+      'ML_API_URL is not configured'
+    );
+  }
+
   const controller = new AbortController();
 
   const timeoutId = setTimeout(() => {
@@ -585,6 +594,22 @@ class MLApiError extends Error {
 
 Deno.serve(async (req: Request) => {
   const requestStartedAt = Date.now();
+
+  // ---------------------------------------------------------------------------
+  // Configuration check
+  // ---------------------------------------------------------------------------
+
+  if (!ML_API_URL) {
+    console.error('[crop-heat-risk] ML_API_URL environment variable is not configured');
+    return jsonResponse(
+      {
+        success: false,
+        error: 'CONFIGURATION_ERROR',
+        message: 'Heat-risk prediction service is not configured.',
+      },
+      500
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // CORS
