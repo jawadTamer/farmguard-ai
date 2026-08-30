@@ -836,6 +836,74 @@ Only accepts: `maturity`, `planted`, `reproductive`, `vegetative`
 - High (50-75% probability)
 - Critical (75-100% probability)
 
+### Livestock Heat Risk ML Model
+
+**API Endpoint**: `http://51.121.62.104/livestock-predict`
+
+**Request Parameters**:
+```json
+{
+  "hour": 14,
+  "day_of_year": 210,
+  "month": 7,
+  "temperature_c": 35.0,
+  "relative_humidity_percent": 70.0,
+  "wind_speed_m_s": 2.5,
+  "solar_radiation_w_m2": 850.0,
+  "location": "Arkansas",
+  "latitude": 37.5,
+  "longitude": -77.5,
+  "livestock_type": "dairy_cattle",
+  "breed": "holstein",
+  "age_years": 4,
+  "production_stage": "lactating",
+  "body_condition_score": 3.0,
+  "heat_index_approx": 45.0
+}
+```
+
+**Response**:
+```json
+{
+  "predictions": [
+    {
+      "heat_risk_class": "High",
+      "probabilities": {
+        "Critical": 0.15,
+        "High": 0.55,
+        "Low": 0.20,
+        "Moderate": 0.10
+      },
+      "thi": 85,
+      "hli": 78,
+      "respiratory_rate_predicted": 85,
+      "milk_production_impact_percent": -15
+    }
+  ],
+  "status": "success"
+}
+```
+
+**Risk Classes**:
+- Low (THI < 72)
+- Moderate (THI 72-79)
+- High (THI 79-88)
+- Critical (THI > 88)
+
+**Key Metrics**:
+- **THI (Temperature Humidity Index)**: Measures combined effect of temperature and humidity
+- **HLI (Heat Load Index)**: Accounts for solar radiation and wind speed
+- **Respiratory Rate**: Predicted breaths per minute under current conditions
+- **Milk Production Impact**: Expected percentage change in milk yield
+
+**Livestock Types Supported**:
+- Dairy cattle
+- Beef cattle
+- Sheep
+- Goats
+- Poultry
+- Swine
+
 ### Gemini AI Integration
 
 **Purpose**: Generate natural language explanations and recommendations
@@ -920,7 +988,27 @@ Contributions are welcome! Please follow these steps:
 
 ## 19. License
 
-This project is licensed under the MIT License.
+Copyright © 2024 Ur fav duo
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ---
 
