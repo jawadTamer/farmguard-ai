@@ -130,6 +130,157 @@
   margin-bottom: 24px;
 }
 
+/* API Result Card */
+
+.api-result-card {
+  margin-bottom: 24px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.api-result-card.api-success {
+  border: 2px solid #2e7d32;
+}
+
+.api-result-card.api-error {
+  border: 2px solid #d32f2f;
+}
+
+.api-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #f8faf9, #f1f8f3);
+}
+
+.api-status-icon {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.api-status-icon.status-success {
+  background: linear-gradient(135deg, #2e7d32, #4caf50);
+  color: white;
+}
+
+.api-status-icon.status-partial {
+  background: linear-gradient(135deg, #1976d2, #2196f3);
+  color: white;
+}
+
+.api-status-icon.status-error {
+  background: linear-gradient(135deg, #d32f2f, #f44336);
+  color: white;
+}
+
+.api-status-icon mat-icon {
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+}
+
+.api-header-content h3 {
+  margin: 0 0 4px;
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.api-header-content p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.api-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  padding: 20px 24px;
+}
+
+.api-metric-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #f8faf9;
+  transition: all 0.2s ease;
+}
+
+.api-metric-item:hover {
+  background: #f1f8f3;
+}
+
+.api-metric-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.metric-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  color: #2e7d32;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.metric-icon.metric-success {
+  background: linear-gradient(135deg, #2e7d32, #4caf50);
+  color: white;
+}
+
+.metric-icon.metric-pending {
+  background: linear-gradient(135deg, #f57c00, #ff9800);
+  color: white;
+}
+
+.metric-icon mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.metric-content {
+  flex: 1;
+}
+
+.metric-label {
+  display: block;
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.metric-value {
+  display: block;
+  font-size: 16px;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.metric-value.value-success {
+  color: #2e7d32;
+}
+
+.metric-value.value-pending {
+  color: #f57c00;
+}
+
 .risk-reason {
   margin: 0 0 8px;
   color: #374151;

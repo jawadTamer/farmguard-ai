@@ -267,29 +267,120 @@
     </mat-card>
 
 
-    <!-- Future Intelligence -->
+    <!-- Heat Risk Assessment -->
 
-    <mat-card class="future-card">
+    <mat-card class="heat-risk-card">
 
-      <mat-icon>
-        auto_awesome
-      </mat-icon>
-
-      <div>
-
-        <h3>
-          FarmGuard Intelligence
-        </h3>
-
-        <p>
-          Temperature monitoring, heat stress analysis,
-          health tracking and AI recommendations
-          for this livestock will appear here once
-          the intelligence modules are connected.
-        </p>
-
+      <div class="card-header">
+        <div class="header-icon">
+          <mat-icon>thermostat</mat-icon>
+        </div>
+        <div>
+          <h3>Heat Risk Assessment</h3>
+          <p>AI-powered heat stress prediction for this livestock</p>
+        </div>
       </div>
 
+      <div class="heat-risk-content">
+        <div *ngIf="!heatRiskResponse && !heatRiskError && !isLoadingHeatRisk" class="no-assessment">
+          <p>No heat risk assessment available.</p>
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="loadHeatRiskPrediction()">
+
+            <mat-icon>analytics</mat-icon>
+            Calculate Heat Risk
+
+          </button>
+        </div>
+
+        <div *ngIf="isLoadingHeatRisk" class="loading-assessment">
+          <mat-spinner diameter="30"></mat-spinner>
+          <span>Calculating heat risk...</span>
+        </div>
+
+        <div *ngIf="heatRiskError" class="error-assessment">
+          <mat-icon>error_outline</mat-icon>
+          <span>{{ heatRiskError }}</span>
+          <button
+            mat-button
+            type="button"
+            (click)="loadHeatRiskPrediction()">
+
+            Retry
+
+          </button>
+        </div>
+
+        <div *ngIf="heatRiskResponse && heatRiskResponse.predictions?.length > 0" class="assessment-result">
+          <div class="risk-level" [ngClass]="'risk-' + heatRiskResponse.predictions[0].risk_level.toLowerCase()">
+            <div class="risk-icon">
+              <mat-icon *ngIf="heatRiskResponse.predictions[0].risk_level === 'Critical'">warning</mat-icon>
+              <mat-icon *ngIf="heatRiskResponse.predictions[0].risk_level === 'High'">report_problem</mat-icon>
+              <mat-icon *ngIf="heatRiskResponse.predictions[0].risk_level === 'Moderate'">info</mat-icon>
+              <mat-icon *ngIf="heatRiskResponse.predictions[0].risk_level === 'Low'">check_circle</mat-icon>
+            </div>
+            <div>
+              <span class="risk-label">Risk Level</span>
+              <strong class="risk-value">{{ heatRiskResponse.predictions[0].risk_level }}</strong>
+            </div>
+          </div>
+
+          <div class="calculated-features">
+            <div class="feature-item">
+              <span>THI (Temperature-Humidity Index)</span>
+              <strong>{{ heatRiskResponse.predictions[0].calculated_features.thi.toFixed(1) }}</strong>
+            </div>
+            <div class="feature-item">
+              <span>HLI (Heat Load Index)</span>
+              <strong>{{ heatRiskResponse.predictions[0].calculated_features.hli.toFixed(1) }}</strong>
+            </div>
+          </div>
+
+          <div class="probabilities">
+            <div class="prob-item">
+              <span>Critical</span>
+              <div class="prob-bar">
+                <div class="prob-fill" [style.width.%]="(heatRiskResponse.predictions[0].probabilities.Critical * 100)"></div>
+              </div>
+              <span>{{ (heatRiskResponse.predictions[0].probabilities.Critical * 100).toFixed(1) }}%</span>
+            </div>
+            <div class="prob-item">
+              <span>High</span>
+              <div class="prob-bar">
+                <div class="prob-fill" [style.width.%]="(heatRiskResponse.predictions[0].probabilities.High * 100)"></div>
+              </div>
+              <span>{{ (heatRiskResponse.predictions[0].probabilities.High * 100).toFixed(1) }}%</span>
+            </div>
+            <div class="prob-item">
+              <span>Moderate</span>
+              <div class="prob-bar">
+                <div class="prob-fill" [style.width.%]="(heatRiskResponse.predictions[0].probabilities.Moderate * 100)"></div>
+              </div>
+              <span>{{ (heatRiskResponse.predictions[0].probabilities.Moderate * 100).toFixed(1) }}%</span>
+            </div>
+            <div class="prob-item">
+              <span>Low</span>
+              <div class="prob-bar">
+                <div class="prob-fill" [style.width.%]="(heatRiskResponse.predictions[0].probabilities.Low * 100)"></div>
+              </div>
+              <span>{{ (heatRiskResponse.predictions[0].probabilities.Low * 100).toFixed(1) }}%</span>
+            </div>
+          </div>
+
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="loadHeatRiskPrediction()">
+
+            <mat-icon>refresh</mat-icon>
+            Recalculate
+
+          </button>
+        </div>
+      </div>
     </mat-card>
 
   </div>

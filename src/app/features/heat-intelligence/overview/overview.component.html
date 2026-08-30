@@ -33,37 +33,45 @@
       </div>
     </div>
 
-    <mat-card class="details-card" [style.border-left]="apiResultVerified ? '4px solid #2e7d32' : '4px solid #d32f2f'">
-      <mat-card-header>
-        <mat-card-title>
-          <mat-icon>{{ apiResultVerified ? 'check_circle' : 'error' }}</mat-icon>
-          FortyGuard API Result
-        </mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        <p *ngIf="apiResultVerified" style="color:#2e7d32;font-weight:600;margin:0 0 12px">
-          Result received and verified successfully.
-        </p>
-        <p *ngIf="!apiResultVerified && apiError" style="color:#d32f2f;margin:0 0 12px">
-          {{ apiError }}
-        </p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
-          <div><strong>Temperature</strong><br>{{ formatTemperature(currentTemperature?.temperature) }}</div>
-          <div><strong>Heatmap</strong><br>{{ apiDiagnostics.heatmapCompleted ? 'Completed' : 'Not completed' }}</div>
-          <div><strong>Temperature extracted</strong><br>{{ apiDiagnostics.temperatureExtracted ? 'Yes' : 'No' }}</div>
-          <div><strong>Environmental</strong><br>{{ apiDiagnostics.environmentalCompleted ? 'Completed' : 'Not available' }}</div>
-          <div><strong>Heatmap activity</strong><br>{{ apiDiagnostics.heatmapActivityId || '—' }}</div>
-          <div><strong>Environmental activity</strong><br>{{ apiDiagnostics.environmentalActivityId || '—' }}</div>
-          <div><strong>Heatmap cells</strong><br>{{ apiDiagnostics.featuresCount }}</div>
-          <div><strong>Recorded</strong><br>{{ apiDiagnostics.recordedAt ? formatDate(apiDiagnostics.recordedAt) : '—' }}</div>
+    <mat-card class="api-result-card" [class.api-success]="apiResultVerified" [class.api-error]="!apiResultVerified">
+      <div class="api-card-header">
+        <div class="api-status-icon" [class.status-success]="apiResultVerified" [class.status-partial]="!apiResultVerified && currentTemperature" [class.status-error]="!apiResultVerified && !currentTemperature">
+          <mat-icon>{{ apiResultVerified ? 'check_circle' : (currentTemperature ? 'info' : 'error_outline') }}</mat-icon>
         </div>
-        <div *ngIf="apiDiagnostics.resultKeys.length > 0" style="margin-top:14px">
-          <strong>Result keys:</strong> {{ apiDiagnostics.resultKeys.join(', ') }}
+        <div class="api-header-content">
+          <h3>FortyGuard API Result</h3>
+          <p>{{ apiResultVerified ? 'Data received and verified successfully' : (currentTemperature ? 'Data available from recent readings' : (apiError || 'Waiting for data')) }}</p>
         </div>
-        <div *ngIf="apiDiagnostics.statsKeys.length > 0" style="margin-top:6px">
-          <strong>Stats keys:</strong> {{ apiDiagnostics.statsKeys.join(', ') }}
+      </div>
+      <div class="api-metrics-grid">
+        <div class="api-metric-item">
+          <div class="metric-icon">
+            <mat-icon>thermostat</mat-icon>
+          </div>
+          <div class="metric-content">
+            <span class="metric-label">Temperature</span>
+            <strong class="metric-value">{{ formatTemperature(currentTemperature?.temperature) }}</strong>
+          </div>
         </div>
-      </mat-card-content>
+        <div class="api-metric-item">
+          <div class="metric-icon">
+            <mat-icon>water_drop</mat-icon>
+          </div>
+          <div class="metric-content">
+            <span class="metric-label">Humidity</span>
+            <strong class="metric-value">{{ formatHumidity(currentTemperature?.humidity) }}</strong>
+          </div>
+        </div>
+        <div class="api-metric-item full-width">
+          <div class="metric-icon">
+            <mat-icon>schedule</mat-icon>
+          </div>
+          <div class="metric-content">
+            <span class="metric-label">Last Recorded</span>
+            <strong class="metric-value">{{ apiDiagnostics.recordedAt ? formatDate(apiDiagnostics.recordedAt) : '—' }}</strong>
+          </div>
+        </div>
+      </div>
     </mat-card>
 
     <div class="stats-grid" *ngIf="currentTemperature && currentRisk">

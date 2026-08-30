@@ -61,6 +61,10 @@ export class LivestockCreateComponent implements OnInit {
       ],
       breed: ['', [Validators.maxLength(80)]],
       count: [1, [Validators.required, Validators.min(1)]],
+      sex: ['', [Validators.required]],
+      physiologicalStage: ['', [Validators.maxLength(80)]],
+      ageYears: [null, [Validators.min(0), Validators.max(30)]],
+      weightKg: [null, [Validators.min(1), Validators.max(5000)]],
     });
   }
 
@@ -107,6 +111,10 @@ export class LivestockCreateComponent implements OnInit {
         livestockType: formValue.livestockType.trim(),
         breed: formValue.breed?.trim() || undefined,
         count: Number(formValue.count),
+        sex: formValue.sex as 'male' | 'female' || undefined,
+        physiologicalStage: formValue.physiologicalStage?.trim() || undefined,
+        ageYears: formValue.ageYears ? Number(formValue.ageYears) : undefined,
+        weightKg: formValue.weightKg ? Number(formValue.weightKg) : undefined,
       });
 
       await this.router.navigate(['/livestock']);

@@ -154,7 +154,16 @@ export class OverviewComponent implements OnInit {
   }
 
   formatHumidity(value: number | undefined | null): string {
-    if (value === undefined || value === null || !Number.isFinite(value)) return '—';
+    if (value === undefined || value === null || !Number.isFinite(value)) {
+      // Try to extract humidity from risk assessment reason as fallback
+      if (this.currentRisk?.reason) {
+        const humidityMatch = this.currentRisk.reason.match(/Humidity:\s*(\d+(?:\.\d+)?)/);
+        if (humidityMatch) {
+          return `${humidityMatch[1]}%`;
+        }
+      }
+      return '—';
+    }
     return `${this.formatOneDecimal(value)}%`;
   }
 

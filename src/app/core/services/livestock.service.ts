@@ -7,7 +7,7 @@ import { SupabaseService } from './supabase.service';
   providedIn: 'root',
 })
 export class LivestockService {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(private readonly supabase: SupabaseService) { }
 
   async getAllLivestock(): Promise<Livestock[]> {
     const { data, error } = await this.supabase.client
@@ -63,14 +63,31 @@ export class LivestockService {
       livestockType: string;
       breed?: string;
       count?: number;
+      sex?: 'male' | 'female';
+      physiologicalStage?: string;
+      ageYears?: number;
+      weightKg?: number;
     },
   ): Promise<Livestock> {
-    const payload = {
+    const payload: Record<string, unknown> = {
       zone_id: zoneId,
       animal_type: livestock.livestockType,
       breed: livestock.breed ?? null,
       quantity: livestock.count ?? 0,
     };
+
+    if (livestock.sex) {
+      payload['sex'] = livestock.sex;
+    }
+    if (livestock.physiologicalStage) {
+      payload['physiological_stage'] = livestock.physiologicalStage;
+    }
+    if (livestock.ageYears !== undefined && livestock.ageYears !== null) {
+      payload['age_years'] = livestock.ageYears;
+    }
+    if (livestock.weightKg !== undefined && livestock.weightKg !== null) {
+      payload['weight_kg'] = livestock.weightKg;
+    }
 
     console.log('Attempting to insert livestock with payload:', payload);
 
@@ -100,6 +117,10 @@ export class LivestockService {
       livestockType?: string;
       breed?: string;
       count?: number;
+      sex?: 'male' | 'female';
+      physiologicalStage?: string;
+      ageYears?: number;
+      weightKg?: number;
     },
   ): Promise<Livestock> {
     const payload: Record<string, unknown> = {};
@@ -118,6 +139,19 @@ export class LivestockService {
 
     if (livestock.count !== undefined) {
       payload['quantity'] = livestock.count ?? 0;
+    }
+
+    if (livestock.sex !== undefined) {
+      payload['sex'] = livestock.sex;
+    }
+    if (livestock.physiologicalStage !== undefined) {
+      payload['physiological_stage'] = livestock.physiologicalStage;
+    }
+    if (livestock.ageYears !== undefined) {
+      payload['age_years'] = livestock.ageYears;
+    }
+    if (livestock.weightKg !== undefined) {
+      payload['weight_kg'] = livestock.weightKg;
     }
 
     const { data, error } = await this.supabase.client
@@ -156,6 +190,10 @@ export class LivestockService {
       breed: data.breed ?? undefined,
       count: data.quantity ?? data.count ?? data.head_count ?? undefined,
       ageGroup: data.age_group ?? undefined,
+      sex: data.sex ?? undefined,
+      physiologicalStage: data.physiological_stage ?? undefined,
+      ageYears: data.age_years ?? undefined,
+      weightKg: data.weight_kg ?? undefined,
       createdAt: data.created_at ?? undefined,
       updatedAt: data.updated_at ?? undefined,
     };

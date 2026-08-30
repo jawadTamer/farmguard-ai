@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -12,8 +13,10 @@ import Swal from 'sweetalert2';
 
 import { LivestockService } from '../../../core/services/livestock.service';
 import { ZoneService } from '../../../core/services/zone.service';
+import { LivestockHeatRiskService } from '../../../core/services/livestock-heat-risk.service';
 import { Livestock } from '../../../core/models/livestock.model';
 import { FarmZone } from '../../../core/models/farm-zone.model';
+import { FarmService } from '../../../core/services/farm.service';
 
 @Component({
   selector: 'app-livestock-details',
@@ -34,15 +37,21 @@ export class LivestockDetailsComponent implements OnInit {
   livestockId = '';
   livestock?: Livestock;
   zone?: FarmZone;
+  farm?: any;
   isLoading = true;
+  isLoadingHeatRisk = false;
   errorMessage = '';
+  heatRiskResponse?: any;
+  heatRiskError = '';
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private livestockService: LivestockService,
     private zoneService: ZoneService,
-  ) {}
+    private heatRiskService: LivestockHeatRiskService,
+    private farmService: FarmService,
+  ) { }
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -73,6 +82,9 @@ export class LivestockDetailsComponent implements OnInit {
 
       if (this.livestock.zoneId) {
         this.zone = await this.zoneService.getZoneById(this.livestock.zoneId);
+        if (this.zone) {
+          this.farm = await this.farmService.getFarmById(this.zone.farmId);
+        }
       }
     } catch (error) {
       console.error('Failed to load livestock:', error);
@@ -143,5 +155,77 @@ export class LivestockDetailsComponent implements OnInit {
       month: 'long',
       day: 'numeric',
     });
+  }
+
+  async loadHeatRiskPrediction(): Promise<void> {
+    if (!this.livestock) {
+      this.heatRiskError = 'Livestock data not available.';
+      return;
+    }
+
+    if (!this.zone) {
+      this.heatRiskError = 'Zone data not available. Heat risk assessment requires the livestock to be assigned to a zone.';
+      return;
+    }
+
+    if (!this.farm) {
+      this.heatRiskError = 'Farm data not available. Heat risk assessment requires the zone to be assigned to a farm.';
+      return;
+    }
+
+    this.isLoadingHeatRisk = true;
+    this.heatRiskError = '';
+
+    try {
+      const request = this.heatRiskService.buildRequestFromLivestock(
+        this.livestock,
+        this.zone,
+        this.farm
+      );
+
+      if (!request) {
+        this.heatRiskError = 'Unable to calculate heat risk. Missing required data: sex, age, or weight.';
+        return;
+      }
+
+      this.heatRiskResponse = await firstValueFrom(this.heatRiskService.predict(request));
+
+      if (this.heatRiskResponse && this.heatRiskResponse.predictions.length > 0) {
+        const prediction = this.heatRiskResponse.predictions[0];
+        console.log('Livestock Risk Level:', prediction.risk_level);
+        console.log('Livestock Probabilities:', prediction.probabilities);
+      }
+    } catch (error) {
+      console.error('Failed to load heat risk prediction:', error);
+
+      const errorMessage = error instanceof Error ? error.message : 'UNKNOWN';
+
+      switch (errorMessage) {
+        case 'ML_API_TIMEOUT':
+          this.heatRiskError = 'The heat-risk model is taking too long to respond. Please try again in a moment.';
+          break;
+        case 'ML_API_UNREACHABLE':
+          this.heatRiskError = 'The heat-risk model is currently unavailable. Please try again later.';
+          break;
+        case 'ML_API_HTTP_ERROR':
+          this.heatRiskError = 'The heat-risk model returned an error. Please try again later.';
+          break;
+        case 'ML_API_INVALID_RESPONSE':
+          this.heatRiskError = 'The heat-risk model returned an invalid result.';
+          break;
+        case 'CONFIGURATION_ERROR':
+          this.heatRiskError = 'Heat-risk prediction is temporarily unavailable.';
+          break;
+        case 'AUTHENTICATION_REQUIRED':
+          this.heatRiskError = 'Authentication required. Please sign in again.';
+          break;
+        case 'UNKNOWN':
+        default:
+          this.heatRiskError = 'Unable to calculate livestock heat risk right now.';
+          break;
+      }
+    } finally {
+      this.isLoadingHeatRisk = false;
+    }
   }
 }

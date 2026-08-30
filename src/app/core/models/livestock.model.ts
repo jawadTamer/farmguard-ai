@@ -7,6 +7,10 @@ export interface Livestock {
   count?: number;
 
   ageGroup?: string;
+  sex?: 'male' | 'female';
+  physiologicalStage?: string;
+  ageYears?: number;
+  weightKg?: number;
 
   createdAt?: string;
   updatedAt?: string;

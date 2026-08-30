@@ -66,6 +66,10 @@ export class LivestockEditComponent implements OnInit {
       ],
       breed: ['', [Validators.maxLength(80)]],
       count: [1, [Validators.required, Validators.min(1)]],
+      sex: ['', [Validators.required]],
+      physiologicalStage: ['', [Validators.maxLength(80)]],
+      ageYears: [null, [Validators.min(0), Validators.max(30)]],
+      weightKg: [null, [Validators.min(1), Validators.max(5000)]],
     });
   }
 
@@ -105,6 +109,10 @@ export class LivestockEditComponent implements OnInit {
         livestockType: livestock.livestockType,
         breed: livestock.breed ?? '',
         count: livestock.count ?? 1,
+        sex: livestock.sex ?? '',
+        physiologicalStage: livestock.physiologicalStage ?? '',
+        ageYears: livestock.ageYears ?? null,
+        weightKg: livestock.weightKg ?? null,
       });
     } catch (error) {
       console.error('Failed to load livestock record:', error);
@@ -132,6 +140,10 @@ export class LivestockEditComponent implements OnInit {
         livestockType: formValue.livestockType.trim(),
         breed: formValue.breed?.trim() || undefined,
         count: Number(formValue.count),
+        sex: formValue.sex as 'male' | 'female' || undefined,
+        physiologicalStage: formValue.physiologicalStage?.trim() || undefined,
+        ageYears: formValue.ageYears ? Number(formValue.ageYears) : undefined,
+        weightKg: formValue.weightKg ? Number(formValue.weightKg) : undefined,
       });
 
       await this.router.navigate(['/livestock', this.livestockId]);
