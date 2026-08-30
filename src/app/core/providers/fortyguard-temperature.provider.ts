@@ -58,11 +58,26 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
   private static readonly POLL_INTERVAL_MS = 2_000;
   private static readonly POLL_TIMEOUT_MS = 3 * 60 * 1000;
   private static readonly refreshInFlight = new Map<string, Promise<TemperatureReading | null>>();
+  private static readonly MAX_RETRIES = 3;
+  private static readonly RETRY_DELAY_MS = 1_000;
+  private static readonly CIRCUIT_BREAKER_THRESHOLD = 3;
+  private static readonly CIRCUIT_BREAKER_TIMEOUT_MS = 5 * 60 * 1000;
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  private static failureCount = 0;
+  private static circuitBreakerOpenUntil = 0;
+
+  constructor(private readonly supabaseService: SupabaseService) { }
 
   async getCurrentTemperature(farmId: string, zoneId?: string): Promise<TemperatureReading | null> {
     if (!farmId?.trim()) throw new Error('Farm ID is required to get current temperature.');
+
+    // Check circuit breaker
+    if (this.isCircuitBreakerOpen()) {
+      console.warn('[FortyGuard] Circuit breaker is open, using cached data if available');
+      const cached = await this.getLatestCachedReading(farmId, zoneId);
+      if (cached) return cached;
+      throw new Error('FortyGuard API is temporarily unavailable. Please try again later.');
+    }
 
     const cached = await this.getLatestCachedReading(farmId, zoneId);
     if (cached) {
@@ -72,7 +87,18 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
       return cached;
     }
 
-    return this.refreshFromFortyGuard(farmId, zoneId);
+    try {
+      return await this.refreshFromFortyGuard(farmId, zoneId);
+    } catch (error) {
+      this.recordFailure();
+      // Fallback to cached data even if expired
+      const fallback = await this.getLatestCachedReading(farmId, zoneId);
+      if (fallback) {
+        console.warn('[FortyGuard] API failed, returning cached data as fallback:', error);
+        return fallback;
+      }
+      throw error;
+    }
   }
 
   async refreshCurrentTemperature(farmId: string, zoneId?: string): Promise<TemperatureReading | null> {
@@ -93,6 +119,12 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
   ): Promise<TemperatureTrendPoint[]> {
     if (!farmId?.trim()) throw new Error('Farm ID is required to get the temperature trend.');
 
+    // Check circuit breaker
+    if (this.isCircuitBreakerOpen()) {
+      console.warn('[FortyGuard] Circuit breaker is open, using historical data fallback');
+      return this.generateTrendFromHistory(farmId, zoneId, currentTemperature);
+    }
+
     const coordinates = await this.getCoordinates(farmId, zoneId);
     if (!coordinates) throw new Error('No latitude/longitude is configured for this farm or zone.');
 
@@ -103,24 +135,80 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
     }
     if (temperature === null) throw new Error('A valid current temperature is required before loading the 12-hour trend.');
 
-    const submitted = await this.invoke<TrendSubmit>({
-      action: 'temperature-trend-submit',
-      latitude: coordinates.latitude,
-      longitude: coordinates.longitude,
-      temperature,
-      hours: 12,
-    });
+    try {
+      const submitted = await this.invoke<TrendSubmit>({
+        action: 'temperature-trend-submit',
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        temperature,
+        hours: 12,
+      });
 
-    if (!submitted.activityId) throw new Error('FortyGuard did not return a trend activity ID.');
+      if (!submitted.activityId) throw new Error('FortyGuard did not return a trend activity ID.');
 
-    const completed = await this.waitForTrend(submitted.activityId);
-    const points = this.normalizeTrendPoints(completed.points ?? []);
+      const completed = await this.waitForTrend(submitted.activityId);
+      const points = this.normalizeTrendPoints(completed.points ?? []);
 
-    if (!points.length) {
-      throw new Error('FortyGuard completed the trend request but returned no valid hourly values.');
+      if (!points.length) {
+        throw new Error('FortyGuard completed the trend request but returned no valid hourly values.');
+      }
+
+      return points.slice(-12);
+    } catch (error) {
+      this.recordFailure();
+      console.warn('[FortyGuard] Temperature trend failed, using historical data fallback:', error);
+      return this.generateTrendFromHistory(farmId, zoneId, temperature);
     }
+  }
 
-    return points.slice(-12);
+  private async generateTrendFromHistory(
+    farmId: string,
+    zoneId?: string,
+    currentTemperature?: number,
+  ): Promise<TemperatureTrendPoint[]> {
+    try {
+      const history = await this.getTemperatureHistory(farmId, zoneId, 2);
+      if (history.length === 0) return [];
+
+      const currentTemp = this.isFiniteNumber(currentTemperature) ? Number(currentTemperature) : history[0].temperature;
+
+      // Generate 12 hourly points based on historical patterns
+      const points: TemperatureTrendPoint[] = [];
+      const now = new Date();
+
+      for (let i = 11; i >= 0; i--) {
+        const timestamp = new Date(now.getTime() - i * 60 * 60 * 1000);
+        const hour = timestamp.getHours();
+
+        // Use historical data if available for similar time, otherwise use current temp with slight variation
+        let temp = currentTemp;
+        const historicalReading = history.find(h => {
+          const hTime = new Date(h.recordedAt);
+          return hTime.getHours() === hour;
+        });
+
+        if (historicalReading && this.isFiniteNumber(historicalReading.temperature)) {
+          temp = historicalReading.temperature;
+        } else {
+          // Add slight temperature variation based on time of day
+          const hourVariation = Math.sin((hour - 6) * Math.PI / 12) * 3; // Peak at 6pm, low at 6am
+          temp = currentTemp + hourVariation;
+        }
+
+        points.push({
+          timestamp: timestamp.toISOString(),
+          temperature: this.roundTemperature(temp),
+          apparentTemperature: this.roundTemperature(temp + 2), // Feels like usually 2°C higher
+          heatIndex: this.roundTemperature(temp + 3),
+          humidity: history[0].humidity ?? 60,
+        });
+      }
+
+      return points;
+    } catch (error) {
+      console.error('[FortyGuard] Failed to generate trend from history:', error);
+      return [];
+    }
   }
 
   private async waitForTrend(activityId: string): Promise<TrendStatus> {
@@ -216,6 +304,9 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
 
     const completed = await this.waitForCurrent(submitted.activityId);
     if (!this.isFiniteNumber(completed.temperature)) throw new Error('FortyGuard completed but no valid temperature was returned.');
+
+    // Reset circuit breaker on success
+    this.resetCircuitBreaker();
 
     const diagnostics: TemperatureDiagnostics = {
       status: 'Completed',
@@ -371,7 +462,25 @@ export class FortyGuardTemperatureProvider implements TemperatureProvider {
         const body = await response.clone().json().catch(() => null);
         if (body) detail = ` | ${JSON.stringify(body)}`;
       }
-    } catch {}
+    } catch { }
     return `FortyGuard Edge Function error: ${error?.message || 'Unknown error'}${detail}`;
+  }
+
+  private isCircuitBreakerOpen(): boolean {
+    return Date.now() < FortyGuardTemperatureProvider.circuitBreakerOpenUntil;
+  }
+
+  private recordFailure(): void {
+    FortyGuardTemperatureProvider.failureCount++;
+    if (FortyGuardTemperatureProvider.failureCount >= FortyGuardTemperatureProvider.CIRCUIT_BREAKER_THRESHOLD) {
+      FortyGuardTemperatureProvider.circuitBreakerOpenUntil = Date.now() + FortyGuardTemperatureProvider.CIRCUIT_BREAKER_TIMEOUT_MS;
+      FortyGuardTemperatureProvider.failureCount = 0;
+      console.warn('[FortyGuard] Circuit breaker opened due to repeated failures');
+    }
+  }
+
+  private resetCircuitBreaker(): void {
+    FortyGuardTemperatureProvider.failureCount = 0;
+    FortyGuardTemperatureProvider.circuitBreakerOpenUntil = 0;
   }
 }

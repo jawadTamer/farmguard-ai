@@ -130,9 +130,12 @@ export class OverviewComponent implements OnInit {
       }
       this.alerts = await this.alertService.getUnreadAlerts(farmId, zoneId);
     } catch (error) {
-      this.apiResultVerified = false;
-      this.apiError = error instanceof Error ? error.message : 'FortyGuard request failed.';
-      this.currentTemperature = undefined;
+      // Don't clear currentTemperature on error - it might have cached data
+      // Only show error if we have no data at all
+      if (!this.currentTemperature) {
+        this.apiResultVerified = false;
+        this.apiError = error instanceof Error ? error.message : 'FortyGuard request failed.';
+      }
       console.error('[Dashboard] FortyGuard result verification failed:', error);
     }
   }

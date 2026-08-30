@@ -87,8 +87,11 @@ export class TemperatureComponent implements OnInit {
       this.temperatureHistory = await this.temperatureService.getTemperatureHistory(farmId, zoneId, 7);
     } catch (error) {
       console.error('[Temperature] Failed to load temperature data:', error);
-      this.currentTemperature = undefined;
-      this.loadError = this.getErrorMessage(error);
+      // Don't clear currentTemperature on error - it might have cached data
+      // Only show error if we have no data at all
+      if (!this.currentTemperature) {
+        this.loadError = this.getErrorMessage(error);
+      }
     } finally {
       this.isRefreshing = false;
     }

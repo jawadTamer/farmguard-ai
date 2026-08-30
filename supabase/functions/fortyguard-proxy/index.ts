@@ -7,7 +7,9 @@ type Coordinates = { latitude: number; longitude: number };
 type DateTime = { startDate: string; startTime: string };
 
 const BASE_URL = 'https://api.fortyguard.com';
-const REQUEST_TIMEOUT_MS = 12_000;
+const REQUEST_TIMEOUT_MS = 15_000;
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1_000;
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -58,11 +60,13 @@ function polygon(c: Coordinates) {
     type: 'FeatureCollection',
     features: [{
       type: 'Feature', properties: {},
-      geometry: { type: 'Polygon', coordinates: [[
-        [c.longitude - d, c.latitude - d], [c.longitude + d, c.latitude - d],
-        [c.longitude + d, c.latitude + d], [c.longitude - d, c.latitude + d],
-        [c.longitude - d, c.latitude - d],
-      ]] },
+      geometry: {
+        type: 'Polygon', coordinates: [[
+          [c.longitude - d, c.latitude - d], [c.longitude + d, c.latitude - d],
+          [c.longitude + d, c.latitude + d], [c.longitude - d, c.latitude + d],
+          [c.longitude - d, c.latitude - d],
+        ]]
+      },
     }],
   };
 }
@@ -71,34 +75,77 @@ async function fg(path: string, init: RequestInit = {}) {
   const key = Deno.env.get('FORTYGUARD_API_KEY');
   if (!key) throw new Error('FORTYGUARD_API_KEY is not configured.');
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const response = await fetch(`${BASE_URL}${path}`, {
-      ...init,
-      signal: controller.signal,
-      headers: {
-        'api-key': key,
-        Accept: 'application/json',
-        ...(init.method === 'GET' ? {} : { 'Content-Type': 'application/json' }),
-        ...(init.headers ?? {}),
-      },
-    });
-    const text = await response.text();
-    let payload: any = null;
-    try { payload = text ? JSON.parse(text) : null; } catch { payload = { raw: text }; }
-    if (!response.ok || payload?.error === true || payload?.error === 'true') {
-      throw new FortyGuardHttpError(
-        response.status,
-        path,
-        String(payload?.message ?? payload?.error ?? response.statusText ?? 'FortyGuard request failed'),
-        text.slice(0, 2000),
-      );
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(`${BASE_URL}${path}`, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          'api-key': key,
+          Accept: 'application/json',
+          ...(init.method === 'GET' ? {} : { 'Content-Type': 'application/json' }),
+          ...(init.headers ?? {}),
+        },
+      });
+
+      const text = await response.text();
+      let payload: any = null;
+      try { payload = text ? JSON.parse(text) : null; } catch { payload = { raw: text }; }
+
+      if (!response.ok || payload?.error === true || payload?.error === 'true') {
+        // Don't retry on client errors (4xx)
+        if (response.status >= 400 && response.status < 500) {
+          throw new FortyGuardHttpError(
+            response.status,
+            path,
+            String(payload?.message ?? payload?.error ?? response.statusText ?? 'FortyGuard request failed'),
+            text.slice(0, 2000),
+          );
+        }
+        // Retry on server errors (5xx) and network issues
+        lastError = new FortyGuardHttpError(
+          response.status,
+          path,
+          String(payload?.message ?? payload?.error ?? response.statusText ?? 'FortyGuard request failed'),
+          text.slice(0, 2000),
+        );
+        if (attempt < MAX_RETRIES) {
+          console.log(`[FortyGuard] Retry ${attempt}/${MAX_RETRIES} for ${path} after ${response.status}`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
+          continue;
+        }
+        throw lastError;
+      }
+
+      return payload;
+    } catch (error) {
+      clearTimeout(timeout);
+
+      // Don't retry on abort (timeout) or client errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`FortyGuard API request timed out after ${REQUEST_TIMEOUT_MS}ms`);
+      }
+
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt < MAX_RETRIES) {
+        console.log(`[FortyGuard] Retry ${attempt}/${MAX_RETRIES} for ${path} after error:`, lastError.message);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
+        continue;
+      }
+
+      throw lastError;
+    } finally {
+      clearTimeout(timeout);
     }
-    return payload;
-  } finally {
-    clearTimeout(timeout);
   }
+
+  throw lastError || new Error('FortyGuard request failed after retries');
 }
 
 function activityId(payload: any): string {
@@ -183,27 +230,33 @@ async function submitTrend(c: Coordinates, temperature: number, hours: number) {
   const count = Math.max(1, Math.min(12, Math.floor(hours)));
   const end = previousHour();
   const start = addHours(end, -(count - 1));
-  const payload = await fg('/v1/env_params', {
-    method: 'POST',
-    body: JSON.stringify({
-      latitude: c.latitude,
-      longitude: c.longitude,
-      temperature,
-      date_time: {
-        start_date: start.startDate,
-        start_time: start.startTime,
-        end_date: end.startDate,
-        end_time: end.startTime,
-        filter_type: 2,
-      },
-      analysis: [
-        'apparent_temperature_celsius',
-        'heat_index_celsius',
-        'relative_humidity_percent',
-      ],
-    }),
-  });
-  return { activityId: activityId(payload), start, end, requestedHours: count };
+
+  try {
+    const payload = await fg('/v1/env_params', {
+      method: 'POST',
+      body: JSON.stringify({
+        latitude: c.latitude,
+        longitude: c.longitude,
+        temperature,
+        date_time: {
+          start_date: start.startDate,
+          start_time: start.startTime,
+          end_date: end.startDate,
+          end_time: end.startTime,
+          filter_type: 2,
+        },
+        analysis: [
+          'apparent_temperature_celsius',
+          'heat_index_celsius',
+          'relative_humidity_percent',
+        ],
+      }),
+    });
+    return { activityId: activityId(payload), start, end, requestedHours: count };
+  } catch (error) {
+    console.error('[FortyGuard] env_params endpoint failed, this may be due to API limitations or temporary outage:', error);
+    throw new Error('FortyGuard env_params endpoint is currently unavailable. Please try again later.');
+  }
 }
 
 function trendPoints(result: any) {
