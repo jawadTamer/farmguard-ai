@@ -14,9 +14,11 @@ import Swal from 'sweetalert2';
 import { LivestockService } from '../../../core/services/livestock.service';
 import { ZoneService } from '../../../core/services/zone.service';
 import { LivestockHeatRiskService } from '../../../core/services/livestock-heat-risk.service';
+import { AIAdvisorService } from '../../../core/services/ai-advisor.service';
 import { Livestock } from '../../../core/models/livestock.model';
 import { FarmZone } from '../../../core/models/farm-zone.model';
 import { FarmService } from '../../../core/services/farm.service';
+import { TemperatureService } from '../../../core/services/temperature.service';
 
 @Component({
   selector: 'app-livestock-details',
@@ -43,6 +45,9 @@ export class LivestockDetailsComponent implements OnInit {
   errorMessage = '';
   heatRiskResponse?: any;
   heatRiskError = '';
+  aiRecommendations?: any;
+  isLoadingRecommendations = false;
+  recommendationsError = '';
 
   constructor(
     private route: ActivatedRoute,
@@ -51,6 +56,8 @@ export class LivestockDetailsComponent implements OnInit {
     private zoneService: ZoneService,
     private heatRiskService: LivestockHeatRiskService,
     private farmService: FarmService,
+    private aiAdvisorService: AIAdvisorService,
+    private temperatureService: TemperatureService,
   ) { }
 
   ngOnInit(): void {
@@ -194,6 +201,9 @@ export class LivestockDetailsComponent implements OnInit {
         const prediction = this.heatRiskResponse.predictions[0];
         console.log('Livestock Risk Level:', prediction.risk_level);
         console.log('Livestock Probabilities:', prediction.probabilities);
+
+        // Load AI recommendations after successful heat risk prediction
+        await this.loadAIRecommendations();
       }
     } catch (error) {
       console.error('Failed to load heat risk prediction:', error);
@@ -226,6 +236,80 @@ export class LivestockDetailsComponent implements OnInit {
       }
     } finally {
       this.isLoadingHeatRisk = false;
+    }
+  }
+
+  async loadAIRecommendations(): Promise<void> {
+    if (!this.livestock || !this.heatRiskResponse) {
+      this.recommendationsError = 'Livestock or heat risk data not available.';
+      return;
+    }
+
+    this.isLoadingRecommendations = true;
+    this.recommendationsError = '';
+
+    try {
+      // Get current temperature data
+      let temperature = 25.0;
+      let humidity = 60.0;
+
+      if (this.farm) {
+        try {
+          const currentWeather = await this.temperatureService.getCurrentTemperature(this.farm.id);
+          if (currentWeather) {
+            temperature = Number(currentWeather.temperature) || 25.0;
+            humidity = Number(currentWeather.humidity) || 60.0;
+          }
+        } catch (error) {
+          console.warn('Failed to load current weather, using defaults:', error);
+        }
+      }
+
+      // Build AI advisor request
+      const request = this.aiAdvisorService.buildLivestockRequest(
+        this.livestock,
+        this.heatRiskResponse,
+        temperature,
+        humidity
+      );
+
+      // Get AI recommendations
+      this.aiRecommendations = await firstValueFrom(
+        this.aiAdvisorService.getLivestockRecommendations(request)
+      );
+
+      console.log('AI Recommendations received:', this.aiRecommendations);
+    } catch (error) {
+      console.error('Failed to load AI recommendations:', error);
+
+      const errorMessage = error instanceof Error ? error.message : 'UNKNOWN';
+
+      switch (errorMessage) {
+        case 'AI_API_TIMEOUT':
+          this.recommendationsError = 'The AI advisor is taking too long to respond. Please try again in a moment.';
+          break;
+        case 'AI_API_UNREACHABLE':
+          this.recommendationsError = 'The AI advisor is currently unavailable. Please try again later.';
+          break;
+        case 'AI_API_HTTP_ERROR':
+          this.recommendationsError = 'The AI advisor returned an error. Please try again later.';
+          break;
+        case 'AI_API_INVALID_RESPONSE':
+          this.recommendationsError = 'The AI advisor returned an invalid result.';
+          break;
+        case 'CONFIGURATION_ERROR':
+          this.recommendationsError = 'AI recommendations are temporarily unavailable.';
+          break;
+        case 'AUTHENTICATION_REQUIRED':
+          this.recommendationsError = 'Authentication required. Please sign in again.';
+          break;
+        case 'UNKNOWN':
+        default:
+          this.recommendationsError = 'Unable to load AI recommendations right now.';
+          break;
+      }
+    } finally {
+      this.isLoadingRecommendations = false;
     }
   }
 }

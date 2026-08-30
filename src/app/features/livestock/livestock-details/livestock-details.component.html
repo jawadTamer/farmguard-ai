@@ -383,6 +383,81 @@
       </div>
     </mat-card>
 
+
+    <!-- AI Recommendations -->
+
+    <mat-card class="ai-recommendations-card" *ngIf="heatRiskResponse">
+
+      <div class="card-header">
+        <div class="header-icon">
+          <mat-icon>psychology</mat-icon>
+        </div>
+        <div>
+          <h3>AI-Powered Recommendations</h3>
+          <p>Personalized recommendations based on heat risk assessment</p>
+        </div>
+      </div>
+
+      <div class="recommendations-content">
+        <div *ngIf="!aiRecommendations && !recommendationsError && !isLoadingRecommendations" class="no-recommendations">
+          <p>No AI recommendations available yet.</p>
+        </div>
+
+        <div *ngIf="isLoadingRecommendations" class="loading-recommendations">
+          <mat-spinner diameter="30"></mat-spinner>
+          <span>Generating AI recommendations...</span>
+        </div>
+
+        <div *ngIf="recommendationsError" class="error-recommendations">
+          <mat-icon>error_outline</mat-icon>
+          <span>{{ recommendationsError }}</span>
+          <button
+            mat-button
+            type="button"
+            (click)="loadAIRecommendations()">
+
+            Retry
+
+          </button>
+        </div>
+
+        <div *ngIf="aiRecommendations" class="recommendations-result">
+          <div class="recommendation-main">
+            <div class="recommendation-priority" [ngClass]="'priority-' + aiRecommendations.priority.toLowerCase()">
+              <mat-icon *ngIf="aiRecommendations.priority === 'High'">priority_high</mat-icon>
+              <mat-icon *ngIf="aiRecommendations.priority === 'Moderate'">remove</mat-icon>
+              <mat-icon *ngIf="aiRecommendations.priority === 'Low'">low_priority</mat-icon>
+              <span>{{ aiRecommendations.priority }}</span>
+            </div>
+            <div class="recommendation-text">
+              <h4>{{ aiRecommendations.recommendation }}</h4>
+              <p>{{ aiRecommendations.risk_explanation }}</p>
+            </div>
+          </div>
+
+          <div class="recommended-actions" *ngIf="aiRecommendations.actions && aiRecommendations.actions.length > 0">
+            <h5>Recommended Actions</h5>
+            <div class="actions-list">
+              <div *ngFor="let action of aiRecommendations.actions" class="action-item">
+                <mat-icon>check_circle</mat-icon>
+                <span>{{ action }}</span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="loadAIRecommendations()">
+
+            <mat-icon>refresh</mat-icon>
+            Refresh Recommendations
+
+          </button>
+        </div>
+      </div>
+    </mat-card>
+
   </div>
 
 </div>
