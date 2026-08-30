@@ -11,6 +11,7 @@ import { TemperatureService } from '../../core/services/temperature.service';
 import { FarmService } from '../../core/services/farm.service';
 import { HeatRiskService } from '../../core/services/heat-risk.service';
 import { AlertService } from '../../core/services/alert.service';
+import { AuthService } from '../../core/services/auth.service';
 import { Farm } from '../../core/models/farm.model';
 import { TemperatureReading } from '../../core/models/temperature.model';
 import { TemperatureTrendPoint } from '../../core/providers/fortyguard-temperature.provider';
@@ -25,9 +26,9 @@ interface RiskItem { name: string; type: string; level: 'Low' | 'Moderate' | 'Hi
   templateUrl: './dashboard.component.html', styleUrl: './dashboard.component.css',
 })
 export class DashboardComponent implements OnInit {
-  constructor(private temperatureService: TemperatureService, private farmService: FarmService, private heatRiskService: HeatRiskService, private alertService: AlertService) {}
+  constructor(private temperatureService: TemperatureService, private farmService: FarmService, private heatRiskService: HeatRiskService, private alertService: AlertService, private authService: AuthService) { }
 
-  userName = 'Jawad'; currentDate = new Date(); currentTemperature: number | null = null; feelsLike: number | null = null;
+  userName = 'Farmer'; currentDate = new Date(); currentTemperature: number | null = null; feelsLike: number | null = null;
   temperatureLoading = true; temperatureError: string | null = null; temperatureStatus = 'Loading temperature...';
   temperatureDescription = 'Waiting for the FortyGuard analysis to complete.'; trendLoading = false; trendError: string | null = null;
   trendStatus = 'Loading the latest 12-hour FortyGuard trend...';
@@ -52,7 +53,11 @@ export class DashboardComponent implements OnInit {
   ];
 
   async ngOnInit(): Promise<void> {
-    this.currentDate = new Date(); this.loadFarms(); await this.loadTemperature(); await this.loadTodayTemperatureTrend(); await this.loadHeatRisks(); await this.loadAlerts();
+    this.currentDate = new Date(); this.loadUserName(); this.loadFarms(); await this.loadTemperature(); await this.loadTodayTemperatureTrend(); await this.loadHeatRisks(); await this.loadAlerts();
+  }
+
+  private async loadUserName(): Promise<void> {
+    this.userName = await this.authService.getUserName();
   }
 
   private async getActiveFarm(): Promise<Farm> {

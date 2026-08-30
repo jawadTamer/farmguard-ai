@@ -163,4 +163,24 @@ export class AuthService {
 
     return !!session;
   }
+
+
+  // =========================
+  // GET USER NAME
+  // =========================
+  async getUserName(): Promise<string> {
+    const user = await this.getCurrentUser();
+    if (!user) return 'Farmer';
+
+    const fullName = user.user_metadata?.['full_name'];
+    if (fullName) return fullName;
+
+    const email = user.email;
+    if (email) {
+      const namePart = email.split('@')[0];
+      return namePart.charAt(0).toUpperCase() + namePart.slice(1);
+    }
+
+    return 'Farmer';
+  }
 }
