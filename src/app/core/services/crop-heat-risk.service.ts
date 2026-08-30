@@ -47,7 +47,7 @@ export class CropHeatRiskService {
     });
 
     console.log('Sending heat-risk prediction request to Edge Function:', this.apiUrl);
-    console.log('Request data:', { ...request, growth_stage: request.growth_stage });
+    console.log('Request data:', JSON.stringify(request, null, 2));
 
     return this.http.post<EdgeFunctionResponse>(this.apiUrl, request, { headers }).pipe(
       map((response) => {
@@ -146,7 +146,27 @@ export class CropHeatRiskService {
     // Get location data - prefer zone, then farm
     const latitude = zone.latitude ?? farm.latitude ?? 0;
     const longitude = zone.longitude ?? farm.longitude ?? 0;
-    const location = farm.location || 'Unknown';
+
+    // ML API only accepts these known location categories
+    const knownLocations = ['Arkansas', 'Minnesota', 'Ohio', 'Virginia', 'Wisconsin'] as const;
+
+    // Extract state from location string or use fallback
+    let location = farm.location || 'Unknown';
+
+    // Try to match against known locations
+    const locationLower = location.toLowerCase();
+    for (const known of knownLocations) {
+      if (locationLower.includes(known.toLowerCase())) {
+        location = known;
+        break;
+      }
+    }
+
+    // If no match, use 'Unknown' or first known location as fallback
+    if (!knownLocations.includes(location as any)) {
+      console.warn('Location not in ML API known categories, using fallback:', location);
+      location = 'Virginia'; // Default fallback
+    }
 
     // Get current date/time values
     const hour = now.getHours();

@@ -5,7 +5,14 @@ const MODEL = 'gemini-3.6-flash';
 const GEMINI_URL =
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
+const GROQ_MODEL =
+  'llama-3.3-70b-versatile';
+
+const GROQ_URL =
+  'https://api.groq.com/openai/v1/chat/completions';
+
 const GEMINI_TIMEOUT_MS = 20_000;
+const GROQ_TIMEOUT_MS = 20_000;
 
 const MAX_HISTORY = 10;
 const MAX_TEMPERATURE_READINGS = 12;
@@ -124,7 +131,8 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods':
     'POST, OPTIONS',
-  'Content-Type': 'application/json',
+  'Content-Type':
+    'application/json',
 };
 
 function jsonResponse(
@@ -153,7 +161,8 @@ function cleanString(
 function normalizeUrgency(
   value: unknown,
 ): 'low' | 'moderate' | 'high' | 'critical' {
-  const urgency = String(value ?? '').toLowerCase();
+  const urgency =
+    String(value ?? '').toLowerCase();
 
   if (
     urgency === 'critical' ||
@@ -187,13 +196,14 @@ function normalizeActions(
     .slice(0, 5);
 }
 
-function normalizeGeminiAnswer(
+function normalizeAIAnswer(
   value: any,
 ) {
   return {
-    answer: cleanString(
-      value?.answer,
-    ),
+    answer:
+      cleanString(
+        value?.answer,
+      ),
 
     urgency:
       normalizeUrgency(
@@ -232,25 +242,13 @@ function hasRiskModelData(
  * Priority:
  *
  * 1. ctx.userClaims.sub
- *    Provided by @supabase/server when middleware
- *    successfully resolved the user.
- *
  * 2. Authorization Bearer token + supabase.auth.getUser()
- *    This verifies the JWT with Supabase instead of
- *    blindly decoding it.
- *
- * This is the important fix for:
- *
- * "Authenticated user not found"
  */
 async function getAuthenticatedUserId(
   req: Request,
   ctx: any,
 ): Promise<string | null> {
 
-  /*
-   * First use the claims injected by withSupabase.
-   */
   const claimsUserId =
     cleanString(
       ctx?.userClaims?.sub,
@@ -260,9 +258,6 @@ async function getAuthenticatedUserId(
     return claimsUserId;
   }
 
-  /*
-   * Fallback to the Authorization header.
-   */
   const authorization =
     req.headers.get(
       'Authorization',
@@ -304,13 +299,6 @@ async function getAuthenticatedUserId(
     return null;
   }
 
-  /*
-   * IMPORTANT:
-   *
-   * Do NOT decode the JWT manually and trust the payload.
-   *
-   * Supabase auth.getUser(token) validates the token.
-   */
   const supabase =
     ctx?.supabase;
 
@@ -353,7 +341,9 @@ async function getAuthenticatedUserId(
     }
 
     return userId;
+
   } catch (error) {
+
     console.error(
       '[ai-advisor] getUser failed:',
       error,
@@ -363,6 +353,11 @@ async function getAuthenticatedUserId(
   }
 }
 
+/**
+ * =========================
+ * GEMINI
+ * =========================
+ */
 async function callGemini(
   apiKey: string,
   prompt: string,
@@ -378,6 +373,7 @@ async function callGemini(
     );
 
   try {
+
     const response =
       await fetch(
         `${GEMINI_URL}?key=${encodeURIComponent(apiKey)}`,
@@ -408,14 +404,16 @@ async function callGemini(
 
                 parts: [
                   {
-                    text: prompt,
+                    text:
+                      prompt,
                   },
                 ],
               },
             ],
 
             generationConfig: {
-              temperature: 0.15,
+              temperature:
+                0.15,
 
               maxOutputTokens:
                 900,
@@ -442,6 +440,7 @@ async function callGemini(
     }
 
     if (!response.ok) {
+
       const message =
         payload?.error?.message ||
         rawText.slice(0, 500) ||
@@ -471,18 +470,30 @@ async function callGemini(
     }
 
     try {
+
       return JSON.parse(
         generated,
       );
+
     } catch {
+
       return {
-        answer: generated,
-        urgency: 'low',
-        actions: [],
-        needsMoreData: true,
+        answer:
+          generated,
+
+        urgency:
+          'low',
+
+        actions:
+          [],
+
+        needsMoreData:
+          true,
       };
     }
+
   } catch (error) {
+
     if (
       error instanceof Error &&
       error.name === 'AbortError'
@@ -493,13 +504,183 @@ async function callGemini(
     }
 
     throw error;
+
   } finally {
+
     clearTimeout(
       timeout,
     );
   }
 }
 
+/**
+ * =========================
+ * GROQ FALLBACK
+ * =========================
+ */
+async function callGroq(
+  apiKey: string,
+  prompt: string,
+) {
+  const controller =
+    new AbortController();
+
+  const timeout =
+    setTimeout(
+      () =>
+        controller.abort(),
+      GROQ_TIMEOUT_MS,
+    );
+
+  try {
+
+    const response =
+      await fetch(
+        GROQ_URL,
+        {
+          method: 'POST',
+
+          signal:
+            controller.signal,
+
+          headers: {
+            'Content-Type':
+              'application/json',
+
+            'Authorization':
+              `Bearer ${apiKey}`,
+          },
+
+          body: JSON.stringify({
+            model:
+              GROQ_MODEL,
+
+            messages: [
+              {
+                role:
+                  'system',
+
+                content:
+                  SYSTEM_INSTRUCTION,
+              },
+
+              {
+                role:
+                  'user',
+
+                content:
+                  prompt,
+              },
+            ],
+
+            temperature:
+              0.15,
+
+            max_completion_tokens:
+              900,
+
+            response_format: {
+              type:
+                'json_object',
+            },
+
+            stream:
+              false,
+          }),
+        },
+      );
+
+    const rawText =
+      await response.text();
+
+    let payload: any = null;
+
+    try {
+
+      payload =
+        rawText
+          ? JSON.parse(rawText)
+          : null;
+
+    } catch {
+
+      payload = null;
+    }
+
+    if (!response.ok) {
+
+      const message =
+        payload?.error?.message ||
+        rawText.slice(0, 500) ||
+        'Unknown Groq API error';
+
+      throw new Error(
+        `Groq API ${response.status}: ${message}`,
+      );
+    }
+
+    const generated =
+      payload
+        ?.choices?.[0]
+        ?.message
+        ?.content
+        ?.trim();
+
+    if (!generated) {
+      throw new Error(
+        'Groq returned an empty response',
+      );
+    }
+
+    try {
+
+      return JSON.parse(
+        generated,
+      );
+
+    } catch {
+
+      return {
+        answer:
+          generated,
+
+        urgency:
+          'low',
+
+        actions:
+          [],
+
+        needsMoreData:
+          true,
+      };
+    }
+
+  } catch (error) {
+
+    if (
+      error instanceof Error &&
+      error.name === 'AbortError'
+    ) {
+      throw new Error(
+        'Groq request timed out',
+      );
+    }
+
+    throw error;
+
+  } finally {
+
+    clearTimeout(
+      timeout,
+    );
+  }
+}
+
+/**
+ * =========================
+ * FARM
+ * =========================
+ */
 async function loadFarm(
   supabase: any,
   farmId: string,
@@ -539,6 +720,11 @@ async function loadFarm(
   return query.data;
 }
 
+/**
+ * =========================
+ * ZONES
+ * =========================
+ */
 async function loadZones(
   supabase: any,
   farmId: string,
@@ -571,6 +757,11 @@ async function loadZones(
   return query.data ?? [];
 }
 
+/**
+ * =========================
+ * CROPS
+ * =========================
+ */
 async function loadCrops(
   supabase: any,
   zoneIds: string[],
@@ -607,6 +798,11 @@ async function loadCrops(
   return query.data ?? [];
 }
 
+/**
+ * =========================
+ * LIVESTOCK
+ * =========================
+ */
 async function loadLivestock(
   supabase: any,
   zoneIds: string[],
@@ -643,27 +839,42 @@ async function loadLivestock(
   return query.data ?? [];
 }
 
+/**
+ * =========================
+ * WEATHER
+ * =========================
+ */
 async function loadWeather(
   supabase: any,
   farmId: string,
 ) {
-  const query = await supabase
-    .from('temperature_readings')
-    .select(`
-      temperature,
-      humidity,
-      heat_index,
-      apparent_temperature,
-      wet_bulb_temperature,
-      recorded_at,
-      forecast_for,
-      source
-    `)
-    .eq('farm_id', farmId)
-    .order('recorded_at', {
-      ascending: false,
-    })
-    .limit(MAX_TEMPERATURE_READINGS);
+  const query =
+    await supabase
+      .from('temperature_readings')
+      .select(`
+        temperature,
+        humidity,
+        heat_index,
+        apparent_temperature,
+        wet_bulb_temperature,
+        recorded_at,
+        forecast_for,
+        source
+      `)
+      .eq(
+        'farm_id',
+        farmId,
+      )
+      .order(
+        'recorded_at',
+        {
+          ascending:
+            false,
+        },
+      )
+      .limit(
+        MAX_TEMPERATURE_READINGS,
+      );
 
   if (query.error) {
     throw new Error(
@@ -674,6 +885,11 @@ async function loadWeather(
   return query.data ?? [];
 }
 
+/**
+ * =========================
+ * RISK ASSESSMENTS
+ * =========================
+ */
 async function loadRiskAssessments(
   supabase: any,
   farmId: string,
@@ -706,7 +922,8 @@ async function loadRiskAssessments(
       .order(
         'calculated_at',
         {
-          ascending: false,
+          ascending:
+            false,
         },
       )
       .limit(
@@ -722,6 +939,11 @@ async function loadRiskAssessments(
   return query.data ?? [];
 }
 
+/**
+ * =========================
+ * RECOMMENDATIONS
+ * =========================
+ */
 async function loadRecommendations(
   supabase: any,
   farmId: string,
@@ -746,7 +968,8 @@ async function loadRecommendations(
       .order(
         'created_at',
         {
-          ascending: false,
+          ascending:
+            false,
         },
       )
       .limit(
@@ -762,6 +985,11 @@ async function loadRecommendations(
   return query.data ?? [];
 }
 
+/**
+ * =========================
+ * FARM CONTEXT
+ * =========================
+ */
 async function loadFarmContext(
   supabase: any,
   farmId: string,
@@ -819,17 +1047,29 @@ async function loadFarmContext(
 
   return {
     farm,
+
     zones,
+
     crops,
+
     livestock,
+
     weather,
+
     riskAssessments,
+
     recommendations,
+
     currentTime:
       new Date().toISOString(),
   };
 }
 
+/**
+ * =========================
+ * CONVERSATION
+ * =========================
+ */
 async function getOrCreateConversation(
   supabase: any,
   userId: string,
@@ -843,9 +1083,12 @@ async function getOrCreateConversation(
    * Verify BOTH user_id and farm_id.
    */
   if (conversationId) {
+
     const existing =
       await supabase
-        .from('advisor_conversations')
+        .from(
+          'advisor_conversations',
+        )
         .select('id')
         .eq(
           'id',
@@ -877,7 +1120,9 @@ async function getOrCreateConversation(
    */
   const created =
     await supabase
-      .from('advisor_conversations')
+      .from(
+        'advisor_conversations',
+      )
       .insert({
         user_id:
           userId,
@@ -905,13 +1150,20 @@ async function getOrCreateConversation(
   );
 }
 
+/**
+ * =========================
+ * HISTORY
+ * =========================
+ */
 async function loadHistory(
   supabase: any,
   conversationId: string,
 ) {
   const query =
     await supabase
-      .from('advisor_messages')
+      .from(
+        'advisor_messages',
+      )
       .select(`
         role,
         content,
@@ -924,7 +1176,8 @@ async function loadHistory(
       .order(
         'created_at',
         {
-          ascending: false,
+          ascending:
+            false,
         },
       )
       .limit(
@@ -942,6 +1195,11 @@ async function loadHistory(
   ).reverse();
 }
 
+/**
+ * =========================
+ * PROMPT
+ * =========================
+ */
 function buildPrompt(
   context: any,
   history: any[],
@@ -961,16 +1219,20 @@ The following information comes directly from FarmGuard's database.
 Treat it as the source of truth.
 
 ${JSON.stringify(
-  context,
-  null,
-  2,
-)}
+    context,
+    null,
+    2,
+  )}
 
 RISK MODEL STATUS
 =================
 
 Risk model data available:
-${riskModelAvailable ? 'YES' : 'NO'}
+${
+  riskModelAvailable
+    ? 'YES'
+    : 'NO'
+}
 
 IMPORTANT:
 
@@ -1007,10 +1269,10 @@ CONVERSATION HISTORY
 ====================
 
 ${JSON.stringify(
-  history,
-  null,
-  2,
-)}
+    history,
+    null,
+    2,
+  )}
 
 FARMER QUESTION
 ===============
@@ -1052,6 +1314,11 @@ Return ONLY the requested JSON.
 `;
 }
 
+/**
+ * =========================
+ * SERVER
+ * =========================
+ */
 Deno.serve(
   withSupabase(
     {
@@ -1100,36 +1367,65 @@ Deno.serve(
 
       try {
 
-        /*
-         * GEMINI SECRET
+        /**
+         * =========================
+         * AI SECRETS
+         * =========================
          */
+
         const geminiApiKey =
           Deno.env.get(
             'GEMINI_API_KEY',
           );
 
-        if (!geminiApiKey) {
+        const groqApiKey =
+          Deno.env.get(
+            'GROQ_API_KEY',
+          );
+
+        /*
+         * At least one AI provider
+         * must be configured.
+         */
+        if (
+          !geminiApiKey &&
+          !groqApiKey
+        ) {
+
+          console.error(
+            '[ai-advisor] No AI API keys configured',
+          );
+
           return jsonResponse(
             {
               success:
                 false,
 
               error:
-                'GEMINI_API_KEY is not configured in Supabase Edge Function secrets',
+                'CONFIGURATION_ERROR',
+
+              message:
+                'AI Advisor service is not configured. Please contact support.',
             },
             500,
           );
         }
 
-        /*
+        /**
+         * =========================
          * REQUEST BODY
+         * =========================
          */
+
         let body: any;
 
         try {
+
           body =
             await req.json();
+
         } catch {
+
           return jsonResponse(
             {
               success:
@@ -1155,14 +1451,18 @@ Deno.serve(
         const conversationId =
           body?.conversationId
             ? cleanString(
-                body.conversationId,
-              )
+              body.conversationId,
+            )
             : null;
 
-        /*
+        /**
+         * =========================
          * VALIDATION
+         * =========================
          */
+
         if (!farmId) {
+
           return jsonResponse(
             {
               success:
@@ -1176,6 +1476,7 @@ Deno.serve(
         }
 
         if (!question) {
+
           return jsonResponse(
             {
               success:
@@ -1192,6 +1493,7 @@ Deno.serve(
           question.length >
           4000
         ) {
+
           return jsonResponse(
             {
               success:
@@ -1204,13 +1506,12 @@ Deno.serve(
           );
         }
 
-        /*
+        /**
+         * =========================
          * AUTHENTICATION
-         *
-         * FIX:
-         * Do not rely exclusively on
-         * ctx.userClaims?.sub.
+         * =========================
          */
+
         const userId =
           await getAuthenticatedUserId(
             req,
@@ -1218,6 +1519,7 @@ Deno.serve(
           );
 
         if (!userId) {
+
           return jsonResponse(
             {
               success:
@@ -1242,23 +1544,30 @@ Deno.serve(
           ctx.supabase;
 
         if (!supabase) {
+
           throw new Error(
             'Supabase client is unavailable',
           );
         }
 
-        /*
+        /**
+         * =========================
          * FARM CONTEXT
+         * =========================
          */
+
         const context =
           await loadFarmContext(
             supabase,
             farmId,
           );
 
-        /*
+        /**
+         * =========================
          * CONVERSATION
+         * =========================
          */
+
         const finalConversationId =
           await getOrCreateConversation(
             supabase,
@@ -1268,34 +1577,24 @@ Deno.serve(
             conversationId,
           );
 
-        /*
-         * HISTORY BEFORE
-         * inserting the new message.
+        /**
+         * =========================
+         * HISTORY
+         * =========================
          */
+
         const history =
           await loadHistory(
             supabase,
             finalConversationId,
           );
 
-        /*
+        /**
+         * =========================
          * SAVE USER MESSAGE
-         *
-         * IMPORTANT:
-         *
-         * Current advisor_messages schema:
-         *
-         * id
-         * conversation_id
-         * role
-         * content
-         * created_at
-         *
-         * Therefore we ONLY insert:
-         * conversation_id
-         * role
-         * content
+         * =========================
          */
+
         const userMessage =
           await supabase
             .from(
@@ -1315,14 +1614,18 @@ Deno.serve(
         if (
           userMessage.error
         ) {
+
           throw new Error(
             `User message save failed: ${userMessage.error.message}`,
           );
         }
 
-        /*
-         * BUILD GEMINI PROMPT
+        /**
+         * =========================
+         * BUILD PROMPT
+         * =========================
          */
+
         const prompt =
           buildPrompt(
             context,
@@ -1330,48 +1633,160 @@ Deno.serve(
             question,
           );
 
-        /*
-         * CALL GEMINI
+        /**
+         * =========================
+         * AI CALL
+         *
+         * Gemini = Primary
+         * Groq   = Fallback
+         * =========================
          */
-        const rawAnswer =
-          await callGemini(
-            geminiApiKey,
-            prompt,
+
+        let rawAnswer: any;
+
+        let aiProvider:
+          | 'gemini'
+          | 'groq';
+
+        /**
+         * TRY GEMINI
+         */
+        try {
+
+          if (!geminiApiKey) {
+
+            throw new Error(
+              'GEMINI_API_KEY is not configured',
+            );
+          }
+
+          console.log(
+            '[ai-advisor] Trying Gemini...',
           );
 
-        /*
-         * NORMALIZE GEMINI RESULT
+          rawAnswer =
+            await callGemini(
+              geminiApiKey,
+              prompt,
+            );
+
+          aiProvider =
+            'gemini';
+
+          console.log(
+            '[ai-advisor] Gemini succeeded',
+          );
+
+        } catch (geminiError) {
+
+          /**
+           * Gemini failed.
+           *
+           * Possible reasons:
+           * - 429 quota exceeded
+           * - 400 bad request
+           * - 401/403 API key
+           * - timeout
+           * - network error
+           */
+
+          console.error(
+            '[ai-advisor] Gemini failed:',
+            geminiError,
+          );
+
+          /**
+           * TRY GROQ
+           */
+          try {
+
+            if (!groqApiKey) {
+
+              throw new Error(
+                'GROQ_API_KEY is not configured',
+              );
+            }
+
+            console.log(
+              '[ai-advisor] Falling back to Groq...',
+            );
+
+            rawAnswer =
+              await callGroq(
+                groqApiKey,
+                prompt,
+              );
+
+            aiProvider =
+              'groq';
+
+            console.log(
+              '[ai-advisor] Groq fallback succeeded',
+            );
+
+          } catch (groqError) {
+
+            console.error(
+              '[ai-advisor] Groq fallback failed:',
+              groqError,
+            );
+
+            throw new Error(
+              `Both Gemini and Groq failed. Gemini: ${
+                geminiError instanceof Error
+                  ? geminiError.message
+                  : 'Unknown Gemini error'
+              }. Groq: ${
+                groqError instanceof Error
+                  ? groqError.message
+                  : 'Unknown Groq error'
+              }`,
+            );
+          }
+        }
+
+        /**
+         * =========================
+         * NORMALIZE AI RESULT
+         * =========================
          */
+
         const answer =
-          normalizeGeminiAnswer(
+          normalizeAIAnswer(
             rawAnswer,
           );
 
-        /*
-         * Server-controlled risk model flag.
-         *
-         * Gemini cannot decide this.
+        /**
+         * =========================
+         * SERVER CONTROLLED
+         * RISK MODEL FLAG
+         * =========================
          */
+
         const usedRiskModel =
           hasRiskModelData(
             context.riskAssessments,
           );
 
-        /*
-         * Prevent an empty assistant message.
+        /**
+         * =========================
+         * EMPTY RESPONSE CHECK
+         * =========================
          */
+
         if (!answer.answer) {
+
           throw new Error(
-            'Gemini returned an empty answer',
+            `${aiProvider} returned an empty answer`,
           );
         }
 
-        /*
+        /**
+         * =========================
          * SAVE ASSISTANT MESSAGE
-         *
-         * Again, compatible with the
-         * current advisor_messages table.
+         * =========================
          */
+
         const assistantMessage =
           await supabase
             .from(
@@ -1391,14 +1806,18 @@ Deno.serve(
         if (
           assistantMessage.error
         ) {
+
           throw new Error(
             `Assistant message save failed: ${assistantMessage.error.message}`,
           );
         }
 
-        /*
+        /**
+         * =========================
          * FINAL RESPONSE
+         * =========================
          */
+
         return jsonResponse({
           success:
             true,
@@ -1420,6 +1839,8 @@ Deno.serve(
 
             needsMoreData:
               answer.needsMoreData,
+
+            aiProvider,
           },
         });
 
