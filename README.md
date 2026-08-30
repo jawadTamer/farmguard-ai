@@ -345,6 +345,15 @@ farmguard-ai/
    # Deploy each function to Supabase
    ```
 
+### Demo Credentials
+
+Anyone who wants to try the application can use these demo credentials:
+
+- **Email**: `fortyguard@gmail.com`
+- **Password**: `fortyguard2026`
+
+These credentials allow you to explore the application's features without creating an account.
+
 ---
 
 ## 9. Environment Configuration
