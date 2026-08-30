@@ -1,6 +1,6 @@
 [build]
   command = "ng build --configuration production"
-  publish = "dist/farmguard-ai"
+  publish = "dist/farmguard-ai/browser"
 
 [[redirects]]
   from = "/*"
