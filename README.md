@@ -1,118 +1,799 @@
 # FarmGuard AI
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.15.
+FarmGuard AI is an AI-powered agricultural heat intelligence platform that analyzes temperature conditions across farms and translates them into actionable insights for both crops and livestock.
 
-## Development server
+## Table of Contents
 
-To start a local development server, run:
+1. [Problem Statement](#1-problem-statement)
+2. [Solution](#2-solution)
+3. [Target Users](#3-target-users)
+4. [MVP Features](#4-mvp-features)
+5. [Tech Stack](#5-tech-stack)
+6. [Project Structure](#6-project-structure)
+7. [Architecture](#7-architecture)
+8. [Setup Instructions](#8-setup-instructions)
+9. [Environment Configuration](#9-environment-configuration)
+10. [Development](#10-development)
+11. [Deployment](#11-deployment)
+12. [API Documentation](#12-api-documentation)
+13. [Models & Data Structures](#13-models--data-structures)
+14. [Edge Functions](#14-edge-functions)
+15. [AI Integration](#15-ai-integration)
+
+---
+
+## 1. Problem Statement
+
+Extreme temperatures can have a significant impact on agricultural productivity, affecting both crops and livestock. Farmers often have access to temperature and weather data, but raw temperature values do not clearly tell them how those conditions affect a specific crop, growth stage, or animal group.
+
+A temperature of 40°C, for example, may create different levels of risk for a tomato crop during flowering compared with dairy cattle. Without converting environmental data into meaningful, farm-specific insights, farmers may react too late or make inefficient decisions about irrigation, spraying, livestock care, and resource usage.
+
+FarmGuard AI addresses this gap by transforming temperature intelligence into clear, actionable recommendations for farmers.
+
+---
+
+## 2. Solution
+
+FarmGuard AI integrates FortyGuard temperature intelligence with a farm-specific risk engine. Farmers can define their crops, growth stages, livestock, and farm zones. The system then analyzes current and forecasted temperature conditions to determine heat-stress risk.
+
+Instead of simply showing:
+- "Temperature: 41°C"
+
+FarmGuard AI provides:
+- "Tomato crop — High Heat Stress Risk."
+
+And explains:
+- Why the crop or livestock is at risk
+- Which areas of the farm have higher risk
+- When irrigation should be performed
+- When spraying should be avoided
+- What actions should be taken to protect livestock
+- When the farmer should receive an alert
+- How the risk is expected to change over the coming hours
+
+The goal is to turn temperature data into decisions, helping farmers respond to heat before it causes significant damage.
+
+---
+
+## 3. Target Users
+
+### 🌾 Crop Farmers
+Farmers who grow temperature-sensitive crops and need better decisions about irrigation, spraying, and heat-stress management.
+
+### 🐄 Livestock Farmers
+Farmers managing cattle, sheep, goats, poultry, or other livestock that can be affected by extreme heat.
+
+---
+
+## 4. MVP Features
+
+### A. Farm Management
+Farmers can create and manage their farm profile:
+- Farm name
+- Location
+- Farm zones
+- Crop areas
+- Livestock areas
+
+### B. 🌡️ Temperature Intelligence
+Use FortyGuard to retrieve temperature intelligence for the farm location:
+- Current temperature
+- Temperature trends
+- Forecasted temperature
+- Environmental conditions
+- Heat-risk indicators
+
+### C. 🗺️ Farm Heat Risk Map
+Visualizes temperature conditions across different areas of the farm. Each zone receives a risk level:
+- 🟢 Low
+- 🟡 Moderate
+- 🟠 High
+- 🔴 Extreme
+
+### D. 🌾 Crop Heat Intelligence
+Farmers can register:
+- Crop type
+- Growth stage
+- Farm zone
+
+The system calculates a crop heat-risk level based on environmental conditions and crop requirements.
+
+### E. 🐄 Livestock Heat Intelligence
+Farmers can register livestock groups:
+- Dairy cattle
+- Sheep
+- Goats
+- Poultry
+
+The system estimates heat-stress risk and provides practical recommendations.
+
+### F. 🤖 AI Recommendations
+The AI converts calculated risk and environmental data into easy-to-understand recommendations:
+- 💧 Recommended irrigation period
+- 🧴 Recommended spraying period
+- 🐄 Livestock protection actions
+- 🌳 Shade recommendations
+- 💨 Ventilation recommendations
+- ⚠️ Heat-risk explanations
+
+### G. 🚨 Smart Alerts
+The system alerts farmers when a predefined risk threshold is reached.
+
+### H. 📈 Risk Forecast
+The system provides an overview of how heat risk is expected to change over the next several hours.
+
+---
+
+## 5. Tech Stack
+
+### Frontend
+- **Angular 19** - Main web dashboard and farm management interface
+- **Angular Material** - UI components
+- **Bootstrap 5** - Styling framework
+- **Leaflet** - Map visualization
+- **Chart.js** - Data visualization
+- **SweetAlert2** - Alert notifications
+
+### Backend
+- **Supabase** - Backend-as-a-Service
+  - PostgreSQL database
+  - Authentication
+  - Edge Functions
+  - Row Level Security (RLS)
+
+### Database
+- **PostgreSQL** - Stores:
+  - Users
+  - Farms
+  - Farm zones
+  - Crops
+  - Livestock
+  - Risk records
+  - Alerts
+  - Recommendations
+
+### Temperature Intelligence
+- **FortyGuard API** - Primary environmental data source:
+  - Temperature intelligence
+  - Heatmaps
+  - Environmental parameters
+  - Forecasted conditions
+
+### AI
+- **Gemini API** - Free-tier AI for generating natural-language explanations and recommendations
+- **ML API** - Custom machine learning model for crop heat-risk prediction
+
+### Maps
+- **Leaflet + OpenStreetMap** - Farm visualization and heat-risk mapping
+
+### Notifications
+- **Telegram Bot API** - Heat-risk alerts
+- **In-App Notifications** - Real-time alerts in the dashboard
+
+### Development & Deployment
+- **GitHub** - Version control
+- **Git** - Version control system
+- **Vercel** - Frontend hosting
+- **Supabase** - Backend hosting
+
+---
+
+## 6. Project Structure
+
+```
+farmguard-ai/
+├── src/
+│   ├── app/
+│   │   ├── core/
+│   │   │   ├── models/           # Data models and interfaces
+│   │   │   │   ├── crop-heat-risk.model.ts
+│   │   │   │   ├── farm.model.ts
+│   │   │   │   ├── temperature.model.ts
+│   │   │   │   └── ...
+│   │   │   ├── providers/        # Data providers
+│   │   │   │   └── fortyguard-temperature.provider.ts
+│   │   │   ├── services/         # Angular services
+│   │   │   │   ├── auth.service.ts
+│   │   │   │   ├── crop-heat-risk.service.ts
+│   │   │   │   ├── farm.service.ts
+│   │   │   │   ├── livestock-heat-risk.service.ts
+│   │   │   │   ├── temperature.service.ts
+│   │   │   │   └── ...
+│   │   │   └── guards/           # Route guards
+│   │   ├── features/             # Feature modules
+│   │   │   ├── auth/             # Authentication
+│   │   │   ├── crops/            # Crop management
+│   │   │   ├── dashboard/       # Main dashboard
+│   │   │   ├── farms/            # Farm management
+│   │   │   ├── heat-intelligence/ # Temperature intelligence
+│   │   │   ├── livestock/        # Livestock management
+│   │   │   ├── settings/         # User settings
+│   │   │   └── zones/            # Zone management
+│   │   ├── shared/               # Shared components
+│   │   │   ├── components/
+│   │   │   ├── directives/
+│   │   │   └── pipes/
+│   │   ├── environments/         # Environment configuration
+│   │   │   ├── environment.ts
+│   │   │   └── environment.development.ts
+│   │   └── app.component.ts      # Root component
+│   ├── assets/                   # Static assets
+│   ├── index.html                # Main HTML file
+│   ├── main.ts                   # Application entry point
+│   └── styles.css                # Global styles
+├── supabase/
+│   ├── functions/               # Supabase Edge Functions
+│   │   ├── ai-advisor/
+│   │   │   └── index.ts
+│   │   ├── crop-heat-risk/
+│   │   │   └── index.ts
+│   │   ├── fortyguard-proxy/
+│   │   │   └── index.ts
+│   │   └── livestock-heat-risk/
+│   │       └── index.ts
+│   └── migrations/              # Database migrations
+├── models/                       # ML model files
+├── public/                       # Public assets
+├── angular.json                  # Angular configuration
+├── package.json                  # Node.js dependencies
+├── tsconfig.json                 # TypeScript configuration
+├── vercel.json                   # Vercel deployment configuration
+└── README.md                     # This file
+```
+
+---
+
+## 7. Architecture
+
+### System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Angular Frontend                        │
+│  (Dashboard, Farm Management, Risk Assessment, Alerts)     │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       │ HTTP/REST
+                       │
+┌──────────────────────▼──────────────────────────────────────┐
+│                    Supabase Backend                          │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              PostgreSQL Database                      │   │
+│  │  Users, Farms, Zones, Crops, Livestock, Risks       │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              Edge Functions                           │   │
+│  │  • fortyguard-proxy  (Temperature data)              │   │
+│  │  • crop-heat-risk    (ML predictions)                │   │
+│  │  • livestock-heat-risk (Livestock risk)              │   │
+│  │  • ai-advisor        (AI recommendations)             │   │
+│  └──────────────────────────────────────────────────────┘   │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       │
+        ┌──────────────┼──────────────┐
+        │              │              │
+┌───────▼──────┐ ┌─────▼──────┐ ┌────▼────────┐
+│  FortyGuard  │ │   ML API    │ │  Gemini AI  │
+│     API      │ │             │ │             │
+│              │ │             │ │             │
+│ Temperature  │ │ Crop Heat   │ │ Natural     │
+│ Intelligence │ │ Risk Model  │ │ Language    │
+└──────────────┘ └─────────────┘ └─────────────┘
+```
+
+### Data Flow
+
+1. **Temperature Data Flow**
+   ```
+   Angular → Supabase Edge Function (fortyguard-proxy) → FortyGuard API
+   ```
+
+2. **Crop Heat Risk Flow**
+   ```
+   Angular → Supabase Edge Function (crop-heat-risk) → ML API → Angular
+   ```
+
+3. **Livestock Heat Risk Flow**
+   ```
+   Angular → Supabase Edge Function (livestock-heat-risk) → ML API → Angular
+   ```
+
+4. **AI Recommendations Flow**
+   ```
+   Angular → Supabase Edge Function (ai-advisor) → Gemini AI → Angular
+   ```
+
+---
+
+## 8. Setup Instructions
+
+### Prerequisites
+
+- Node.js (v18 or higher)
+- npm or yarn
+- Git
+- Supabase account
+- FortyGuard API key
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/jawadTamer/farmguard-ai.git
+   cd farmguard-ai
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up Supabase**
+   - Create a new project at [supabase.com](https://supabase.com)
+   - Run the database migrations in `supabase/migrations/`
+   - Configure Row Level Security (RLS) policies
+   - Create the Edge Functions
+
+4. **Configure environment variables**
+   - Copy `src/environments/environment.development.ts` to `src/environments/environment.ts`
+   - Add your Supabase URL and keys
+   - Add your API keys for FortyGuard, ML API, and Gemini AI
+
+5. **Deploy Edge Functions**
+   ```bash
+   cd supabase/functions
+   # Deploy each function to Supabase
+   ```
+
+---
+
+## 9. Environment Configuration
+
+### Environment Variables
+
+Create `src/environments/environment.ts`:
+
+```typescript
+export const environment = {
+  production: true,
+  supabase: {
+    url: 'https://your-project.supabase.co',
+    key: 'your-anon-key'
+  },
+  fortyguard: {
+    apiKey: 'your-fortyguard-api-key'
+  },
+  cropHeatRisk: {
+    apiUrl: 'https://your-project.supabase.co/functions/v1/crop-heat-risk'
+  },
+  livestockHeatRisk: {
+    apiUrl: 'https://your-project.supabase.co/functions/v1/livestock-heat-risk'
+  },
+  aiAdvisor: {
+    apiUrl: 'https://your-project.supabase.co/functions/v1/ai-advisor'
+  }
+};
+```
+
+### Development Environment
+
+Create `src/environments/environment.development.ts`:
+
+```typescript
+export const environment = {
+  production: false,
+  supabase: {
+    url: 'https://your-dev-project.supabase.co',
+    key: 'your-dev-anon-key'
+  },
+  fortyguard: {
+    apiKey: 'your-dev-fortyguard-api-key'
+  },
+  cropHeatRisk: {
+    apiUrl: 'https://your-dev-project.supabase.co/functions/v1/crop-heat-risk'
+  },
+  livestockHeatRisk: {
+    apiUrl: 'https://your-dev-project.supabase.co/functions/v1/livestock-heat-risk'
+  },
+  aiAdvisor: {
+    apiUrl: 'https://your-dev-project.supabase.co/functions/v1/ai-advisor'
+  }
+};
+```
+
+---
+
+## 10. Development
+
+### Start Development Server
 
 ```bash
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Navigate to `http://localhost:4200/`
 
-## Code scaffolding
+### Build for Production
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+```bash
+ng build --configuration production
+```
+
+### Run Tests
+
+```bash
+# Unit tests
+ng test
+
+# E2E tests
+ng e2e
+
+# Specific test file
+ng test --include='**/crop-heat-risk.service.spec.ts'
+```
+
+### Generate Components
 
 ```bash
 ng generate component component-name
+ng generate service service-name
+ng generate module module-name
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+---
 
-```bash
-ng generate --help
+## 11. Deployment
+
+### Frontend Deployment (Vercel)
+
+1. **Install Vercel CLI**
+   ```bash
+   npm install -g vercel
+   ```
+
+2. **Deploy to Vercel**
+   ```bash
+   vercel
+   ```
+
+3. **Configure Environment Variables**
+   - Add all environment variables in Vercel dashboard
+
+### Edge Functions Deployment
+
+1. **Install Supabase CLI**
+   ```bash
+   npm install -g supabase
+   ```
+
+2. **Login to Supabase**
+   ```bash
+   supabase login
+   ```
+
+3. **Deploy Functions**
+   ```bash
+   cd supabase/functions
+   supabase functions deploy fortyguard-proxy
+   supabase functions deploy crop-heat-risk
+   supabase functions deploy livestock-heat-risk
+   supabase functions deploy ai-advisor
+   ```
+
+---
+
+## 12. API Documentation
+
+### FortyGuard API
+
+**Base URL**: Provided by FortyGuard
+
+**Endpoints**:
+- `/v1/heatmap` - Get temperature heatmap
+- `/v1/env_params` - Get environmental parameters
+- `/v1/status` - Check API status
+
+### Supabase Edge Functions
+
+#### fortyguard-proxy
+
+**Purpose**: Proxy requests to FortyGuard API
+
+**Endpoint**: `/functions/v1/fortyguard-proxy`
+
+**Actions**:
+- `current-submit` - Submit current temperature request
+- `current-status` - Check current temperature status
+- `temperature-trend-submit` - Submit temperature trend request
+- `temperature-trend-status` - Check temperature trend status
+
+#### crop-heat-risk
+
+**Purpose**: Calculate crop heat risk using ML model
+
+**Endpoint**: `/functions/v1/crop-heat-risk`
+
+**Request**:
+```json
+{
+  "crop_type": "tomato",
+  "growth_stage": "flowering",
+  "temperature_c": 35.0,
+  "relative_humidity_percent": 70.0,
+  "latitude": 37.5,
+  "longitude": -77.5
+}
 ```
 
-## Building
-
-To build the project run:
-
-```bash
-ng build
+**Response**:
+```json
+{
+  "predictions": [
+    {
+      "heat_risk_class": "High",
+      "probabilities": {
+        "Critical": 0.1,
+        "High": 0.6,
+        "Low": 0.2,
+        "Moderate": 0.1
+      }
+    }
+  ]
+}
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+#### livestock-heat-risk
 
-## Running unit tests
+**Purpose**: Calculate livestock heat risk
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+**Endpoint**: `/functions/v1/livestock-heat-risk`
 
-```bash
-ng test
+**Request**:
+```json
+{
+  "livestock_type": "dairy_cattle",
+  "temperature_c": 35.0,
+  "relative_humidity_percent": 70.0
+}
 ```
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
+**Response**:
+```json
+{
+  "predictions": [
+    {
+      "heat_risk_class": "High",
+      "thi": 85,
+      "hli": 78
+    }
+  ]
+}
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+#### ai-advisor
 
-## Crop Heat-Risk ML Integration
+**Purpose**: Generate AI-powered recommendations
 
-FarmGuard includes an AI-powered crop heat-risk assessment feature that uses machine learning to predict heat stress levels for crops.
+**Endpoint**: `/functions/v1/ai-advisor`
 
-### Architecture
-
-The integration follows a secure proxy pattern:
-
-```
-Angular Application
-       ↓
-Supabase Edge Function (crop-heat-risk)
-       ↓
-External ML API (http://51.121.62.104/predict)
-       ↓
-ML Response
-       ↓
-Supabase Edge Function
-       ↓
-Angular Application
+**Request**:
+```json
+{
+  "context": "High heat risk for tomato crop",
+  "temperature": 35.0,
+  "crop_type": "tomato",
+  "growth_stage": "flowering"
+}
 ```
 
-### Key Components
+**Response**:
+```json
+{
+  "recommendation": "Irrigate during evening hours to reduce heat stress...",
+  "actions": [
+    "Increase irrigation",
+    "Provide shade",
+    "Monitor for wilting"
+  ]
+}
+```
 
-- **Angular Service**: `src/app/core/services/crop-heat-risk.service.ts`
-  - Builds ML requests from crop, zone, farm, and weather data
-  - Calls the Supabase Edge Function
-  - Handles response mapping and error handling
+---
 
-- **Supabase Edge Function**: `supabase/functions/crop-heat-risk/index.ts`
-  - Validates incoming requests (including growth_stage validation)
-  - Proxies requests to the external ML API
-  - Handles timeouts and network errors
-  - Returns clean JSON responses to Angular
-  - Configured with proper CORS headers
+## 13. Models & Data Structures
 
-- **TypeScript Models**: `src/app/core/models/crop-heat-risk.model.ts`
-  - Defines request/response interfaces matching the ML API contract
+### Farm Model
 
-### Growth Stage Values
+```typescript
+interface Farm {
+  id: string;
+  name: string;
+  location: string;
+  latitude: number;
+  longitude: number;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
 
-The ML model accepts only these exact growth stage values:
-- `maturity`
-- `planted`
-- `reproductive`
-- `vegetative`
+### Zone Model
 
-### Weather Data Handling
+```typescript
+interface Zone {
+  id: string;
+  farmId: string;
+  name: string;
+  type: 'crop' | 'livestock';
+  latitude: number;
+  longitude: number;
+  area: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
 
-FarmGuard currently does not have reliable GHI/DNI/DHI (solar radiation) values. The service uses documented placeholder values:
-- GHI (Global Horizontal Irradiance): 850.0 W/m²
-- DNI (Direct Normal Irradiance): 900.0 W/m²
-- DHI (Diffuse Horizontal Irradiance): 150.0 W/m²
+### Crop Model
 
-These are isolated in the `buildRequestFromCropData` method and should be replaced with actual weather data when available.
+```typescript
+interface Crop {
+  id: string;
+  zoneId: string;
+  cropType: string;
+  growthStage: string;
+  plantingDate: Date;
+  expectedHarvestDate: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
 
-### ML API Contract
+### Livestock Model
 
-**Request** (POST to http://51.121.62.104/predict):
+```typescript
+interface Livestock {
+  id: string;
+  zoneId: string;
+  livestockType: string;
+  count: number;
+  breed?: string;
+  age?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### Temperature Model
+
+```typescript
+interface TemperatureReading {
+  id: string;
+  farmId: string;
+  zoneId?: string;
+  temperature: number;
+  feelsLike: number;
+  humidity: number;
+  recordedAt: Date;
+  diagnostics?: TemperatureDiagnostics;
+}
+
+interface TemperatureDiagnostics {
+  heatmapStatus: 'pending' | 'completed' | 'failed';
+  temperatureExtractionStatus: 'pending' | 'completed' | 'failed';
+  environmentalDataStatus: 'pending' | 'completed' | 'failed';
+  heatmapCells?: number;
+  lastRecordedAt?: string;
+}
+```
+
+### Heat Risk Model
+
+```typescript
+interface HeatRisk {
+  id: string;
+  farmId: string;
+  zoneId: string;
+  entityType: 'crop' | 'livestock';
+  entityId: string;
+  riskLevel: 'low' | 'moderate' | 'high' | 'extreme';
+  temperature: number;
+  humidity: number;
+  heatIndex?: number;
+  thi?: number; // Temperature Humidity Index
+  hli?: number; // Heat Load Index
+  calculatedAt: Date;
+  expiresAt: Date;
+}
+```
+
+### Alert Model
+
+```typescript
+interface Alert {
+  id: string;
+  farmId: string;
+  zoneId: string;
+  entityType: 'crop' | 'livestock';
+  entityId: string;
+  alertType: 'heat_risk' | 'temperature_extreme' | 'recommendation';
+  severity: 'info' | 'warning' | 'critical';
+  message: string;
+  recommendedActions: string[];
+  isRead: boolean;
+  createdAt: Date;
+  readAt?: Date;
+}
+```
+
+---
+
+## 14. Edge Functions
+
+### fortyguard-proxy
+
+**Location**: `supabase/functions/fortyguard-proxy/index.ts`
+
+**Features**:
+- Proxy requests to FortyGuard API
+- Handle authentication with FortyGuard API key
+- Retry logic with exponential backoff
+- Timeout handling
+- Error logging and reporting
+
+**Circuit Breaker**:
+- Opens after 3 consecutive failures
+- Stays open for 5 minutes
+- Prevents API hammering during outages
+
+**Retry Logic**:
+- Up to 3 retries on 5xx errors
+- Exponential backoff (1s, 2s, 4s)
+- No retry on 4xx client errors
+
+### crop-heat-risk
+
+**Location**: `supabase/functions/crop-heat-risk/index.ts`
+
+**Features**:
+- Validate growth stage values (maturity, planted, reproductive, vegetative)
+- Build ML request from crop data
+- Proxy to external ML API
+- Handle timeouts and network errors
+- Map ML response to application format
+
+**Growth Stage Validation**:
+Only accepts: `maturity`, `planted`, `reproductive`, `vegetative`
+
+### livestock-heat-risk
+
+**Location**: `supabase/functions/livestock-heat-risk/index.ts`
+
+**Features**:
+- Calculate Temperature Humidity Index (THI)
+- Calculate Heat Load Index (HLI)
+- Determine heat risk level
+- Provide livestock-specific recommendations
+
+### ai-advisor
+
+**Location**: `supabase/functions/ai-advisor/index.ts`
+
+**Features**:
+- Generate natural language recommendations
+- Explain risk factors
+- Suggest actionable steps
+- Use Gemini AI for intelligent responses
+
+---
+
+## 15. AI Integration
+
+### Crop Heat Risk ML Model
+
+**API Endpoint**: `http://51.121.62.104/predict`
+
+**Request Parameters**:
 ```json
 {
   "hour": 14,
@@ -150,30 +831,110 @@ These are isolated in the `buildRequestFromCropData` method and should be replac
 }
 ```
 
-### Testing
+**Risk Classes**:
+- Low (0-25% probability)
+- Moderate (25-50% probability)
+- High (50-75% probability)
+- Critical (75-100% probability)
 
-The integration includes comprehensive unit tests in `src/app/core/services/crop-heat-risk.service.spec.ts`:
-- Valid request handling
-- Growth stage validation (all 4 valid stages)
-- Invalid growth stage rejection
-- Missing required values
-- ML API failure handling
-- Timeout/network failure handling
-- Successful response mapping
-- Probability mapping
+### Gemini AI Integration
 
-Run the tests:
-```bash
-ng test --include='**/crop-heat-risk.service.spec.ts'
-```
+**Purpose**: Generate natural language explanations and recommendations
 
-### Important Notes
+**Use Cases**:
+- Explain why a crop is at risk
+- Suggest irrigation timing
+- Recommend livestock protection measures
+- Provide heat-stress mitigation strategies
 
-- The ML server at `http://51.121.62.104/predict` is external and may have connectivity issues
-- The Edge Function acts as a secure proxy, hiding the ML API details from the browser
-- No direct calls to the ML API are made from the Angular application
-- The integration is structured correctly and will work once the ML server is reachable from Supabase Edge Functions
+---
 
-## Additional Resources
+## 16. User Journey
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+### Step 1 — Create Farm
+The farmer opens FarmGuard AI and creates a farm profile:
+- Farm Name
+- Location
+- Farm Zones
+
+### Step 2 — Add Crops & Livestock
+The farmer defines what exists on the farm:
+- Zone A: 🌾 Tomatoes (Growth Stage: Flowering)
+- Zone B: 🐄 Dairy Cattle (Animals: 120)
+
+### Step 3 — Get Environmental Intelligence
+FarmGuard AI retrieves temperature and environmental data through FortyGuard.
+
+### Step 4 — Analyze Risk
+The system combines:
+- Temperature
+- Environmental Conditions
+- Crop
+- Growth Stage
+- Livestock Type
+
+To calculate heat stress scores for each entity.
+
+### Step 5 — View the Farm Heat Map
+The farmer opens the dashboard and immediately sees which areas are safe and which require attention.
+
+### Step 6 — Receive AI Recommendations
+The system explains the situation in simple language with actionable recommendations.
+
+### Step 7 — Take Action
+The farmer uses the recommendations to make decisions about irrigation, spraying, livestock care, etc.
+
+### Step 8 — Receive Alerts
+If the risk becomes critical, FarmGuard AI sends an alert via Telegram or in-app notification.
+
+---
+
+## 17. Troubleshooting
+
+### Common Issues
+
+**Issue**: 404 errors on Vercel deployment
+- **Solution**: Ensure `vercel.json` has correct `outputDirectory` and Vercel project settings match
+
+**Issue**: FortyGuard API timeouts
+- **Solution**: Circuit breaker and retry logic are implemented. Check API status and fallback to cached data
+
+**Issue**: ML API connectivity
+- **Solution**: Edge Function handles timeouts. Check if ML server is reachable from Supabase
+
+**Issue**: Authentication errors
+- **Solution**: Verify Supabase keys and RLS policies are correctly configured
+
+---
+
+## 18. Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 19. License
+
+This project is licensed under the MIT License.
+
+---
+
+## 20. Contact
+
+For questions or support, please contact the project maintainers.
+
+---
+
+## 21. Additional Resources
+
+- [Angular Documentation](https://angular.dev)
+- [Supabase Documentation](https://supabase.com/docs)
+- [FortyGuard API Documentation](https://fortyguard.com/docs)
+- [Leaflet Documentation](https://leafletjs.com)
+- [Vercel Documentation](https://vercel.com/docs)
