@@ -167,7 +167,6 @@ The system provides an overview of how heat risk is expected to change over the 
 - **Leaflet + OpenStreetMap** - Farm visualization and heat-risk mapping
 
 ### Notifications
-- **Telegram Bot API** - Heat-risk alerts
 - **In-App Notifications** - Real-time alerts in the dashboard
 
 ### Development & Deployment
