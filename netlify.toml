@@ -6,3 +6,8 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+[plugins]
+  # Disable Netlify Angular Runtime plugin to use standard build
+  - package: "@netlify/angular-runtime"
+    disabled = true
